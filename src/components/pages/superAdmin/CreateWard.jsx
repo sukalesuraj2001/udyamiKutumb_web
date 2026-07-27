@@ -12,7 +12,7 @@ import {
   selectCreating,
   selectCreateSuccess,
   selectCreateError,
-} from "../../redux/slices/Wardslice.js";
+} from "../../redux/slices/wardSlice.js";
 
 // ─── Icon component (Tabler outline via CDN — add to index.html if not present)
 // <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />

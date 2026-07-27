@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import SlideOver from "./SlideOver.jsx";
-import ConfirmDeleteModal from "./ConfirmDeleteModal.jsx";
+import SlideOver from "./Slideover.jsx";
+import ConfirmDeleteModal from "./Confirmdeletemodal.jsx";
 
 // Replace with real data (API/Redux) once wired up
 const SAMPLE_RECORDS = [

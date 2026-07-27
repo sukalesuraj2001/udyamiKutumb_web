@@ -1,7 +1,7 @@
 import React from "react";
 import { Users } from "lucide-react";
 import HeadTable from "../members/Headtable.jsx";
-import { WARD_HOBLI_DATA } from "./headData.js";
+import { WARD_HOBLI_DATA } from "./Headdata.js";
 
 export default function WardHobliHead() {
   const handleView   = (row) => console.log("View",   row.memberId);

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Search, Plus, LayoutList } from "lucide-react";
-import BuilderSection from "./BuilderSection";
+import BuilderSection from "./Buildersection";
 
 /**
  * BuilderSidebar (Left Panel)

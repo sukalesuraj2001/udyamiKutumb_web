@@ -4,7 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { EyeIcon } from "../common/Icons.jsx";
 import { loginUser, clearAuthError } from "../redux/slices/authSlice.js";
-import { getLocationByWardHeadId } from "../redux/slices/areaChartSlice.js";
+import { getLocationByWardHeadId } from "../redux/slices/Areachartslice.js";
 
 const inputClass = (hasError) =>
   `w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition focus:ring-4 focus:ring-[#1B2430]/10 focus:border-[#1B2430] ${hasError ? "border-red-400" : "border-[#E2DDD1]"

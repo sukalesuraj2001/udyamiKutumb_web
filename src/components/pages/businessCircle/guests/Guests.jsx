@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { UserPlus, Trash2, Phone, Mail, ChevronDown } from "lucide-react";
-import SlideOver from "../../businessCircle/closedBusiness/SlideOver.jsx";
-import ConfirmDeleteModal from "../../businessCircle/closedBusiness/ConfirmDeleteModal.jsx";
+import SlideOver from "../../businessCircle/closedBusiness/Slideover.jsx";
+import ConfirmDeleteModal from "../../businessCircle/closedBusiness/Confirmdeletemodal.jsx";
 
 const STATUS_OPTIONS = ["invited", "declined", "converted", "attended"];
 

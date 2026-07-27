@@ -1,7 +1,7 @@
 import React from "react";
 import { Users } from "lucide-react";
 import HeadTable from "../members/Headtable.jsx";
-import { DISTRICT_HEAD_DATA } from "./headData.js";
+import { DISTRICT_HEAD_DATA } from "./Headdata.js";
 
 export default function DistrictHead() {
   const handleView   = (row) => console.log("View",   row.memberId);

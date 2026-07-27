@@ -4,7 +4,7 @@ import { UserPlus, SlidersHorizontal, Printer, Download, Search, PackageOpen, La
 import ConstituencySection from "./components/ConstituencySection.jsx";
 import PositionDetailsModal from "./models/PositionDetailsModal";
 import { getLocationByWardHeadId, selectWards, selectLocationStatus, selectLocationError} from "../../redux/slices/Areachartslice.js";
-import { selectUser } from "../../redux/slices/AuthSlice";
+import { selectUser } from "../../redux/slices/authSlice";
 
 // ─── Helpers ──────────────────────────────────────────────────────
 const statusOf = (built = 0, total = 0) => {

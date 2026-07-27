@@ -39,7 +39,7 @@ import AiIvrCalling from "../pages/communication/autoDialer/AiIvrCalling.jsx";
 import MemberMap from "../pages/MemberMap.jsx";
 import Udyamidatabaseupdated from "../pages/members/Udyamidatabaseupdated.jsx";
 import MemberDetailPage from "../pages/members/MemberDetailPage.jsx";
-import ChannelPartner from "../pages/channelPartners/ChannelPArtner.jsx";
+import ChannelPartner from "../pages/channelPartners/ChannelPartner.jsx";
 import CpMemberDetails from "../pages/channelPartners/CpMemberDetails.jsx";
 import LeadManagement from "../pages/leadManagement/LeadManagement.jsx";
 import SuperAdmin from "../pages/SuperAdmin.jsx";

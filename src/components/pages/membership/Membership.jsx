@@ -7,11 +7,11 @@ import {
 
 // ── Tab Components (import from their own files in your project) ────────────
 import SubscriptionsTab  from "./Subscription.jsx";
-import PaymentsTab       from "./PaymentsTab.jsx";
-import BuyPlanTab        from "./BuyPlanTab.jsx";
-import RevenueTab        from "./RevenueTab.jsx";
-import UpgradeFunnelTab  from "./UpgradeFunnelTab.jsx";
-import ManagePlansTab    from "./ManagePlansTab.jsx";
+import PaymentsTab       from "./Paymentstab.jsx";
+import BuyPlanTab        from "./Buyplantab.jsx";
+import RevenueTab        from "./Revenuetab.jsx";
+import UpgradeFunnelTab  from "./Upgradefunneltab.jsx";
+import ManagePlansTab    from "./Manageplanstab.jsx";
 // import ComplianceTab     from "./ComplianceTab.jsx";
 
 // ── Badge ───────────────────────────────────────────────────────────────────

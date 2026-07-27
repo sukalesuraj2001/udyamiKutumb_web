@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Sparkles, Plus, Trash2, ChevronDown, X, Share2, Phone } from "lucide-react";
-import SlideOver from "../businessCircle/closedBusiness/SlideOver.jsx";
-import ConfirmDeleteModal from "../businessCircle/closedBusiness/ConfirmDeleteModal.jsx";
+import SlideOver from "../businessCircle/closedBusiness/Slideover.jsx";
+import ConfirmDeleteModal from "../businessCircle/closedBusiness/Confirmdeletemodal.jsx";
 
 const STATUS_COLUMNS = ["New", "Contacted", "Meeting Done", "Deal Closed", "Not Converted"];
 const SCOPE_TABS = [

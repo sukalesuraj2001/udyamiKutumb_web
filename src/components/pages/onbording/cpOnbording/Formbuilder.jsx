@@ -3,10 +3,10 @@ import { Save, Send, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { INITIAL_SECTIONS, SECTION_ICONS } from "./data/Formbuilderdata.js";
-import BuilderSidebar      from "./BuilderSidebar";
-import FormPreview         from "./FormPreview.jsx";
-import FieldEditorModal    from "./FieldEditorModal";
-import ConfirmationModal   from "./ConfirmationModal";
+import BuilderSidebar      from "./Buildersidebar";
+import FormPreview         from "./Formpreview.jsx";
+import FieldEditorModal    from "./Fieldeditormodal";
+import ConfirmationModal   from "./Confirmationmodal";
 
 function buildExpandedMap(sections) {
   return sections.reduce((acc, s, i) => {

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
-import Sidebar from "./Sidebar.jsx";
+import Sidebar from "./SideBar.jsx";
 import { useSelector } from "react-redux";
 function AdminLayout() {
     const [isOpen, setIsOpen] = useState(true);

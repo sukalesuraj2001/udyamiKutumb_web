@@ -11,7 +11,7 @@ import {
   MoreHorizontal, Search, SlidersHorizontal
 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
-import { fetchDashboard } from "../redux/slices/dashboardSlice.JS";
+import { fetchDashboard } from "../redux/slices/dashboardSlice.js";
 
 
 

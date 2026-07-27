@@ -1,5 +1,5 @@
 import { ChevronDown, GripVertical, Plus } from "lucide-react";
-import BuilderField from "./BuilderField";
+import BuilderField from "./Builderfield";
 
 /**
  * BuilderSection
