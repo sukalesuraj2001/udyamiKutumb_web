@@ -1,0 +1,42 @@
+import React from "react";
+import { AlertTriangle, X } from "lucide-react";
+
+export default function DeleteCircleModal({ circle, onClose, onConfirm }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-ink/40" onClick={onClose} />
+
+      <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6">
+        <div className="flex items-start justify-between mb-4">
+          <span className="w-10 h-10 rounded-xl bg-brick/10 flex items-center justify-center">
+            <AlertTriangle size={18} className="text-brick" />
+          </span>
+          <button onClick={onClose} className="text-muted hover:text-ink">
+            <X size={18} />
+          </button>
+        </div>
+
+        <h2 className="text-[16px] font-semibold text-ink mb-1.5">Delete circle?</h2>
+        <p className="text-[13.5px] text-muted mb-6">
+          This will permanently remove <span className="font-medium text-ink">{circle?.name}</span> and all its
+          associated seats and meeting history. This action can't be undone.
+        </p>
+
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 border border-hairline text-ink text-[13.5px] font-semibold py-2.5 rounded-xl hover:bg-ink/5 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(circle)}
+            className="flex-1 bg-brick text-white text-[13.5px] font-semibold py-2.5 rounded-xl hover:bg-brick/90 transition-colors"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

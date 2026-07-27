@@ -1,0 +1,39 @@
+import React from "react";
+import { Plus } from "lucide-react";
+
+export default function SectorCard({ slotId, label, assigned, dimmed, onAssignClick, isSuperAdmin = false }) {
+  const displayLabel = label?.toUpperCase?.() || label;
+
+  return (
+    <div className={`transition-opacity ${dimmed ? "opacity-25" : "opacity-100"}`}>
+      {/* Compact card - just the header bar */}
+      <div className="bg-white rounded-sm overflow-hidden border border-white/10 w-[110px] mx-auto">
+        <p className="bg-ink text-white text-[6px] font-bold uppercase tracking-wide text-center py-[2px] px-0.5 leading-tight truncate">
+          {displayLabel}
+        </p>
+        <button
+          className="group relative w-full max-w-[110px] h-[110px] mx-auto bg-white flex items-center justify-center overflow-hidden p-1"
+        >
+          {assigned?.photoUrl ? (
+            <img src={assigned.photoUrl} alt={assigned.name} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-[5px] font-semibold uppercase text-gray-300 text-center px-0.5 leading-tight">{displayLabel}</span>
+          )}
+          {!isSuperAdmin && (
+            <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center transition-colors">
+              <Plus size={8} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Assigned member details below - matches reference */}
+      {assigned?.name && (
+        <div className="text-center mt-0.5">
+          <p className="text-[7px] font-bold text-white leading-tight truncate">{assigned.name}</p>
+          <p className="text-[5px] text-white/70 leading-tight truncate">{assigned.company || "Company Name"}</p>
+        </div>
+      )}
+    </div>
+  );
+}

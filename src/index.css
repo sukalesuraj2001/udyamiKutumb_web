@@ -1,0 +1,18 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+@theme {
+  --font-display: "Fraunces", serif;
+
+  --color-ink: #1B2430;
+  --color-paper: #F7F5F0;
+  --color-hairline: #E8E3D8;
+  --color-muted: #8C8777;
+  --color-forest: #2F6F4E;
+  --color-brick: #A23B2E;
+  --color-steel: #3B5BA8;
+
+  --color-amber: #B5730B;
+  --color-amber-soft: #E8B768;
+  --color-amber-tint: #FBF1DF;
+}

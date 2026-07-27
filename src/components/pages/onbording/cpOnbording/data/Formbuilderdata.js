@@ -1,0 +1,128 @@
+export const FIELD_TYPES = [
+  "Text", "Email", "Tel", "Number", "Date", "URL",
+  "Select", "Radio", "Checkbox", "Textarea",
+];
+
+export const SECTION_ICONS = [
+  "📋", "👤", "🏠", "🏢", "💼", "👑", "⚡", "🌐", "👥", "📄", "🔒", "💳",
+];
+
+export const INITIAL_SECTIONS = [
+  {
+    id: "personal",
+    title: "Personal & Contact",
+    icon: "👤",
+    subtitle: "Primary identity and contact details",
+    fields: [
+      { id: "f1",  name: "Full Name",        type: "Text",     required: true,  placeholder: "As per Aadhaar" },
+      { id: "f2",  name: "Date of Birth",    type: "Date",     required: true,  placeholder: "" },
+      { id: "f3",  name: "Gender",           type: "Select",   required: true,  placeholder: "Select…" },
+      { id: "f4",  name: "Email Address",    type: "Email",    required: true,  placeholder: "partner@example.com" },
+      { id: "f5",  name: "Mobile Number",    type: "Tel",      required: true,  placeholder: "+91 XXXXX XXXXX" },
+      { id: "f6",  name: "Alternate Mobile", type: "Tel",      required: false, placeholder: "+91 XXXXX XXXXX" },
+      { id: "f7",  name: "Aadhaar Number",   type: "Text",     required: false, placeholder: "XXXX XXXX XXXX" },
+      { id: "f8",  name: "PAN Number",       type: "Text",     required: false, placeholder: "ABCDE1234F" },
+    ],
+  },
+  {
+    id: "address",
+    title: "Residential Address",
+    icon: "🏠",
+    subtitle: "Current residential address",
+    fields: [
+      { id: "f9",  name: "Address Line 1", type: "Text",   required: false, placeholder: "Flat / House No, Street" },
+      { id: "f10", name: "Address Line 2", type: "Text",   required: false, placeholder: "Area / Locality" },
+      { id: "f11", name: "City",           type: "Text",   required: true,  placeholder: "City" },
+      { id: "f12", name: "District",       type: "Text",   required: false, placeholder: "District" },
+      { id: "f13", name: "State",          type: "Select", required: true,  placeholder: "Select…" },
+      { id: "f14", name: "Pincode",        type: "Text",   required: true,  placeholder: "600001" },
+    ],
+  },
+  {
+    id: "business",
+    title: "Business Information",
+    icon: "🏢",
+    subtitle: "Details about the partner's business entity",
+    fields: [
+      { id: "f15", name: "Business / Brand Name",  type: "Text",     required: false, placeholder: "Business name" },
+      { id: "f16", name: "Type of Business",       type: "Select",   required: false, placeholder: "Select…" },
+      { id: "f17", name: "Industry Sector",        type: "Select",   required: false, placeholder: "Select…" },
+      { id: "f18", name: "GSTIN",                  type: "Text",     required: false, placeholder: "22AAAAA0000A1Z5" },
+      { id: "f19", name: "Business Reg. No.",      type: "Text",     required: false, placeholder: "Registration number" },
+      { id: "f20", name: "Incorporation Date",     type: "Date",     required: false, placeholder: "" },
+      { id: "f21", name: "Business Email",         type: "Email",    required: false, placeholder: "info@business.com" },
+      { id: "f22", name: "Business Phone",         type: "Tel",      required: false, placeholder: "+91 XXXXX XXXXX" },
+      { id: "f23", name: "Annual Turnover (₹)",    type: "Select",   required: false, placeholder: "Select…" },
+      { id: "f24", name: "No. of Employees",       type: "Select",   required: false, placeholder: "Select…" },
+      { id: "f25", name: "Business Description",   type: "Textarea", required: false, placeholder: "Briefly describe the business…" },
+    ],
+  },
+  {
+    id: "skills",
+    title: "Professional Details",
+    icon: "💼",
+    subtitle: "Skills, interests and experience",
+    fields: [
+      { id: "f26", name: "Skills",              type: "Checkbox", required: false, placeholder: "" },
+      { id: "f27", name: "Areas of Interest",   type: "Checkbox", required: false, placeholder: "" },
+      { id: "f28", name: "Other Skill",         type: "Text",     required: false, placeholder: "Any other skill" },
+      { id: "f29", name: "Years of Experience", type: "Select",   required: false, placeholder: "Select…" },
+      { id: "f30", name: "Highest Education",   type: "Select",   required: false, placeholder: "Select…" },
+      { id: "f31", name: "Languages Known",     type: "Text",     required: false, placeholder: "e.g. Tamil, Hindi, English" },
+    ],
+  },
+  {
+    id: "udyami",
+    title: "Udyami Queens",
+    icon: "👑",
+    subtitle: "Women entrepreneurship initiative details",
+    fields: [
+      { id: "f32", name: "Part of Udyami Queens?",   type: "Radio",  required: true,  placeholder: "" },
+      { id: "f33", name: "Queen Category",            type: "Select", required: false, placeholder: "Select…" },
+      { id: "f34", name: "Women Group / SHG Name",    type: "Text",   required: false, placeholder: "Self-Help Group name" },
+      { id: "f35", name: "Group Size",                type: "Number", required: false, placeholder: "No. of members" },
+      { id: "f36", name: "Group Description",         type: "Textarea",required: false,placeholder: "Brief about the women group…" },
+    ],
+  },
+  {
+    id: "youth",
+    title: "Youth Entrepreneur",
+    icon: "⚡",
+    subtitle: "For partners under 35 with a startup idea",
+    fields: [
+      { id: "f37", name: "Is Youth Entrepreneur?",  type: "Radio",    required: true,  placeholder: "" },
+      { id: "f38", name: "Age",                     type: "Number",   required: false, placeholder: "Age" },
+      { id: "f39", name: "College / University",    type: "Text",     required: false, placeholder: "Institution name" },
+      { id: "f40", name: "Startup Name",            type: "Text",     required: false, placeholder: "Your startup name" },
+      { id: "f41", name: "Startup Stage",           type: "Select",   required: false, placeholder: "Select…" },
+      { id: "f42", name: "Startup Description",     type: "Textarea", required: false, placeholder: "Brief about your startup…" },
+    ],
+  },
+  {
+    id: "digital",
+    title: "Digital Presence",
+    icon: "🌐",
+    subtitle: "Online channels and reach details",
+    fields: [
+      { id: "f43", name: "Website / Portfolio URL",   type: "URL",      required: false, placeholder: "https://yourwebsite.com" },
+      { id: "f44", name: "Monthly Reach (approx.)",   type: "Select",   required: false, placeholder: "Select…" },
+      { id: "f45", name: "Primary Content Type",      type: "Select",   required: false, placeholder: "Select…" },
+      { id: "f46", name: "Active Social Platforms",   type: "Checkbox", required: false, placeholder: "" },
+    ],
+  },
+  {
+    id: "community",
+    title: "Community",
+    icon: "👥",
+    subtitle: "Network affiliation and membership details",
+    fields: [
+      { id: "f47", name: "District Network",          type: "Text",     required: false, placeholder: "e.g. Chennai South Network" },
+      { id: "f48", name: "Ward / Area",               type: "Text",     required: false, placeholder: "Ward name / Area" },
+      { id: "f49", name: "Membership Type",           type: "Select",   required: false, placeholder: "Select…" },
+      { id: "f50", name: "Referred By",               type: "Text",     required: false, placeholder: "Referrer's full name" },
+      { id: "f51", name: "Sponsor CP Code",           type: "Text",     required: false, placeholder: "e.g. CP-00123" },
+      { id: "f52", name: "Reason to Join",            type: "Textarea", required: false, placeholder: "Why do you want to become a Channel Partner?…" },
+      { id: "f53", name: "Terms & Conditions",        type: "Checkbox", required: true,  placeholder: "" },
+    ],
+  },
+];
