@@ -380,7 +380,7 @@ export default function AssignRolesTab() {
       payload = {
         ...base,
         type: "ward_chairman",
-        talukaHeadId: [selectedTalukaHeadId],
+        talukaHeadId: selectedTalukaHeadId,
         talukaId: wcTaluka,
         wardId: selectedWardId,
       };

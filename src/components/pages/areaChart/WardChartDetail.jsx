@@ -194,7 +194,7 @@ export default function WardChartDetail() {
   const isSuperAdmin = user?.role === "SuperAdmin";
 
   const [assignments, setAssignments] = useState({});
-  const [tab, setTab] = useState(user?.role === "admin" ? "build" : "preview");
+  const [tab, setTab] = useState(user?.role === "WardChairman" ? "build" : "preview");
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [showCustomize, setShowCustomize] = useState(false);
   const [modal, setModal] = useState(null);

@@ -1,17 +1,18 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
+import { showLoader, hideLoader } from "./globalLoaderSlice";
 
 // const BASE_URL = "http://192.168.0.70:3000";
 const BASE_URL = "https://udyami-circle-db.onrender.com";
 
 const mapToWardShape = (entry) => ({
-  id: entry.ward?.wardId ?? null,           // ✅ ward.wardId
-  ward_name: entry.ward?.wardName ?? "",    // ✅
-  ward_number: entry.ward?.wardNumber ?? "",// ✅
-  constituency: entry.taluka?.talukaName ?? "",  // ✅
-  district: entry.district?.districtName ?? "",  // ✅
-  state: entry.district?.state ?? "",            // ✅
-  totalWardChartMembers: entry.totalWardChartMembers ?? 0,  // ✅
+  id: entry.ward?.wardId ?? null,
+  ward_name: entry.ward?.wardName ?? "",
+  ward_number: entry.ward?.wardNumber ?? "",
+  constituency: entry.taluka?.talukaName ?? "",
+  district: entry.district?.districtName ?? "",
+  state: entry.district?.state ?? "",
+  totalWardChartMembers: entry.totalWardChartMembers ?? 0,
   booths_built: entry.totalWardChartMembers ?? 0,
   is_active: true,
 });
@@ -19,7 +20,8 @@ const mapToWardShape = (entry) => ({
 // ─── GET wards by talukaId ────────────────────────────────────────
 export const fetchWardsByTalukaId = createAsyncThunk(
   "areaChart/fetchWardsByTalukaId",
-  async (talukaId, { getState, rejectWithValue }) => {
+  async (talukaId, { getState, dispatch, rejectWithValue }) => {
+    dispatch(showLoader());
     try {
       const token = getState().auth.token;
       const { data } = await axios.get(
@@ -27,11 +29,13 @@ export const fetchWardsByTalukaId = createAsyncThunk(
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!data.success) throw new Error(data.message || "Fetch failed");
-      return data.data; // ward array
+      return data.data;
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || err.message || "Something went wrong"
       );
+    } finally {
+      dispatch(hideLoader());
     }
   }
 );
@@ -70,7 +74,8 @@ export const getWardName = () => {
 
 export const getLocationByWardHeadId = createAsyncThunk(
   "areaChart/getLocationByWardHeadId",
-  async (userId, { getState, rejectWithValue }) => {
+  async (userId, { getState, dispatch, rejectWithValue }) => {
+    dispatch(showLoader());
     try {
       const token = getState().auth.token;
       const role = getState().auth.user?.role;
@@ -82,7 +87,6 @@ export const getLocationByWardHeadId = createAsyncThunk(
 
       if (!data.success) throw new Error(data.message || "Fetch failed");
 
-      // ── localStorage store (role-based) ──────────────────────────
       const extractor = ROLE_LOCATION_EXTRACTOR[role];
       if (extractor) {
         const locationPayload = extractor(data.data);
@@ -91,7 +95,6 @@ export const getLocationByWardHeadId = createAsyncThunk(
         sessionStorage.setItem("locationData", serialised);
       }
 
-      // ── existing mapping logic (unchanged) ───────────────────────
       let entries;
       if (data.data?.wards) {
         entries = data.data.wards;
@@ -99,15 +102,14 @@ export const getLocationByWardHeadId = createAsyncThunk(
         entries = [data.data];
       }
 
-      // NEW — ward info from API
       const wardInfo = data.data?.ward
         ? {
-          wardId: data.data.ward.wardId,
-          wardName: data.data.ward.wardName,
-          wardNumber: data.data.ward.wardNumber,
-          totalWardChartMembers: data.data.totalWardChartMembers ?? 0,  // ← ADD
-          wardChartMembers: data.data.wardChartMembers ?? [],       // ← ADD
-        }
+            wardId: data.data.ward.wardId,
+            wardName: data.data.ward.wardName,
+            wardNumber: data.data.ward.wardNumber,
+            totalWardChartMembers: data.data.totalWardChartMembers ?? 0,
+            wardChartMembers: data.data.wardChartMembers ?? [],
+          }
         : null;
 
       return {
@@ -118,6 +120,8 @@ export const getLocationByWardHeadId = createAsyncThunk(
       return rejectWithValue(
         err.response?.data?.message || err.message || "Something went wrong"
       );
+    } finally {
+      dispatch(hideLoader());
     }
   }
 );
@@ -126,6 +130,7 @@ export const getLocationByWardHeadId = createAsyncThunk(
 export const createWardChartData = createAsyncThunk(
   "areaChart/createWardChartData",
   async (payload, { getState, dispatch, rejectWithValue }) => {
+    dispatch(showLoader());
     try {
       const token = getState().auth.token;
 
@@ -166,6 +171,8 @@ export const createWardChartData = createAsyncThunk(
       return rejectWithValue(
         err.response?.data?.message || err.message || "Something went wrong"
       );
+    } finally {
+      dispatch(hideLoader());
     }
   }
 );
@@ -173,7 +180,8 @@ export const createWardChartData = createAsyncThunk(
 // ─── SEARCH MEMBERS thunk ─────────────────────────────────────────
 export const searchMembers = createAsyncThunk(
   "areaChart/searchMembers",
-  async (query, { getState, rejectWithValue }) => {
+  async (query, { getState, dispatch, rejectWithValue }) => {
+    dispatch(showLoader());
     try {
       const token = getState().auth.token;
       const wardName = getWardName();
@@ -190,13 +198,17 @@ export const searchMembers = createAsyncThunk(
       return rejectWithValue(
         err.response?.data?.message || err.message || "Something went wrong"
       );
+    } finally {
+      dispatch(hideLoader());
     }
   }
 );
+
 // ─── GET thunk ────────────────────────────────────────────────────
 export const getWardChartData = createAsyncThunk(
   "areaChart/getWardChartData",
-  async ({ userId, wardId }, { getState, rejectWithValue }) => {
+  async ({ userId, wardId }, { getState, dispatch, rejectWithValue }) => {
+    dispatch(showLoader());
     try {
       const token = getState().auth.token;
       const { data } = await axios.get(
@@ -209,14 +221,17 @@ export const getWardChartData = createAsyncThunk(
       return rejectWithValue(
         err.response?.data?.message || err.message || "Something went wrong"
       );
+    } finally {
+      dispatch(hideLoader());
     }
   }
-)
+);
 
 // ─── DELETE thunk ─────────────────────────────────────────────────
 export const deleteWardChartMember = createAsyncThunk(
   "areaChart/deleteWardChartMember",
   async (memberId, { getState, dispatch, rejectWithValue }) => {
+    dispatch(showLoader());
     try {
       const token = getState().auth.token;
       const { data } = await axios.delete(
@@ -229,39 +244,35 @@ export const deleteWardChartMember = createAsyncThunk(
       return rejectWithValue(
         err.response?.data?.message || err.message || "Something went wrong"
       );
+    } finally {
+      dispatch(hideLoader());
     }
   }
 );
 
 // ─── Slice ────────────────────────────────────────────────────────
 const initialState = {
-  // POST
   status: "idle",
   data: null,
   error: null,
 
-  // GET ward chart
   fetchStatus: "idle",
   fetchedData: null,
   fetchError: null,
 
-  // DELETE
   deleteStatus: "idle",
   deleteError: null,
 
-  // GET location / ward list
   locationStatus: "idle",
   wards: [],
   locationError: null,
 
-  // GET wards by taluka
   talukaWards: [],
   talukaWardsStatus: "idle",
   talukaWardsError: null,
 
   wardInfo: null,
 
-  // SEARCH MEMBERS
   searchResults: [],
   searchStatus: "idle",
   searchError: null,
@@ -342,14 +353,14 @@ const areaChartSlice = createSlice({
         state.deleteStatus = "loading";
         state.deleteError = null;
       })
-      .addCase(deleteWardChartMember.fulfilled, (state, action) => {
+      .addCase(deleteWardChartMember.fulfilled, (state) => {
         state.deleteStatus = "succeeded";
         state.deleteError = null;
       })
       .addCase(deleteWardChartMember.rejected, (state, action) => {
         state.deleteStatus = "failed";
         state.deleteError = action.payload || "Something went wrong";
-      })
+      });
 
     // ── fetchWardsByTalukaId ──
     builder
@@ -365,7 +376,7 @@ const areaChartSlice = createSlice({
         state.talukaWardsStatus = "failed";
         state.talukaWardsError = action.payload || "Something went wrong";
         state.talukaWards = [];
-      })
+      });
 
     // ── searchMembers ──
     builder
@@ -386,21 +397,17 @@ const areaChartSlice = createSlice({
 });
 
 // ─── Selectors ────────────────────────────────────────────────────
-// POST
 export const selectAreaChartStatus = (state) => state.areaChart.status;
 export const selectAreaChartData = (state) => state.areaChart.data;
 export const selectAreaChartError = (state) => state.areaChart.error;
 
-// GET ward chart
 export const selectFetchStatus = (state) => state.areaChart.fetchStatus;
 export const selectFetchedData = (state) => state.areaChart.fetchedData;
 export const selectFetchError = (state) => state.areaChart.fetchError;
 
-// DELETE
 export const selectDeleteStatus = (state) => state.areaChart.deleteStatus;
 export const selectDeleteError = (state) => state.areaChart.deleteError;
 
-// Location / ward list
 export const selectLocationStatus = (state) => state.areaChart.locationStatus;
 export const selectWards = (state) => state.areaChart.wards;
 export const selectLocationError = (state) => state.areaChart.locationError;

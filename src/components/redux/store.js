@@ -14,14 +14,16 @@ import taxonomyReducer from './slices/taxonomySlice.js'
 import districtHeadReducer from './slices/Districtheadslice.js'
 import headReducer from './slices/headSlice.js'
 import membershipPlansReducer from "./slices/membershipPlansSlice.js";
+// import globalLoaderReducer from './slices/globalLoaderSlice.js'
 export const store = configureStore({
     reducer: {
+        globalLoader: globalLoaderReducer,
         auth: authSlice,
         wardMap: wardMapReducer,
         profile: profileReducer,
         dashboard: dashboardReducer,
         areaChart: areaChartReducer,
-        globalLoader: globalLoaderReducer,
+        // globalLoader: globalLoaderReducer,
         sendMessage: sendMessageReducer,
         roles: rolesReducer,
         ucTraining: ucTrainingReducer,

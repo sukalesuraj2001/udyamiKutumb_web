@@ -1,20 +1,23 @@
-// globalLoaderSlice.js
+// src/redux/slices/globalLoaderSlice.js
 import { createSlice } from "@reduxjs/toolkit";
 
 const globalLoaderSlice = createSlice({
   name: "globalLoader",
-  initialState: { isLoading: false, activeRequests: 0 },
+  initialState: {
+    isLoading: false,
+    activeRequests: 0, // counter — multiple APIs same time la call aidhalum safe
+  },
   reducers: {
-    startLoading(state) {
+    showLoader(state) {
       state.activeRequests += 1;
       state.isLoading = true;
     },
-    stopLoading(state) {
+    hideLoader(state) {
       state.activeRequests = Math.max(0, state.activeRequests - 1);
       state.isLoading = state.activeRequests > 0;
     },
   },
 });
 
-export const { startLoading, stopLoading } = globalLoaderSlice.actions;
+export const { showLoader, hideLoader } = globalLoaderSlice.actions;
 export default globalLoaderSlice.reducer;
