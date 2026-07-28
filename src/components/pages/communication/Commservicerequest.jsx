@@ -23,9 +23,9 @@ import {
   selectLastReviewedIds,
   selectIsReviewing,
   selectReviewError,
-} from "../../../redux/slices/sendMessageSlice";
+} from "../../redux/slices/sendMessageSlice";
 
-import { selectUser } from "../../../redux/slices/authSlice";
+import { selectUser } from "../../redux/slices/authSlice";
 
 // ─── STAT CARD ───────────────────────────────────────────────────────────────
 function StatCard({ label, value, icon: Icon, color, bg, border }) {

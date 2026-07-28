@@ -12,7 +12,7 @@ import wardReducer from "./slices/wardSlice";
 import scoringReducer from "./slices/scoringSlice.js";
 import taxonomyReducer from './slices/taxonomySlice.js'
 import districtHeadReducer from './slices/Districtheadslice.js'
-import headReducer from './slices/Headslice.js'
+import headReducer from './slices/headSlice.js'
 import membershipPlansReducer from "./slices/membershipPlansSlice.js";
 export const store = configureStore({
     reducer: {
