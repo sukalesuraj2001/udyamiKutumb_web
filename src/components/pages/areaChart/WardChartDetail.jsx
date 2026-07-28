@@ -15,8 +15,7 @@ import CoverPage from "./components/CoverPage.jsx";
 import ChartPreviewFrame from "./components/ChartPreviewFrame.jsx";
 import { useSelector, useDispatch } from "react-redux";
 import PositionDetailsModal from "./models/PositionDetailsModal.jsx";
-import { deleteWardChartMember } from "../../redux/slices/Areachartslice.js";
-
+import { deleteWardChartMember, selectWardInfo } from "../../redux/slices/Areachartslice.js";
 import {
   createWardChartData,
   getWardChartData,
@@ -173,6 +172,8 @@ export default function WardChartDetail() {
   const fetchStatus = useSelector(selectFetchStatus);
   const fetchedData = useSelector(selectFetchedData);
 
+  const wardInfo = useSelector(selectWardInfo);
+
   const handleRemove = (row) => {
     console.log("ward:", ward);
     if (!row.memberId) {
@@ -223,12 +224,14 @@ export default function WardChartDetail() {
   const handleAssign = (data) => {
     const slotId = modal.slotId;
     const photoFile = data.photoFile;
+    const photoUrl = data.photoUrl;   
     setModal(null);
 
     const { photoFile: _f, photoUrl: _u, ...restData } = data;
 
     const payload = buildSingleMemberPayload(ward, user, slotId, {
       ...restData,
+      photoUrl,
       slotLabel: modal.label,
     });
 
@@ -239,9 +242,13 @@ export default function WardChartDetail() {
         wardHeadId: payload.wardHeadId,
         wardId: ward.id,
         ward: payload.ward,
-        members: payload.members.map(({ profileImage, ...m }) => m),
+        members: payload.members.map(({ profileImage, ...m }) => ({
+          ...m,
+          ...(photoFile ? {} : { profileImage: profileImage || "" }),
+        })),
       })
     );
+
     if (photoFile) {
       formData.append("profileImages", photoFile);
     }
@@ -310,16 +317,16 @@ export default function WardChartDetail() {
   const rows = useMemo(
     () =>
       Object.entries(assignments).map(([slotId, a]) => ({
-        name:         a.name,
-        company:      a.company      || "—",
-        position:     a.slotLabel    || slotId,
-        status:       a.status       || "registered",
+        name: a.name,
+        company: a.company || "—",
+        position: a.slotLabel || slotId,
+        status: a.status || "registered",
         slotId,
-        memberId:     a.memberId     || a.id   || null,
-        memberNumber: a.memberNumber           || null,
-        mobileNumber: a.mobileNumber           || null,
-        email:        a.email                  || null,
-        profileImage: a.photoUrl     || a.profileImage || null,
+        memberId: a.memberId || a.id || null,
+        memberNumber: a.memberNumber || null,
+        mobileNumber: a.mobileNumber || null,
+        email: a.email || null,
+        profileImage: a.photoUrl || a.profileImage || null,
       })),
     [assignments]
   );
@@ -410,9 +417,8 @@ export default function WardChartDetail() {
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-[12.5px] font-semibold transition-colors ${
-                tab === id ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-900"
-              }`}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-[12.5px] font-semibold transition-colors ${tab === id ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-900"
+                }`}
             >
               <Icon size={13} /> {label}
             </button>
@@ -424,7 +430,8 @@ export default function WardChartDetail() {
           PAGE 1 — COVER
       ══════════════════════════════════════════════ */}
       <ChartPreviewFrame pageLabel="Page 1 — Cover">
-        <CoverPage wardNumber={ward.ward_number} wardName={ward.ward_name} />
+        <CoverPage code={wardInfo?.wardNumber ?? ""}
+          regionName={wardInfo?.wardName ?? ""} wardNumber={ward.ward_number} wardName={ward.ward_name} />
       </ChartPreviewFrame>
 
       {/* ══════════════════════════════════════════════
@@ -672,9 +679,8 @@ export default function WardChartDetail() {
                     {/* Core role: always clickable; plus overlay only in build mode */}
                     <div
                       onClick={() => handleSlotClick(slotId, role)}
-                      className={`relative w-[90px] h-[90px] rounded-lg border-2 border-[#c8102e] bg-[#d32f2f] flex items-center justify-center overflow-hidden ${
-                        !isPreviewMode && !isSuperAdmin ? "cursor-pointer group" : "cursor-default"
-                      }`}
+                      className={`relative w-[90px] h-[90px] rounded-lg border-2 border-[#c8102e] bg-[#d32f2f] flex items-center justify-center overflow-hidden ${!isPreviewMode && !isSuperAdmin ? "cursor-pointer group" : "cursor-default"
+                        }`}
                     >
                       {assignments[slotId]?.photoUrl ? (
                         <img
@@ -755,9 +761,8 @@ export default function WardChartDetail() {
                         {/* UMS: always clickable; hover only in build mode */}
                         <div
                           onClick={() => handleSlotClick(slotId, s.label)}
-                          className={`relative w-full aspect-[3/2] border border-[#c8102e] rounded-sm bg-[#d0d0d8] overflow-hidden flex items-center justify-center ${
-                            !isPreviewMode ? "cursor-pointer group" : "cursor-default"
-                          }`}
+                          className={`relative w-full aspect-[3/2] border border-[#c8102e] rounded-sm bg-[#d0d0d8] overflow-hidden flex items-center justify-center ${!isPreviewMode ? "cursor-pointer group" : "cursor-default"
+                            }`}
                         >
                           {assignments[slotId]?.photoUrl && (
                             <img

@@ -98,6 +98,8 @@ export default function SendCampaign() {
   // ── Bulk file state (controlled in parent)
   const [csvFile, setCsvFile] = useState(null);
   const [csvLocalError, setCsvLocalError] = useState(null);
+  const [bulkSubject, setBulkSubject] = useState("");
+  const [bulkMessage, setBulkMessage] = useState("");
 
   // ── Track previous upload status to detect success transition
   const prevUploadStatus = useRef(uploadStatus);
@@ -209,6 +211,8 @@ export default function SendCampaign() {
         userId: user?.userId,
         channel: channel.toUpperCase(),
         scheduledAt: buildScheduledAt(schedule) ?? undefined,
+        subject: bulkSubject || undefined,   // ← NEW
+        message: bulkMessage || undefined,   // ← NEW
       })
     );
   };
@@ -248,7 +252,7 @@ export default function SendCampaign() {
         {/* ── MAIN COLUMN ── */}
         <div className="space-y-6 min-w-0">
           {isMember && (
-          <Statscards />
+            <Statscards />
           )}
 
           {isMember && (
@@ -325,31 +329,20 @@ export default function SendCampaign() {
                     />
                   </div>
 
-                  {channel === "email" ? (
-                    <EmailComposer
-                      subject={subject}
-                      onSubjectChange={setSubject}
-                      body={message}
-                      onBodyChange={setMessage}
-                    />
-                  ) : (
-                    <div>
-                      <label className="text-[13px] font-semibold text-gray-700 mb-1.5 block">
-                        Message
-                      </label>
-                      <textarea
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        placeholder="Type your message. Use {first_name}, {ward} for personalization."
-                        rows={5}
-                        className={`${inputCls} resize-y`}
-                      />
-                      {channel === "sms" && (
-                        <p className={`text-[11.5px] font-medium mt-1.5 ${counterClass}`}>
-                          {message.length} / 160 chars — {segments} segment{segments !== 1 ? "s" : ""}
-                        </p>
-                      )}
-                    </div>
+                  {/* ── ALL channels → EmailComposer ── */}
+                  <EmailComposer
+                    subject={subject}
+                    onSubjectChange={setSubject}
+                    body={message}
+                    onBodyChange={setMessage}
+                    channel={channel}
+                  />
+
+                  {/* SMS segment counter */}
+                  {channel === "sms" && message.length > 0 && (
+                    <p className={`text-[11.5px] font-medium -mt-3 ${counterClass}`}>
+                      {message.length} / 160 chars — {segments} segment{segments !== 1 ? "s" : ""}
+                    </p>
                   )}
 
                   <div className="border-t border-gray-100 pt-5">
@@ -377,28 +370,54 @@ export default function SendCampaign() {
                     />
                   </div>
 
-                  {/* Step 2 — Schedule */}
+                  {/* Step 2 — Message content (all channels) */}
+                  <div className="border-t border-gray-100 pt-5 space-y-4">
+                    <p className="text-[13px] font-semibold text-gray-700">
+                      Step 2 — Campaign content
+                    </p>
+
+                    <EmailComposer
+                      subject={bulkSubject}
+                      onSubjectChange={setBulkSubject}
+                      body={bulkMessage}
+                      onBodyChange={setBulkMessage}
+                      channel={channel}
+                    />
+
+                    {channel === "sms" && bulkMessage.length > 0 && (
+                      <p className={`text-[11.5px] font-medium ${Math.ceil(bulkMessage.length / 160) === 1 ? "text-green-600" :
+                          Math.ceil(bulkMessage.length / 160) <= 3 ? "text-amber-500" :
+                            "text-red-500"
+                        }`}>
+                        {bulkMessage.length} / 160 chars —{" "}
+                        {Math.ceil(bulkMessage.length / 160)} segment
+                        {Math.ceil(bulkMessage.length / 160) !== 1 ? "s" : ""}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Step 3 — Schedule */}
                   <div className="border-t border-gray-100 pt-5">
                     <p className="text-[13px] font-semibold text-gray-700 mb-3">
-                      Step 2 — Choose schedule
+                      Step 3 — Choose schedule
                     </p>
                     <SchedulePanel schedule={schedule} onChange={handleScheduleChange} />
                   </div>
 
-                  {/* Step 3 — Submit */}
+                  {/* Step 4 — Submit */}
                   <div className="border-t border-gray-100 pt-5 space-y-3">
                     <p className="text-[13px] font-semibold text-gray-700">
-                      Step 3 — Submit campaign
+                      Step 4 — Submit campaign
                     </p>
 
                     <button
                       onClick={handleBulkSubmit}
                       disabled={!canBulkSubmit}
                       className="w-full flex items-center justify-center gap-2
-                                 bg-blue-600 hover:bg-blue-700 active:scale-[0.98]
-                                 disabled:opacity-40 disabled:cursor-not-allowed
-                                 text-white text-[13.5px] font-semibold
-                                 py-3 rounded-xl transition-all shadow-sm shadow-blue-200"
+                   bg-blue-600 hover:bg-blue-700 active:scale-[0.98]
+                   disabled:opacity-40 disabled:cursor-not-allowed
+                   text-white text-[13.5px] font-semibold
+                   py-3 rounded-xl transition-all shadow-sm shadow-blue-200"
                     >
                       {isUploading ? (
                         <>
@@ -419,6 +438,7 @@ export default function SendCampaign() {
                       </p>
                     )}
                   </div>
+
                   {/* Upload Result Banner */}
                   {(uploadStatus === "succeeded" || uploadStatus === "failed") && (
                     <UploadResultBanner
@@ -427,10 +447,6 @@ export default function SendCampaign() {
                       autoClose={uploadResult?.failedCount === 0}
                     />
                   )}
-
-                  {/* ── CSV Data Table — always visible in bulk mode ── */}
-                  {/* <div className="border-t border-gray-100 pt-2"> */}
-                  {/* </div> */}
                 </>
               )}
             </div>

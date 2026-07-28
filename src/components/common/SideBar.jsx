@@ -578,24 +578,24 @@ const NAV = {
         { type: "link", name: "Dashboard", icon: LayoutDashboard, path: "/super-admin-dashboard" },
         {
             type: "group", key: "sp-members", name: "Members", icon: Users, children: [
-                { name: "State Head", path: "/super-admin-dashboard/state-head" },
+                // { name: "State Head", path: "/super-admin-dashboard/state-head" },
                 { name: "District Head", path: "/super-admin-dashboard/district-head" },
                 { name: "Taluk Head", path: "/super-admin-dashboard/taluk-head" },
                 { name: "Ward / Hobli Head", path: "/super-admin-dashboard/ward-head" },
-                { name: "Channel Partners", path: "/super-admin-dashboard/members/channelPartners" },
+                // { name: "Channel Partners", path: "/super-admin-dashboard/members/channelPartners" },
             ]
         },
         {
             type: "group", key: "WC-Oprations", name: "Oprations", icon: Briefcase, children: [
-                { name: "Lead Managemant", path: "/admin-dashboard/lead-management" },
+                // { name: "Lead Managemant", path: "/admin-dashboard/lead-management" },
                 { name: "Send Messages", path: "/super-admin-dashboard/communications" },
-                { name: "Comm Service Request", path: "/admin-dashboard/users" },
-                { name: "Comm Credits Admin", path: "/register" },
-                { name: "Field Operations", path: "/register" },
-                { name: "Geo-Fencing", path: "/register" },
+                // { name: "Comm Service Request", path: "/admin-dashboard/users" },
+                // { name: "Comm Credits Admin", path: "/register" },
+                // { name: "Field Operations", path: "/register" },
+                // { name: "Geo-Fencing", path: "/register" },
                 { name: "Member Map", path: "/super-admin-dashboard/member-map" },
                 { name: "Business Circle", path: "/super-admin-dashboard/business-circle" },
-                { name: "Networking", path: "/register" },
+                // { name: "Networking", path: "/register" },
             ]
         },
         {
@@ -611,18 +611,18 @@ const NAV = {
         },
         {
             type: "group", key: "sp-admin", name: "Employees", icon: UserCog, children: [
-                { name: "Add Employee", path: "/super-admin-dashboard/user-management" },
-                { name: "Manage Employee", path: "/manage" },
+                // { name: "Add Employee", path: "/super-admin-dashboard/user-management" },
+                // { name: "Manage Employee", path: "/manage" },
                 { name: "Manage Roles", path: "/super-admin-dashboard/membership/role-management" },
                 { name: "Create Ward", path: "/super-admin-dashboard/create-ward" },
             ]
         },
-        {
-            type: "group", key: "sp-formFeild", name: "Form Feild", icon: UserCog, children: [
-                { name: "Member Onboard", path: "/admin-dashboard/users" },
-                { name: "Channel Partnern Onboard", path: "/super-admin-dashboard/cp-onbording" },
-            ]
-        },
+        // {
+        //     type: "group", key: "sp-formFeild", name: "Form Feild", icon: UserCog, children: [
+        //         { name: "Member Onboard", path: "/admin-dashboard/users" },
+        //         { name: "Channel Partnern Onboard", path: "/super-admin-dashboard/cp-onbording" },
+        //     ]
+        // },
     ],
     StateHead: [
         { type: "link", name: "Dashboard", icon: LayoutDashboard, path: "/state-head-dashboard" },
@@ -698,56 +698,56 @@ const NAV = {
                 { name: "Channel Partners", path: "/district-head-dashboard/members/channelPartners" },
             ]
         },
-        {
-            type: "group", key: "DH-members-db", name: "Members", icon: Building2, children: [
-                { name: "Udyami Database", path: "/district-head-dashboard/members" },
-                { name: "Roles", path: "/district-head-dashboard/members/roles" },
-                { name: "Channel Partners", path: "/district-head-dashboard/members/channelPartners" },
-            ]
-        },
+        // {
+        //     type: "group", key: "DH-members-db", name: "Members", icon: Building2, children: [
+        //         { name: "Udyami Database", path: "/district-head-dashboard/members" },
+        //         { name: "Roles", path: "/district-head-dashboard/members/roles" },
+        //         { name: "Channel Partners", path: "/district-head-dashboard/members/channelPartners" },
+        //     ]
+        // },
         {
             type: "group", key: "DH-Oprations", name: "Oprations", icon: Briefcase, children: [
-                { name: "Lead Managemant", path: "/district-head-dashboard/lead-management" },
-                { name: "Send Messages", path: "/district-head-dashboard/communications" },
-                { name: "Comm Service Request", path: "/district-head-dashboard/users" },
-                { name: "Comm Credits Admin", path: "/register" },
-                { name: "Field Operations", path: "/register" },
-                { name: "Geo-Fencing", path: "/register" },
+                // { name: "Lead Managemant", path: "/district-head-dashboard/lead-management" },
+                // { name: "Send Messages", path: "/district-head-dashboard/communications" },
+                // { name: "Comm Service Request", path: "/district-head-dashboard/users" },
+                // { name: "Comm Credits Admin", path: "/register" },
+                // { name: "Field Operations", path: "/register" },
+                // { name: "Geo-Fencing", path: "/register" },
                 { name: "Member Map", path: "/district-head-dashboard/member-map" },
                 { name: "Area Chart", path: "/district-head-dashboard/area-chart" },
                 { name: "Business Circle", path: "/district-head-dashboard/business-circle" },
-                { name: "Networking", path: "/register" },
+                // { name: "Networking", path: "/register" },
             ]
         },
-        {
-            type: "group", key: "DH-community", name: "Community Programmes", icon: HandHeart, children: [
-                { name: "Programmes Hub", path: "/district-head-dashboard/users" },
-                { name: "Udyami Queens", path: "/register" },
-                { name: "Senior Expert Panel", path: "/district-head-dashboard/users" },
-                { name: "Youth Programme", path: "/district-head-dashboard/users" },
-                { name: "Children Programme", path: "/district-head-dashboard/users" },
-            ]
-        },
-        {
-            type: "group", key: "DH-growth", name: "Growth", icon: TrendingUp, children: [
-                { name: "Training & Jobs", path: "/district-head-dashboard/users" },
-                { name: "Reward & Recognition", path: "/register" },
-                { name: "Analytics & Reports", path: "/district-head-dashboard/users" },
-            ]
-        },
-        {
-            type: "group", key: "DH-digital", name: "Digital", icon: Globe, children: [
-                { name: "Social Onbording", path: "/district-head-dashboard/users" },
-                { name: "Social Management", path: "/register" },
-                { name: "Social Media Manager", path: "/district-head-dashboard/users" },
-                { name: "Social Media Overview", path: "/district-head-dashboard/users" },
-                { name: "Website & Media", path: "/district-head-dashboard/users" },
-            ]
-        },
+        // {
+        //     type: "group", key: "DH-community", name: "Community Programmes", icon: HandHeart, children: [
+        //         { name: "Programmes Hub", path: "/district-head-dashboard/users" },
+        //         { name: "Udyami Queens", path: "/register" },
+        //         { name: "Senior Expert Panel", path: "/district-head-dashboard/users" },
+        //         { name: "Youth Programme", path: "/district-head-dashboard/users" },
+        //         { name: "Children Programme", path: "/district-head-dashboard/users" },
+        //     ]
+        // },
+        // {
+        //     type: "group", key: "DH-growth", name: "Growth", icon: TrendingUp, children: [
+        //         { name: "Training & Jobs", path: "/district-head-dashboard/users" },
+        //         { name: "Reward & Recognition", path: "/register" },
+        //         { name: "Analytics & Reports", path: "/district-head-dashboard/users" },
+        //     ]
+        // },
+        // {
+        //     type: "group", key: "DH-digital", name: "Digital", icon: Globe, children: [
+        //         { name: "Social Onbording", path: "/district-head-dashboard/users" },
+        //         { name: "Social Management", path: "/register" },
+        //         { name: "Social Media Manager", path: "/district-head-dashboard/users" },
+        //         { name: "Social Media Overview", path: "/district-head-dashboard/users" },
+        //         { name: "Website & Media", path: "/district-head-dashboard/users" },
+        //     ]
+        // },
         {
             type: "group", key: "sp-admin", name: "Employees", icon: UserCog, children: [
-                { name: "Add Employee", path: "/district-head/user-management" },
-                { name: "Manage Employee", path: "/district-head/manage" },
+                // { name: "Add Employee", path: "/district-head/user-management" },
+                // { name: "Manage Employee", path: "/district-head/manage" },
                 { name: "Manage Roles", path: "/district-head/role-management" },
                 // { name: "Create Ward", path: "/super-admin-dashboard/create-ward" },
             ]

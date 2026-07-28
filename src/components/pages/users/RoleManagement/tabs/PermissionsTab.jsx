@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Shield, ChevronDown, ChevronUp } from "lucide-react";
-import { ROLES, ROLE_BY_ID, PERMISSION_MODULES } from "../data/roles";
+import { ROLES, PERMISSION_MODULES } from "../data/roles";
 
 // ─── Permission cycle: none → read → write → none ────────────────────────────
 const CYCLE = ["none", "read", "write"];
@@ -12,6 +12,8 @@ const PERM_STYLE = {
   read:  { bg: "bg-sky-100",     text: "text-sky-700",     border: "border-sky-300",     label: "READ"  },
   none:  { bg: "bg-gray-100",    text: "text-gray-400",    border: "border-gray-200",    label: "NONE"  },
 };
+
+const  ROLESS =[]
 
 function PermBadge({ value, onClick, readOnly = false }) {
   const s = PERM_STYLE[value] ?? PERM_STYLE.none;
@@ -27,8 +29,22 @@ function PermBadge({ value, onClick, readOnly = false }) {
   );
 }
 
+// ─── Coming Soon placeholder ──────────────────────────────────────────────────
+function ComingSoon() {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white flex flex-col items-center justify-center gap-2 py-16 px-4">
+      <svg width="30" height="30" className="text-gray-300" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+      </svg>
+      <p className="text-[13.5px] font-semibold text-gray-500">Coming soon</p>
+      <p className="text-[12px] text-gray-400 text-center max-w-[220px]">
+        Roles and permissions will appear here once configured.
+      </p>
+    </div>
+  );
+}
+
 export default function PermissionsTab() {
-  // Local editable copy of permissions per role
   const [perms, setPerms] = useState(() => {
     const map = {};
     ROLES.forEach((r) => { map[r.id] = { ...r.permissions }; });
@@ -45,6 +61,21 @@ export default function PermissionsTab() {
       },
     }));
   };
+
+  // ── Coming soon if no data ─────────────────────────────────────────────────
+  if (!ROLESS?.length || !PERMISSION_MODULES?.length) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-[14px] font-bold text-gray-900">Permissions Matrix</h2>
+            <p className="text-[12px] text-gray-400 mt-0.5">Module-level access per role · click a row to expand details</p>
+          </div>
+        </div>
+        <ComingSoon />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -66,12 +97,10 @@ export default function PermissionsTab() {
           <table className="w-full text-[12px]">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
-                {/* Module column */}
                 <th className="text-left px-4 py-3 text-[10.5px] font-semibold tracking-wider uppercase text-gray-400 whitespace-nowrap sticky left-0 bg-gray-50 min-w-[180px]">
                   Module
                 </th>
-                {/* One column per role */}
-                {ROLES.map((r) => (
+                {ROLESS.map((r) => (
                   <th key={r.id} className="text-center px-3 py-3 min-w-[110px]">
                     <div className="flex flex-col items-center gap-1">
                       <span className={`text-[10.5px] font-bold whitespace-nowrap ${r.textColor}`}>{r.name}</span>
@@ -102,7 +131,7 @@ export default function PermissionsTab() {
         </div>
       </div>
 
-      {/* Role detail cards — expand on click */}
+      {/* Role detail cards */}
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
           <p className="text-[12.5px] font-semibold text-gray-700">Role Details</p>
@@ -128,7 +157,6 @@ export default function PermissionsTab() {
                     <span className={`text-[12.5px] font-bold ${role.textColor}`}>{role.name}</span>
                     <span className="ml-2 text-[11px] text-gray-400">{role.subtitle}</span>
                   </div>
-                  {/* Quick summary badges */}
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="text-[10.5px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">{writeCnt}W</span>
                     <span className="text-[10.5px] font-semibold text-sky-600 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">{readCnt}R</span>

@@ -5,7 +5,7 @@ import axios from "axios";
 const BASE_URL = "https://udyami-circle-db.onrender.com";
 
 const mapToWardShape = (entry) => ({
-  id: entry.ward?.wardId ?? null,           // ✅ ward.wardId இருக்கு
+  id: entry.ward?.wardId ?? null,           // ✅ ward.wardId
   ward_name: entry.ward?.wardName ?? "",    // ✅
   ward_number: entry.ward?.wardNumber ?? "",// ✅
   constituency: entry.taluka?.talukaName ?? "",  // ✅
@@ -58,6 +58,16 @@ const ROLE_LOCATION_EXTRACTOR = {
   }),
 };
 
+export const getWardName = () => {
+  try {
+    const locationData = JSON.parse(localStorage.getItem("locationData"));
+    return locationData?.wardName || "";
+  } catch (error) {
+    console.error("Error reading ward name:", error);
+    return "";
+  }
+};
+
 export const getLocationByWardHeadId = createAsyncThunk(
   "areaChart/getLocationByWardHeadId",
   async (userId, { getState, rejectWithValue }) => {
@@ -89,7 +99,21 @@ export const getLocationByWardHeadId = createAsyncThunk(
         entries = [data.data];
       }
 
-      return entries.map(mapToWardShape);
+      // NEW — ward info from API
+      const wardInfo = data.data?.ward
+        ? {
+          wardId: data.data.ward.wardId,
+          wardName: data.data.ward.wardName,
+          wardNumber: data.data.ward.wardNumber,
+          totalWardChartMembers: data.data.totalWardChartMembers ?? 0,  // ← ADD
+          wardChartMembers: data.data.wardChartMembers ?? [],       // ← ADD
+        }
+        : null;
+
+      return {
+        wards: entries.map(mapToWardShape),
+        wardInfo,
+      };
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.message || err.message || "Something went wrong"
@@ -146,6 +170,29 @@ export const createWardChartData = createAsyncThunk(
   }
 );
 
+// ─── SEARCH MEMBERS thunk ─────────────────────────────────────────
+export const searchMembers = createAsyncThunk(
+  "areaChart/searchMembers",
+  async (query, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const wardName = getWardName();
+
+      const { data } = await axios.post(
+        `${BASE_URL}/userprofile/search-users`,
+        { name: query || "", ward: wardName },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (!data.success) throw new Error(data.message || "Search failed");
+      return data.data;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Something went wrong"
+      );
+    }
+  }
+);
 // ─── GET thunk ────────────────────────────────────────────────────
 export const getWardChartData = createAsyncThunk(
   "areaChart/getWardChartData",
@@ -211,6 +258,13 @@ const initialState = {
   talukaWards: [],
   talukaWardsStatus: "idle",
   talukaWardsError: null,
+
+  wardInfo: null,
+
+  // SEARCH MEMBERS
+  searchResults: [],
+  searchStatus: "idle",
+  searchError: null,
 };
 
 const areaChartSlice = createSlice({
@@ -240,7 +294,8 @@ const areaChartSlice = createSlice({
       })
       .addCase(getLocationByWardHeadId.fulfilled, (state, action) => {
         state.locationStatus = "succeeded";
-        state.wards = action.payload;  // already mapped array
+        state.wards = action.payload.wards;
+        state.wardInfo = action.payload.wardInfo;
         state.locationError = null;
       })
       .addCase(getLocationByWardHeadId.rejected, (state, action) => {
@@ -310,6 +365,22 @@ const areaChartSlice = createSlice({
         state.talukaWardsStatus = "failed";
         state.talukaWardsError = action.payload || "Something went wrong";
         state.talukaWards = [];
+      })
+
+    // ── searchMembers ──
+    builder
+      .addCase(searchMembers.pending, (state) => {
+        state.searchStatus = "loading";
+        state.searchError = null;
+      })
+      .addCase(searchMembers.fulfilled, (state, action) => {
+        state.searchStatus = "succeeded";
+        state.searchResults = action.payload;
+      })
+      .addCase(searchMembers.rejected, (state, action) => {
+        state.searchStatus = "failed";
+        state.searchError = action.payload || "Something went wrong";
+        state.searchResults = [];
       });
   },
 });
@@ -337,6 +408,11 @@ export const selectLocationError = (state) => state.areaChart.locationError;
 export const selectTalukaWards = (s) => s.areaChart.talukaWards;
 export const selectTalukaWardsStatus = (s) => s.areaChart.talukaWardsStatus;
 export const selectTalukaWardsError = (s) => s.areaChart.talukaWardsError;
+
+export const selectSearchResults = (s) => s.areaChart.searchResults;
+export const selectSearchStatus = (s) => s.areaChart.searchStatus;
+export const selectSearchError = (s) => s.areaChart.searchError;
+export const selectWardInfo = (s) => s.areaChart.wardInfo;
 
 export const { clearAreaChartState, clearLocationState } = areaChartSlice.actions;
 export default areaChartSlice.reducer;

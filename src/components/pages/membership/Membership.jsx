@@ -1,20 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchDashboard } from "../../redux/slices/dashboardSlice.js";
+import { fetchMembershipPlans } from "../../redux/slices/membershipPlansSlice.js";
 import {
   Users, Receipt, ShoppingBag, BarChart2,
-  TrendingUp, Settings, FileText, UserPlus,
-  CreditCard, Crown,
+  TrendingUp, Settings, UserPlus, CreditCard, Crown,
 } from "lucide-react";
 
-// ── Tab Components (import from their own files in your project) ────────────
-import SubscriptionsTab  from "./Subscription.jsx";
-import PaymentsTab       from "./Paymentstab.jsx";
-import BuyPlanTab        from "./Buyplantab.jsx";
-import RevenueTab        from "./Revenuetab.jsx";
-import UpgradeFunnelTab  from "./Upgradefunneltab.jsx";
-import ManagePlansTab    from "./Manageplanstab.jsx";
-// import ComplianceTab     from "./ComplianceTab.jsx";
+import SubscriptionsTab from "./Subscription.jsx";
+import PaymentsTab      from "./Paymentstab.jsx";
+import BuyPlanTab       from "./Buyplantab.jsx";
+import RevenueTab       from "./Revenuetab.jsx";
+import UpgradeFunnelTab from "./Upgradefunneltab.jsx";
+import ManagePlansTab   from "./Manageplanstab.jsx";
 
-// ── Badge ───────────────────────────────────────────────────────────────────
+// ── Badge ────────────────────────────────────────────────────────────────────
 const Badge = ({ children, color = "gray" }) => {
   const colors = {
     blue:  "bg-blue-50 text-blue-700",
@@ -29,58 +29,60 @@ const Badge = ({ children, color = "gray" }) => {
   );
 };
 
-// ── Tab config ───────────────────────────────────────────────────────────────
-const TABS = [
-  { id: "subscriptions", label: "Subscriptions",  Icon: Users,       Component: SubscriptionsTab  },
-  { id: "payments",      label: "Payments",        Icon: Receipt,     Component: PaymentsTab       },
-  { id: "buyplan",       label: "Buy Plan",        Icon: ShoppingBag, Component: BuyPlanTab        },
-  { id: "revenue",       label: "Revenue",         Icon: BarChart2,   Component: RevenueTab        },
-  { id: "funnel",        label: "Upgrade Funnel",  Icon: TrendingUp,  Component: UpgradeFunnelTab  },
-  { id: "manage",        label: "Manage Plans",    Icon: Settings,    Component: ManagePlansTab    },
-  // { id: "compliance",    label: "Compliance",      Icon: FileText,    Component: ComplianceTab     },
-];
-
-const METRICS = [
-  { label: "Total Members",   Icon: Users,      value: "24",  badge: "All plans",    color: "blue"  },
-  { label: "Active",          Icon: Users,      value: "24",  badge: "100%",          color: "green" },
-  { label: "Prime Members",   Icon: Crown,      value: "12",  badge: "Highest tier",  color: "amber" },
-  { label: "Revenue",         Icon: CreditCard, value: "₹0",  badge: "This period",   color: "gray"  },
-  { label: "Pending",         Icon: Receipt,    value: "0",   badge: "Payments",      color: "gray"  },
-  { label: "Expired / Grace", Icon: Users,      value: "0",   badge: "None",          color: "gray"  },
-];
-
-const BASIC_FEATURES = [
-  "Udyami ID Card", "Networking events",
-  "Business directory", "Monthly newsletter",
-  "Basic training", "Govt scheme alerts",
-];
-
-const PRIME_FEATURES = [
-  "Everything in Basic", "Priority mentorship",
-  "Premium training", "Business loan assist",
-  "Marketing support", "Exhibition passes",
-  "Relationship manager", "WhatsApp group",
-];
-
-// ── Check icon ───────────────────────────────────────────────────────────────
 const Check = () => (
   <svg className="h-3.5 w-3.5 shrink-0 text-green-500" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
     <polyline strokeLinecap="round" strokeLinejoin="round" points="20 6 9 17 4 12" />
   </svg>
 );
 
-// ── Main Page ────────────────────────────────────────────────────────────────
+const TABS = [
+  { id: "subscriptions", label: "Subscriptions", Icon: Users,       Component: SubscriptionsTab },
+  { id: "payments",      label: "Payments",       Icon: Receipt,     Component: PaymentsTab      },
+  { id: "buyplan",       label: "Buy Plan",       Icon: ShoppingBag, Component: BuyPlanTab       },
+  { id: "revenue",       label: "Revenue",        Icon: BarChart2,   Component: RevenueTab       },
+  { id: "funnel",        label: "Upgrade Funnel", Icon: TrendingUp,  Component: UpgradeFunnelTab },
+  { id: "manage",        label: "Manage Plans",   Icon: Settings,    Component: ManagePlansTab   },
+];
+
 export default function MembershipPage() {
+  const dispatch    = useDispatch();
   const [activeTab, setActiveTab] = useState("subscriptions");
 
-  // Find active tab component
-  const activeTabObj = TABS.find((t) => t.id === activeTab);
-  const ActiveComponent = activeTabObj?.Component ?? SubscriptionsTab;
+  // ── Redux selectors ──────────────────────────────────────────────────────
+  const stats = useSelector((s) => s.dashboard.stats);        // totalUsers, primeUsers
+  const plans = useSelector((s) => s.membershipPlans.list);   // membership plans array
+
+  // ── Fetch on mount ────────────────────────────────────────────────────────
+  useEffect(() => {
+    dispatch(fetchDashboard());
+    dispatch(fetchMembershipPlans());
+  }, [dispatch]);
+
+  // ── Derived values ────────────────────────────────────────────────────────
+  const totalMembers  = stats?.totalUsers   ?? 0;
+  const primeMembers  = stats?.primeUsers   ?? 0;
+  const activeMembers = totalMembers;  // adjust when inactive API available
+
+  // ── Metric cards ─────────────────────────────────────────────────────────
+  const METRICS = [
+    { label: "Total Members",   Icon: Users,      value: String(totalMembers),  badge: "All plans",   color: "blue"  },
+    { label: "Active",          Icon: Users,      value: String(activeMembers), badge: "100%",        color: "green" },
+    { label: "Prime Members",   Icon: Crown,      value: String(primeMembers),  badge: "Highest tier",color: "amber" },
+    { label: "Revenue",         Icon: CreditCard, value: "— —",                 badge: "Coming soon", color: "gray"  },
+    { label: "Pending",         Icon: Receipt,    value: "— —",                 badge: "Coming soon", color: "gray"  },
+    { label: "Expired / Grace", Icon: Users,      value: "— —",                 badge: "Coming soon", color: "gray"  },
+  ];
+
+  // ── Plan preview from API ─────────────────────────────────────────────────
+  const basicPlan = plans.find((p) => p.membershipType === "BASIC"  && p.durationDays >= 365);
+  const primePlan = plans.find((p) => p.membershipType === "PRIME"  && p.durationDays >= 365);
+
+  const ActiveComponent = TABS.find((t) => t.id === activeTab)?.Component ?? SubscriptionsTab;
 
   return (
     <div className="min-h-screen bg-gray-50 p-7 font-sans text-sm text-gray-800">
 
-      {/* ── Page Header ─────────────────────────────────── */}
+      {/* ── Page Header ──────────────────────────────────────── */}
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-[22px] font-bold text-gray-900">Membership Management</h1>
@@ -88,12 +90,9 @@ export default function MembershipPage() {
             Manage Udyami membership plans, subscriptions &amp; payments
           </p>
         </div>
-        <button className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-[13px] font-semibold text-white hover:bg-blue-700 transition-colors">
-          <UserPlus size={15} /> Assign Plan
-        </button>
       </div>
 
-      {/* ── Metric Cards ────────────────────────────────── */}
+      {/* ── Metric Cards ─────────────────────────────────────── */}
       <div className="mb-5 grid grid-cols-6 gap-3">
         {METRICS.map((m) => (
           <div key={m.label} className="rounded-xl border border-gray-200 bg-white p-4">
@@ -101,7 +100,9 @@ export default function MembershipPage() {
               <m.Icon size={13} />
               {m.label}
             </div>
-            <p className="text-[22px] font-bold text-gray-900">{m.value}</p>
+            <p className={`text-[22px] font-bold leading-tight ${m.value === "— —" ? "text-[#CBD5E1]" : "text-gray-900"}`}>
+              {m.value}
+            </p>
             <div className="mt-1.5">
               <Badge color={m.color}>{m.badge}</Badge>
             </div>
@@ -109,52 +110,68 @@ export default function MembershipPage() {
         ))}
       </div>
 
-      {/* ── Plan Preview Cards ───────────────────────────── */}
+      {/* ── Plan Preview Cards ────────────────────────────────── */}
       <div className="mb-5 grid grid-cols-2 gap-4">
 
-        {/* Basic */}
+        {/* Basic Plan */}
         <div className="rounded-2xl border border-gray-200 bg-white p-5">
           <div className="mb-1 flex items-center gap-2 text-[15px] font-bold text-gray-900">
             <CreditCard size={18} className="text-blue-600" />
-            Basic Plan
+            {basicPlan?.planName ?? "Basic Plan"}
           </div>
-          <p className="mb-4 text-[22px] font-extrabold text-gray-900">
-            ₹10,000 <span className="text-[13px] font-normal text-gray-400">/ Year</span>
-          </p>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-            {BASIC_FEATURES.map((f) => (
-              <div key={f} className="flex items-center gap-1.5 text-[12px] text-gray-600">
-                <Check /> {f}
+          {basicPlan ? (
+            <>
+              <p className="mb-4 text-[22px] font-extrabold text-gray-900">
+                ₹{basicPlan.price.toLocaleString("en-IN")}
+                <span className="text-[13px] font-normal text-gray-400 ml-1">/ Year</span>
+              </p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                {(basicPlan.features ?? []).map((f, i) => (
+                  <div key={i} className="flex items-center gap-1.5 text-[12px] text-gray-600">
+                    <Check /> {f.featureName ?? f}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <p className="mt-3 text-[12.5px] text-gray-300 italic">Plan details coming soon</p>
+          )}
         </div>
 
-        {/* Prime */}
+        {/* Prime Plan */}
         <div className="rounded-2xl border-[1.5px] border-amber-400 bg-white p-5">
           <div className="mb-1 flex items-center justify-between">
             <div className="flex items-center gap-2 text-[15px] font-bold text-gray-900">
               <Crown size={18} className="text-amber-500" />
-              Prime Plan
+              {primePlan?.planName ?? "Prime Plan"}
             </div>
-            <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-              Most Popular
-            </span>
+            {primePlan?.isPopular && (
+              <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                {primePlan.badge || "Most Popular"}
+              </span>
+            )}
           </div>
-          <p className="mb-4 text-[22px] font-extrabold text-gray-900">
-            ₹25,000 <span className="text-[13px] font-normal text-gray-400">/ Year</span>
-          </p>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-            {PRIME_FEATURES.map((f) => (
-              <div key={f} className="flex items-center gap-1.5 text-[12px] text-gray-600">
-                <Check /> {f}
+          {primePlan ? (
+            <>
+              <p className="mb-4 text-[22px] font-extrabold text-gray-900">
+                ₹{primePlan.price.toLocaleString("en-IN")}
+                <span className="text-[13px] font-normal text-gray-400 ml-1">/ Year</span>
+              </p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+                {(primePlan.features ?? []).map((f, i) => (
+                  <div key={i} className="flex items-center gap-1.5 text-[12px] text-gray-600">
+                    <Check /> {f.featureName ?? f}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <p className="mt-3 text-[12.5px] text-gray-300 italic">Plan details coming soon</p>
+          )}
         </div>
       </div>
 
-      {/* ── Tab Bar ──────────────────────────────────────── */}
+      {/* ── Tab Bar ──────────────────────────────────────────── */}
       <div className="rounded-t-xl border border-b-0 border-gray-200 bg-white">
         <div className="flex overflow-x-auto px-2">
           {TABS.map(({ id, label, Icon }) => (
@@ -174,16 +191,10 @@ export default function MembershipPage() {
         </div>
       </div>
 
-      {/* ── Active Tab Content ───────────────────────────── */}
-      {/*
-        Each tab component handles its own toolbar/search/filters internally.
-        ComplianceTab reuses PaymentsTab data (same table, different view).
-        The rounded-b-xl on the content area closes the tab panel visually.
-      */}
+      {/* ── Tab Content ──────────────────────────────────────── */}
       <div className="min-h-[400px]">
         <ActiveComponent />
       </div>
-
     </div>
   );
 }

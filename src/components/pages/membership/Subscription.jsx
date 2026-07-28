@@ -1,7 +1,5 @@
 import { useState } from "react";
-import {
-  Search, Crown, CreditCard, Pencil,
-} from "lucide-react";
+import { Search, Crown, CreditCard, Pencil } from "lucide-react";
 
 const Toggle = ({ checked, onChange }) => (
   <button
@@ -18,23 +16,8 @@ const Toggle = ({ checked, onChange }) => (
   </button>
 );
 
-const MEMBERS_DATA = [
-  { id: 1,  name: "Chandru M H",        uid: "UDY-202607-A3EF8EE5", plan: "basic", status: "active", ward: "",        expiry: "2027-07-01", daysLeft: 352, autoRenew: false },
-  { id: 2,  name: "Rajesh Member",       uid: "UDY-202606-E283EBE7", plan: "basic", status: "active", ward: "",        expiry: "2027-06-20", daysLeft: 341, autoRenew: false },
-  { id: 3,  name: "Thrupthi V",          uid: "UDY-202606-9A439416", plan: "prime", status: "active", ward: "",        expiry: "2027-06-19", daysLeft: 340, autoRenew: false },
-  { id: 4,  name: "Spoorthi V",          uid: "UDY-202606-09FDE734", plan: "prime", status: "active", ward: "",        expiry: "2027-06-19", daysLeft: 340, autoRenew: false },
-  { id: 5,  name: "Nandini Devi",        uid: "UDY-202606-672E1251", plan: "basic", status: "active", ward: "",        expiry: "2027-06-19", daysLeft: 340, autoRenew: false },
-  { id: 6,  name: "Umesh Gowda",         uid: "UDY-202606-CC353AEE", plan: "basic", status: "active", ward: "",        expiry: "2027-06-19", daysLeft: 340, autoRenew: false },
-  { id: 7,  name: "Yogesh Achar",        uid: "UDY-202605-1E9F4913", plan: "prime", status: "active", ward: "",        expiry: "2027-06-19", daysLeft: 340, autoRenew: false },
-  { id: 8,  name: "Dharani Kumar BK",    uid: "UDY-202606-BBC9F921", plan: "basic", status: "active", ward: "",        expiry: "2027-06-16", daysLeft: 337, autoRenew: false },
-  { id: 9,  name: "Nandeesh S Rajegowda",uid: "UDY-202606-68BC5CC8", plan: "prime", status: "active", ward: "",        expiry: "2027-06-15", daysLeft: 336, autoRenew: false },
-  { id: 10, name: "Priya Nair",          uid: "UDY-202605-C12FAA91", plan: "prime", status: "active", ward: "Ward 3", expiry: "2027-05-15", daysLeft: 305, autoRenew: true  },
-  { id: 11, name: "Suresh Kumar",        uid: "UDY-202604-B88DC002", plan: "prime", status: "active", ward: "Ward 7", expiry: "2027-04-10", daysLeft: 270, autoRenew: true  },
-  { id: 12, name: "Lakshmi Devi",        uid: "UDY-202603-A44FE771", plan: "basic", status: "active", ward: "Ward 1", expiry: "2027-03-05", daysLeft: 234, autoRenew: false },
-];
-
 export default function Subscription() {
-  const [members, setMembers] = useState(MEMBERS_DATA);
+  const [members, setMembers] = useState([]);  // ← empty
   const [search, setSearch]   = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPlan, setFilterPlan]     = useState("all");
@@ -103,8 +86,14 @@ export default function Subscription() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-12 text-center text-[13px] text-gray-400">
-                  No members match your search.
+                <td colSpan={8}>
+                  <div className="flex flex-col items-center justify-center py-14 gap-2.5">
+                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                      <CreditCard size={17} className="text-gray-400" />
+                    </div>
+                    <p className="text-[12.5px] font-semibold text-gray-400">Subscription data coming soon</p>
+                    <p className="text-[11px] text-gray-300">Member subscription details will appear here</p>
+                  </div>
                 </td>
               </tr>
             ) : (

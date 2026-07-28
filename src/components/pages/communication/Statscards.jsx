@@ -245,17 +245,17 @@ export default function StatsCards() {
               ? card.badgeText(null, raw)
               : card.badgeText(raw);
 
-          return (
-            <StatCard
-              key={card.key}
-              label={card.label}
-              icon={card.icon}
-              colorScheme={card.colorScheme}
-              value={displayValue}
-              badge={badgeText}
-              loading={loading}
-            />
-          );
+          // return (
+          //   <StatCard
+          //     key={card.key}
+          //     label={card.label}
+          //     icon={card.icon}
+          //     colorScheme={card.colorScheme}
+          //     value={displayValue}
+          //     badge={badgeText}
+          //     loading={loading}
+          //   />
+          // );
         })}
       </div>
     </>

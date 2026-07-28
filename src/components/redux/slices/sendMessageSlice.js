@@ -5,35 +5,35 @@ import api from "../../service/api.js";
 // Payload: file, userId, channel, templateId?, scheduledAt?
 
 export const uploadCsvCampaign = createAsyncThunk(
-    "sendMessage/uploadCsvCampaign",
-    async ({ file, userId, channel, templateId, scheduledAt }, thunkAPI) => {
-        try {
-            const token = thunkAPI.getState().auth.token;
+  "sendMessage/uploadCsvCampaign",
+  async ({ file, userId, channel, templateId, scheduledAt, subject, message }, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.token;
 
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("userId", userId);
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("userId", userId);
 
-            // ── New required fields ──────────────────────────────────────
-            if (channel) formData.append("channel", channel);          // e.g. "EMAIL"
-            if (templateId) formData.append("templateId", templateId);       // UUID
-            if (scheduledAt) formData.append("scheduledAt", scheduledAt);      // ISO 8601
-            // ─────────────────────────────────────────────────────────────
+      if (channel)     formData.append("channel", channel);
+      if (templateId)  formData.append("templateId", templateId);
+      if (scheduledAt) formData.append("scheduledAt", scheduledAt);
+      if (subject)     formData.append("subject", subject);    // ← NEW
+      if (message)     formData.append("message", message);    // ← NEW
 
-            const response = await api.post("/bulk-campagin/upload", formData, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "multipart/form-data",
-                },
-            });
+      const response = await api.post("/bulk-campagin/upload", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
-            return response.data;
-        } catch (err) {
-            return thunkAPI.rejectWithValue(
-                err.response?.data?.message || "CSV upload failed"
-            );
-        }
+      return response.data;
+    } catch (err) {
+      return thunkAPI.rejectWithValue(
+        err.response?.data?.message || "CSV upload failed"
+      );
     }
+  }
 );
 
 // ─── Thunk 2: Fetch uploaded CSV rows by userId ───────────────────────────────
