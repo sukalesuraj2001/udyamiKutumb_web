@@ -695,7 +695,7 @@ const NAV = {
             type: "group", key: "DH-members", name: "Members", icon: Users, children: [
                 { name: "Taluk Head", path: "/district-head-dashboard/taluk-head" },
                 { name: "Ward / Hobli Head", path: "/district-head-dashboard/ward-head" },
-                { name: "Channel Partners", path: "/district-head-dashboard/members/channelPartners" },
+                // { name: "Channel Partners", path: "/district-head-dashboard/members/channelPartners" },
             ]
         },
         // {
@@ -752,144 +752,144 @@ const NAV = {
                 // { name: "Create Ward", path: "/super-admin-dashboard/create-ward" },
             ]
         },
-        {
-            type: "group", key: "DH-moderation", name: "Moderation", icon: ShieldCheck, children: [
-                { name: "Job Management", path: "/district-head-dashboard/users" },
-                { name: "Post Management", path: "/register" },
-                { name: "News Management", path: "/district-head-dashboard/users" },
-            ]
-        },
+        // {
+        //     type: "group", key: "DH-moderation", name: "Moderation", icon: ShieldCheck, children: [
+        //         { name: "Job Management", path: "/district-head-dashboard/users" },
+        //         { name: "Post Management", path: "/register" },
+        //         { name: "News Management", path: "/district-head-dashboard/users" },
+        //     ]
+        // },
     ],
     TalukHead: [
         { type: "link", name: "Dashboard", icon: LayoutDashboard, path: "/taluk-head-dashboard" },
         {
             type: "group", key: "TH-members", name: "Members", icon: Users, children: [
                 { name: "Ward / Hobli Head", path: "/taluk-head-dashboard/ward-head" },
-                { name: "Channel Partners", path: "/taluk-head-dashboard/members/channelPartners" },
+                // { name: "Channel Partners", path: "/taluk-head-dashboard/members/channelPartners" },
             ]
         },
-        {
-            type: "group", key: "TH-members-db", name: "Members", icon: Building2, children: [
-                { name: "Udyami Database", path: "/taluk-head-dashboard/members" },
-                { name: "Roles", path: "/taluk-head-dashboard/members/roles" },
-                { name: "Channel Partners", path: "/taluk-head-dashboard/members/channelPartners" },
-            ]
-        },
+        // {
+        //     type: "group", key: "TH-members-db", name: "Members", icon: Building2, children: [
+        //         { name: "Udyami Database", path: "/taluk-head-dashboard/members" },
+        //         { name: "Roles", path: "/taluk-head-dashboard/members/roles" },
+        //         { name: "Channel Partners", path: "/taluk-head-dashboard/members/channelPartners" },
+        //     ]
+        // },
         {
             type: "group", key: "TH-Oprations", name: "Oprations", icon: Briefcase, children: [
-                { name: "Lead Managemant", path: "/taluk-head-dashboard/lead-management" },
-                { name: "Send Messages", path: "/taluk-head-dashboard/communications" },
-                { name: "Comm Service Request", path: "/taluk-head-dashboard/users" },
-                { name: "Comm Credits Admin", path: "/register" },
-                { name: "Field Operations", path: "/register" },
-                { name: "Geo-Fencing", path: "/register" },
+                // { name: "Lead Managemant", path: "/taluk-head-dashboard/lead-management" },
+                // { name: "Send Messages", path: "/taluk-head-dashboard/communications" },
+                // { name: "Comm Service Request", path: "/taluk-head-dashboard/users" },
+                // { name: "Comm Credits Admin", path: "/register" },
+                // { name: "Field Operations", path: "/register" },
+                // { name: "Geo-Fencing", path: "/register" },
                 { name: "Member Map", path: "/taluk-head-dashboard/member-map" },
                 { name: "Area Chart", path: "/taluk-head-dashboard/area-chart" },
                 { name: "Business Circle", path: "/taluk-head-dashboard/business-circle" },
-                { name: "Networking", path: "/register" },
+                // { name: "Networking", path: "/register" },
             ]
         },
-        {
-            type: "group", key: "TH-community", name: "Community Programmes", icon: HandHeart, children: [
-                { name: "Programmes Hub", path: "/taluk-head-dashboard/users" },
-                { name: "Udyami Queens", path: "/register" },
-                { name: "Senior Expert Panel", path: "/taluk-head-dashboard/users" },
-                { name: "Youth Programme", path: "/taluk-head-dashboard/users" },
-                { name: "Children Programme", path: "/taluk-head-dashboard/users" },
-            ]
-        },
-        {
-            type: "group", key: "TH-growth", name: "Growth", icon: TrendingUp, children: [
-                { name: "Training & Jobs", path: "/taluk-head-dashboard/users" },
-                { name: "Reward & Recognition", path: "/register" },
-                { name: "Analytics & Reports", path: "/taluk-head-dashboard/users" },
-            ]
-        },
-        {
-            type: "group", key: "TH-digital", name: "Digital", icon: Globe, children: [
-                { name: "Social Onbording", path: "/taluk-head-dashboard/users" },
-                { name: "Social Management", path: "/register" },
-                { name: "Social Media Manager", path: "/taluk-head-dashboard/users" },
-                { name: "Social Media Overview", path: "/taluk-head-dashboard/users" },
-                { name: "Website & Media", path: "/taluk-head-dashboard/users" },
-            ]
-        },
+        // {
+        //     type: "group", key: "TH-community", name: "Community Programmes", icon: HandHeart, children: [
+        //         { name: "Programmes Hub", path: "/taluk-head-dashboard/users" },
+        //         { name: "Udyami Queens", path: "/register" },
+        //         { name: "Senior Expert Panel", path: "/taluk-head-dashboard/users" },
+        //         { name: "Youth Programme", path: "/taluk-head-dashboard/users" },
+        //         { name: "Children Programme", path: "/taluk-head-dashboard/users" },
+        //     ]
+        // },
+        // {
+        //     type: "group", key: "TH-growth", name: "Growth", icon: TrendingUp, children: [
+        //         { name: "Training & Jobs", path: "/taluk-head-dashboard/users" },
+        //         { name: "Reward & Recognition", path: "/register" },
+        //         { name: "Analytics & Reports", path: "/taluk-head-dashboard/users" },
+        //     ]
+        // },
+        // {
+        //     type: "group", key: "TH-digital", name: "Digital", icon: Globe, children: [
+        //         { name: "Social Onbording", path: "/taluk-head-dashboard/users" },
+        //         { name: "Social Management", path: "/register" },
+        //         { name: "Social Media Manager", path: "/taluk-head-dashboard/users" },
+        //         { name: "Social Media Overview", path: "/taluk-head-dashboard/users" },
+        //         { name: "Website & Media", path: "/taluk-head-dashboard/users" },
+        //     ]
+        // },
         {
             type: "group", key: "sp-admin", name: "Employees", icon: UserCog, children: [
-                { name: "Add Employee", path: "/taluk-head/user-management" },
-                { name: "Manage Employee", path: "/taluk-head/manage" },
+                // { name: "Add Employee", path: "/taluk-head/user-management" },
+                // { name: "Manage Employee", path: "/taluk-head/manage" },
                 { name: "Manage Roles", path: "/taluk-head/role-management" },
                 // { name: "Create Ward", path: "/super-admin-dashboard/create-ward" },
             ]
         },
-        {
-            type: "group", key: "TH-moderation", name: "Moderation", icon: ShieldCheck, children: [
-                { name: "Job Management", path: "/taluk-head-dashboard/users" },
-                { name: "Post Management", path: "/register" },
-                { name: "News Management", path: "/taluk-head-dashboard/users" },
-            ]
-        },
+        // {
+        //     type: "group", key: "TH-moderation", name: "Moderation", icon: ShieldCheck, children: [
+        //         { name: "Job Management", path: "/taluk-head-dashboard/users" },
+        //         { name: "Post Management", path: "/register" },
+        //         { name: "News Management", path: "/taluk-head-dashboard/users" },
+        //     ]
+        // },
     ],
     WardChairman: [
         { type: "link", name: "Dashboard", icon: LayoutDashboard, path: "/wardChairman-head-dashboard" },
-        {
-            type: "group", key: "WC-members", name: "Members", icon: Users, children: [
-                { name: "Channel Partners", path: "/wardChairman-head-dashboard/members/channelPartners" },
-            ]
-        },
-        {
-            type: "group", key: "WC-members-db", name: "Members", icon: Building2, children: [
-                { name: "Udyami Database", path: "/wardChairman-head-dashboard/members" },
-                { name: "Roles", path: "/wardChairman-head-dashboard/members/roles" },
-                { name: "Channel Partners", path: "/wardChairman-head-dashboard/members/channelPartners" },
-            ]
-        },
+        // {
+        //     type: "group", key: "WC-members", name: "Members", icon: Users, children: [
+        //         { name: "Channel Partners", path: "/wardChairman-head-dashboard/members/channelPartners" },
+        //     ]
+        // },
+        // {
+        //     type: "group", key: "WC-members-db", name: "Members", icon: Building2, children: [
+        //         { name: "Udyami Database", path: "/wardChairman-head-dashboard/members" },
+        //         { name: "Roles", path: "/wardChairman-head-dashboard/members/roles" },
+        //         { name: "Channel Partners", path: "/wardChairman-head-dashboard/members/channelPartners" },
+        //     ]
+        // },
         {
             type: "group", key: "WC-Oprations", name: "Oprations", icon: Briefcase, children: [
-                { name: "Lead Managemant", path: "/wardChairman-head-dashboard/lead-management" },
-                { name: "Send Messages", path: "/wardChairman-head-dashboard/communications" },
-                { name: "Comm Service Request", path: "/wardChairman-head-dashboard/users" },
-                { name: "Comm Credits Admin", path: "/register" },
-                { name: "Field Operations", path: "/register" },
-                { name: "Geo-Fencing", path: "/register" },
+                // { name: "Lead Managemant", path: "/wardChairman-head-dashboard/lead-management" },
+                // { name: "Send Messages", path: "/wardChairman-head-dashboard/communications" },
+                // // { name: "Comm Service Request", path: "/wardChairman-head-dashboard/users" },
+                // { name: "Comm Credits Admin", path: "/register" },
+                // { name: "Field Operations", path: "/register" },
+                // { name: "Geo-Fencing", path: "/register" },
                 { name: "Member Map", path: "/wardChairman-head-dashboard/member-map" },
                 { name: "Area Chart", path: "/wardChairman/area-chart" },
-                { name: "Business Circle", path: "/wardChairman-head-dashboard/business-circle" },
-                { name: "Networking", path: "/register" },
+                // { name: "Business Circle", path: "/wardChairman-head-dashboard/business-circle" },
+                // { name: "Networking", path: "/register" },
             ]
         },
-        {
-            type: "group", key: "WC-community", name: "Community Programmes", icon: HandHeart, children: [
-                { name: "Programmes Hub", path: "/wardChairman-head-dashboard/users" },
-                { name: "Udyami Queens", path: "/register" },
-                { name: "Senior Expert Panel", path: "/wardChairman-head-dashboard/users" },
-                { name: "Youth Programme", path: "/wardChairman-head-dashboard/users" },
-                { name: "Children Programme", path: "/wardChairman-head-dashboard/users" },
-            ]
-        },
-        {
-            type: "group", key: "WC-growth", name: "Growth", icon: TrendingUp, children: [
-                { name: "Training & Jobs", path: "/wardChairman-head-dashboard/users" },
-                { name: "Reward & Recognition", path: "/register" },
-                { name: "Analytics & Reports", path: "/wardChairman-head-dashboard/users" },
-            ]
-        },
-        {
-            type: "group", key: "WC-digital", name: "Digital", icon: Globe, children: [
-                { name: "Social Onbording", path: "/wardChairman-head-dashboard/users" },
-                { name: "Social Management", path: "/register" },
-                { name: "Social Media Manager", path: "/wardChairman-head-dashboard/users" },
-                { name: "Social Media Overview", path: "/wardChairman-head-dashboard/users" },
-                { name: "Website & Media", path: "/wardChairman-head-dashboard/users" },
-            ]
-        },
-        {
-            type: "group", key: "WC-moderation", name: "Moderation", icon: ShieldCheck, children: [
-                { name: "Job Management", path: "/wardChairman-head-dashboard/users" },
-                { name: "Post Management", path: "/register" },
-                { name: "News Management", path: "/wardChairman-head-dashboard/users" },
-            ]
-        },
+        // {
+        //     type: "group", key: "WC-community", name: "Community Programmes", icon: HandHeart, children: [
+        //         { name: "Programmes Hub", path: "/wardChairman-head-dashboard/users" },
+        //         { name: "Udyami Queens", path: "/register" },
+        //         { name: "Senior Expert Panel", path: "/wardChairman-head-dashboard/users" },
+        //         { name: "Youth Programme", path: "/wardChairman-head-dashboard/users" },
+        //         { name: "Children Programme", path: "/wardChairman-head-dashboard/users" },
+        //     ]
+        // },
+        // {
+        //     type: "group", key: "WC-growth", name: "Growth", icon: TrendingUp, children: [
+        //         { name: "Training & Jobs", path: "/wardChairman-head-dashboard/users" },
+        //         { name: "Reward & Recognition", path: "/register" },
+        //         { name: "Analytics & Reports", path: "/wardChairman-head-dashboard/users" },
+        //     ]
+        // },
+        // {
+        //     type: "group", key: "WC-digital", name: "Digital", icon: Globe, children: [
+        //         { name: "Social Onbording", path: "/wardChairman-head-dashboard/users" },
+        //         { name: "Social Management", path: "/register" },
+        //         { name: "Social Media Manager", path: "/wardChairman-head-dashboard/users" },
+        //         { name: "Social Media Overview", path: "/wardChairman-head-dashboard/users" },
+        //         { name: "Website & Media", path: "/wardChairman-head-dashboard/users" },
+        //     ]
+        // },
+        // {
+        //     type: "group", key: "WC-moderation", name: "Moderation", icon: ShieldCheck, children: [
+        //         { name: "Job Management", path: "/wardChairman-head-dashboard/users" },
+        //         { name: "Post Management", path: "/register" },
+        //         { name: "News Management", path: "/wardChairman-head-dashboard/users" },
+        //     ]
+        // },
     ],
     ChannelPartner: [
         { type: "link", name: "Dashboard", icon: LayoutDashboard, path: "/channelPartner-dashboard" },
@@ -954,18 +954,18 @@ const NAV = {
                 { name: "Send Messages", path: "/member/communications" },
                 { name: "Member Map", path: "/member-dashboard/member-map" },
                 // { name: "Area Chart", path: "/member/area-chart" },
-                { name: "Business Circle", path: "/member/business-circle" },
+                // { name: "Business Circle", path: "/member/business-circle" },
             ]
         },
-        {
-            type: "group", key: "CP-digital", name: "Digital", icon: Globe, children: [
-                { name: "Social Onbording", path: "/admin-dashboard/users" },
-                { name: "Social Management", path: "/register" },
-                { name: "Social Media Manager", path: "/admin-dashboard/users" },
-                { name: "Social Media Overview", path: "/admin-dashboard/users" },
-                { name: "Website & Media", path: "/admin-dashboard/users" },
-            ]
-        },
+        // {
+        //     type: "group", key: "CP-digital", name: "Digital", icon: Globe, children: [
+        //         { name: "Social Onbording", path: "/admin-dashboard/users" },
+        //         { name: "Social Management", path: "/register" },
+        //         { name: "Social Media Manager", path: "/admin-dashboard/users" },
+        //         { name: "Social Media Overview", path: "/admin-dashboard/users" },
+        //         { name: "Website & Media", path: "/admin-dashboard/users" },
+        //     ]
+        // },
     ],
 };
 function Sidebar({ isOpen, onToggle }) {
