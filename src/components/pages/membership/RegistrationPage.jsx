@@ -8,46 +8,6 @@ import {
   Clock,
 } from "lucide-react";
 
-// ── Static Data ──────────────────────────────────────────────────────────────
-const REGISTRATIONS = [
-  {
-    id: 1,
-    name: "Dr Ajeya Deshpande",
-    business: "Orthopaedic Clinic",
-    phone: "9886333846",
-    email: "ajeyadeshpande@gmail.com",
-    address: "Yeshwanthpur Ward, Bangalore",
-    plan: "Basic",
-    amount: 10000,
-    upiRef: "T2607041317179703558533",
-    status: "Pending",
-  },
-  {
-    id: 2,
-    name: "Rajesh Kumar",
-    business: "UB Finance",
-    phone: "9845011122",
-    email: "rajesh@gmail.com",
-    address: "Ward 12, Chennai",
-    plan: "Prime",
-    amount: 25000,
-    upiRef: "T260704151111223334",
-    status: "Verified",
-  },
-  {
-    id: 3,
-    name: "Meena Lakshmi",
-    business: "Lakshmi Textiles",
-    phone: "9876543210",
-    email: "meena@gmail.com",
-    address: "Ward 9, Coimbatore",
-    plan: "Basic",
-    amount: 10000,
-    upiRef: "T26070499999111222",
-    status: "Rejected",
-  },
-];
-
 const TABS = ["Pending", "Verified", "Rejected", "All"];
 
 // ── Status config ─────────────────────────────────────────────────────────────
@@ -63,10 +23,27 @@ const STATUS_DOT = {
   Rejected: "bg-red-500",
 };
 
+// ── Coming Soon placeholder ───────────────────────────────────────────────────
+function ComingSoon({ colSpan }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="py-16 text-center">
+        <div className="flex flex-col items-center gap-2">
+          <svg width="30" height="30" className="text-gray-300" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+          </svg>
+          <p className="text-[13.5px] font-semibold text-gray-500">Coming soon</p>
+          <p className="text-[12px] text-gray-400">Registrations will appear here once members sign up.</p>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function RegistrationPage() {
+export default function RegistrationPage({ initialRegistrations = [] }) {
   const [tab, setTab]             = useState("Pending");
-  const [rows, setRows]           = useState(REGISTRATIONS);
+  const [rows, setRows]           = useState(initialRegistrations);
   const [previewId, setPreviewId] = useState(null);
 
   // ── Derived stats ──────────────────────────────────────────────────────────
@@ -94,23 +71,23 @@ export default function RegistrationPage() {
     {
       label: "Pending Review",
       value: pending,
-      icon: <Clock      size={18} className="text-amber-600"  />,
+      icon: <Clock size={18} className="text-amber-600" />,
       iconBg: "bg-amber-50",
-      badge: pending > 0 ? "Needs action" : "All clear",
+      badge: rows.length === 0 ? "—" : pending > 0 ? "Needs action" : "All clear",
       badgeColor: pending > 0 ? "bg-amber-50 text-amber-700" : "bg-green-50 text-green-700",
     },
     {
       label: "Verified Members",
-      value: verified,
+      value: rows.length === 0 ? "—" : verified,
       icon: <CheckCircle2 size={18} className="text-green-600" />,
       iconBg: "bg-green-50",
-      badge: `${rejected} rejected`,
+      badge: rows.length === 0 ? "—" : `${rejected} rejected`,
       badgeColor: "bg-gray-100 text-gray-500",
     },
     {
       label: "Verified Revenue",
-      value: `₹${revenue.toLocaleString("en-IN")}`,
-      icon: <IndianRupee size={18} className="text-blue-600"  />,
+      value: rows.length === 0 ? "—" : `₹${revenue.toLocaleString("en-IN")}`,
+      icon: <IndianRupee size={18} className="text-blue-600" />,
       iconBg: "bg-blue-50",
       badge: "All time",
       badgeColor: "bg-blue-50 text-blue-700",
@@ -131,7 +108,6 @@ export default function RegistrationPage() {
           </p>
         </div>
 
-        {/* Tab counts summary pill */}
         <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-[12px]">
           <span className="font-semibold text-amber-600">{pending} pending</span>
           <span className="text-gray-300">·</span>
@@ -142,26 +118,16 @@ export default function RegistrationPage() {
       </div>
 
       {/* ── Metric Cards ────────────────────────────────────────────────── */}
-      {/* FIX: Matches Super Admin card style — ALL CAPS label, large bold number, badge pill */}
       <div className="grid grid-cols-3 gap-3">
         {metrics.map((m) => (
-          <div
-            key={m.label}
-            className="rounded-xl border border-gray-200 bg-white p-4"
-          >
-            {/* Icon + label row */}
+          <div key={m.label} className="rounded-xl border border-gray-200 bg-white p-4">
             <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
               <span className={`flex h-5 w-5 items-center justify-center rounded-md ${m.iconBg}`}>
-                {/* Shrink icon to 14px inside small square */}
                 <span className="[&>svg]:h-3.5 [&>svg]:w-3.5">{m.icon}</span>
               </span>
               {m.label}
             </div>
-            {/* Big number */}
-            <p className="text-[26px] font-bold leading-none text-gray-900">
-              {m.value}
-            </p>
-            {/* Badge */}
+            <p className="text-[26px] font-bold leading-none text-gray-900">{m.value}</p>
             <div className="mt-2">
               <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${m.badgeColor}`}>
                 {m.badge}
@@ -172,7 +138,6 @@ export default function RegistrationPage() {
       </div>
 
       {/* ── Tab Bar ─────────────────────────────────────────────────────── */}
-      {/* FIX: Underline tabs matching Super Admin dashboard — not pill tabs */}
       <div className="rounded-t-xl border border-b-0 border-gray-200 bg-white">
         <div className="flex px-2">
           {TABS.map((t) => {
@@ -192,10 +157,8 @@ export default function RegistrationPage() {
                   }`}
               >
                 {t}
-                <span
-                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none
-                    ${tab === t ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}
-                >
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none
+                  ${tab === t ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-500"}`}>
                   {count}
                 </span>
               </button>
@@ -205,27 +168,23 @@ export default function RegistrationPage() {
       </div>
 
       {/* ── Table ───────────────────────────────────────────────────────── */}
-      {/* FIX: rounded-xl (not rounded-3xl), compact rows, conditional actions */}
       <div className="overflow-hidden rounded-b-xl border border-t-0 border-gray-200 bg-white">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
-                {["Name", "Contact", "Plan", "Amount", "UPI Ref", "Proof", "Status", "Actions"].map(
-                  (h) => (
-                    <th
-                      key={h}
-                      className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400"
-                    >
-                      {h}
-                    </th>
-                  )
-                )}
+                {["Name", "Contact", "Plan", "Amount", "UPI Ref", "Proof", "Status", "Actions"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
 
             <tbody>
-              {filtered.length === 0 ? (
+              {rows.length === 0 ? (
+                <ComingSoon colSpan={8} />
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-16 text-center text-[13px] text-gray-400">
                     No registrations in this category.
@@ -238,11 +197,9 @@ export default function RegistrationPage() {
                     className={`transition-colors hover:bg-blue-50/30
                       ${i < filtered.length - 1 ? "border-b border-gray-100" : ""}`}
                   >
-                    {/* NAME — FIX: whitespace-nowrap prevents line-break */}
+                    {/* NAME */}
                     <td className="px-4 py-3.5">
-                      <p className="whitespace-nowrap text-[13px] font-semibold text-gray-900">
-                        {item.name}
-                      </p>
+                      <p className="whitespace-nowrap text-[13px] font-semibold text-gray-900">{item.name}</p>
                       <p className="mt-0.5 text-[12px] text-gray-500">{item.business}</p>
                     </td>
 
@@ -287,18 +244,15 @@ export default function RegistrationPage() {
                       </button>
                     </td>
 
-                    {/* STATUS — FIX: dot + label, clean border pill */}
+                    {/* STATUS */}
                     <td className="px-4 py-3.5">
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold
-                          ${STATUS_STYLES[item.status]}`}
-                      >
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_STYLES[item.status]}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[item.status]}`} />
                         {item.status}
                       </span>
                     </td>
 
-                    {/* ACTIONS — FIX: conditional buttons based on status */}
+                    {/* ACTIONS */}
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-2">
                         {item.status !== "Verified" && (
@@ -310,16 +264,6 @@ export default function RegistrationPage() {
                             Verify
                           </button>
                         )}
-                        {item.status !== "Rejected" && (
-                          <button
-                            onClick={() => updateStatus(item.id, "Rejected")}
-                            className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-3 py-1.5 text-[12px] font-semibold text-red-700 transition hover:bg-red-100 active:scale-95"
-                          >
-                            <XCircle size={13} />
-                            Reject
-                          </button>
-                        )}
-                        {/* FIX: Already-verified rows show a reset option */}
                         {item.status === "Verified" && (
                           <button
                             onClick={() => updateStatus(item.id, "Rejected")}
@@ -343,7 +287,6 @@ export default function RegistrationPage() {
       </div>
 
       {/* ── Proof Preview Panel ─────────────────────────────────────────── */}
-      {/* FIX: Previously "View" had no handler — now shows a mock proof panel */}
       {previewId !== null && (() => {
         const item = rows.find((r) => r.id === previewId);
         if (!item) return null;

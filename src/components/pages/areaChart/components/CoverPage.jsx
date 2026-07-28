@@ -10,8 +10,8 @@ import {
  * Constituency-level front cover — matches G-19 Mahadevapura PDF page 1.
  */
 export default function CoverPage({
-  code = "12",
-  regionName = "Bengluru north",
+  code = "",
+  regionName = "",
   wardList = MAHADEVAPURA_WARDS,
   extraCount = 14,
   heroImageUrl = HERO_IMAGE_URL,

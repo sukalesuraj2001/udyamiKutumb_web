@@ -42,20 +42,14 @@ import { fetchDashboard } from "../redux/slices/dashboardSlice.js";
 //   },
 // ];
 
-const MONTHLY_REVENUE = [
-  { month: "Jan", revenue: 284000 }, { month: "Feb", revenue: 312000 },
-  { month: "Mar", revenue: 298000 }, { month: "Apr", revenue: 356000 },
-  { month: "May", revenue: 389000 }, { month: "Jun", revenue: 421000 },
-  { month: "Jul", revenue: 398000 }, { month: "Aug", revenue: 445000 },
-  { month: "Sep", revenue: 467000 }, { month: "Oct", revenue: 489000 },
-  { month: "Nov", revenue: 512000 }, { month: "Dec", revenue: 543000 },
-];
+// MONTHLY_REVENUE array — 
+const MONTHLY_REVENUE = [];
 
 const REVENUE_STATS = [
-  { label: "Today", value: "₹18,420", icon: IndianRupee, badge: "↗ 12% vs yesterday", warn: false },
-  { label: "This Month", value: "₹5,43,200", icon: Calendar, badge: "↗ 8% vs last month", warn: false },
-  { label: "Total Revenue", value: "₹48,12,091", icon: TrendingUp, badge: "All time", warn: false },
-  { label: "Pending", value: "₹1,24,500", icon: Wallet, badge: "⚠ Awaiting clearance", warn: true },
+  { label: "Today", icon: IndianRupee },
+  { label: "This Month", icon: Calendar },
+  { label: "Total Revenue", icon: TrendingUp },
+  { label: "Pending", icon: Wallet },
 ];
 
 // const GROWTH_DATA = [
@@ -81,16 +75,7 @@ const REVENUE_STATS = [
 
 // const DIST_DATA = userDistribution;
 
-const CP_DATA = [
-  { name: "Rajesh Kumar", region: "Tamil Nadu", members: 284, revenue: "₹4,12,500", activeUsers: 261, status: "active" },
-  { name: "Priya Sharma", region: "Karnataka", members: 210, revenue: "₹3,18,200", activeUsers: 198, status: "active" },
-  { name: "Amit Verma", region: "Maharashtra", members: 195, revenue: "₹2,94,800", activeUsers: 180, status: "active" },
-  { name: "Sunita Patel", region: "Gujarat", members: 178, revenue: "₹2,67,400", activeUsers: 165, status: "active" },
-  { name: "Karthik Rajan", region: "Andhra Pradesh", members: 154, revenue: "₹2,31,600", activeUsers: 142, status: "active" },
-  { name: "Meena Iyer", region: "Kerala", members: 98, revenue: "₹1,47,200", activeUsers: 84, status: "inactive" },
-  { name: "Deepak Singh", region: "Uttar Pradesh", members: 72, revenue: "₹1,08,000", activeUsers: 58, status: "inactive" },
-  { name: "Nisha Reddy", region: "Telangana", members: 45, revenue: "₹67,500", activeUsers: 31, status: "inactive" },
-];
+const CP_DATA = [];
 
 /* ─── TONE MAPS ─────────────────────────────────────────────── */
 // const ICON_TONE = {
@@ -230,11 +215,7 @@ export default function SuperAdmin() {
 
   const totalDist = DIST_DATA.reduce((s, d) => s + d.value, 0);
 
-  const filtered = CP_DATA.filter(
-    (r) =>
-      r.name.toLowerCase().includes(search.toLowerCase()) ||
-      r.region.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = []
 
   if (loading && !stats?.totalUsers) {
     return (
@@ -317,29 +298,26 @@ export default function SuperAdmin() {
           <CardHeader icon={TrendingUp} title="Revenue Overview" subtitle="Monthly revenue trend — FY 2025" />
 
           <div className="grid grid-cols-4 divide-x divide-[#F1F5F9] border-b border-[#F1F5F9]">
-            {REVENUE_STATS.map(({ label, value, badge, warn }) => (
+            {REVENUE_STATS.map(({ label }) => (
               <div key={label} className="px-4 py-3.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#94A3B8] mb-1">{label}</p>
-                <p className="text-[16px] font-bold text-[#0F172A] tabular-nums leading-none mb-1.5">{value}</p>
-                <span className={`inline-flex text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full ${warn
-                  ? "bg-amber-50 text-amber-700 border border-amber-100"
-                  : "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                  }`}>{badge}</span>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#94A3B8] mb-1">
+                  {label}
+                </p>
+                <p className="text-[16px] font-bold text-[#CBD5E1] tabular-nums leading-none mb-1.5">
+                  — —
+                </p>
+                <span className="inline-flex text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full bg-slate-50 text-slate-400 border border-slate-100">
+                  Coming soon
+                </span>
               </div>
             ))}
           </div>
 
-          <div className="px-5 pt-4 pb-5 h-[210px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={MONTHLY_REVENUE} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <CartesianGrid stroke="#F1F5F9" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 10.5, fill: "#94A3B8", fontWeight: 500 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10.5, fill: "#94A3B8" }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v / 1000}k`} />
-                <Tooltip content={<RevTooltip />} cursor={{ stroke: "#E2E8F0", strokeWidth: 1 }} />
-                <Line type="monotone" dataKey="revenue" stroke="#2563EB" strokeWidth={2.5} dot={false}
-                  activeDot={{ r: 4, fill: "#2563EB", strokeWidth: 2, stroke: "#fff" }} />
-              </LineChart>
-            </ResponsiveContainer>
+          <div className="px-5 pt-4 pb-5 h-[210px] flex flex-col items-center justify-center gap-2">
+            <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center">
+              <TrendingUp size={16} className="text-slate-400" />
+            </div>
+            <p className="text-[12px] font-medium text-slate-400">Revenue data coming soon</p>
           </div>
         </div>
 
@@ -510,50 +488,17 @@ export default function SuperAdmin() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map(({ name, region, members, revenue, activeUsers, status }, i) => {
-                const initials = name.split(" ").map((n) => n[0]).join("");
-                const activePct = Math.round((activeUsers / members) * 100);
-                const isActive = status === "active";
-                return (
-                  <tr key={i} className="border-b border-[#F8FAFC] hover:bg-[#F8FAFC] transition-colors">
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-[#EFF6FF] border border-[#DBEAFE] flex items-center justify-center shrink-0">
-                          <span className="text-[10px] font-bold text-[#2563EB]">{initials}</span>
-                        </div>
-                        <span className="text-[13px] font-semibold text-[#1E293B]">{name}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className="text-[12.5px] text-[#64748B]">{region}</span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className="text-[13px] font-semibold text-[#1E293B] tabular-nums">{members}</span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className="text-[13px] font-semibold text-[#1E293B] tabular-nums">{revenue}</span>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-semibold text-[#1E293B] tabular-nums">{activeUsers}</span>
-                        <span className="text-[11px] text-[#94A3B8]">({activePct}%)</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={`inline-flex items-center text-[10.5px] font-semibold px-2.5 py-1 rounded-full ${isActive
-                        ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
-                        : "bg-amber-50 text-amber-700 border border-amber-100"
-                        }`}>
-                        {isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-10 text-center text-[13px] text-[#94A3B8]">
-                    No partners match your search.
+                  <td colSpan={6}>
+                    <div className="flex flex-col items-center justify-center py-14 gap-2">
+                      <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center">
+                        <Network size={16} className="text-slate-400" />
+                      </div>
+                      <p className="text-[12.5px] font-medium text-slate-400">
+                        Channel partner data coming soon
+                      </p>
+                    </div>
                   </td>
                 </tr>
               )}

@@ -3,26 +3,29 @@ import { FolderOpen, TrendingUp, TrendingDown, Mail, Phone, MessageSquare, Messa
 import Loader from "../../common/Loader.jsx";
 
 const COST_PER_MESSAGE = [
-  { key: "email",    label: "Email",    cost: "1 cr", icon: Mail          },
-  { key: "ivr",      label: "IVR",      cost: "5 cr", icon: Phone         },
-  { key: "sms",      label: "SMS",      cost: "1 cr", icon: MessageSquare },
-  { key: "whatsapp", label: "WhatsApp", cost: "2 cr", icon: MessagesSquare},
+  { key: "email",    label: "Email",    cost: "1 cr", icon: Mail           },
+  { key: "ivr",      label: "IVR",      cost: "5 cr", icon: Phone          },
+  { key: "sms",      label: "SMS",      cost: "1 cr", icon: MessageSquare  },
+  { key: "whatsapp", label: "WhatsApp", cost: "2 cr", icon: MessagesSquare },
 ];
 
 const PLANS = [
   { key: "starter",    label: "Starter",    creditsNum: 100,  credits: "100",   price: "₹99",    perCredit: "₹0.99 per credit" },
-  { key: "standard",   label: "Standard",   creditsNum: 550,  credits: "550",   price: "₹449",   perCredit: "₹0.82 per credit", bonus: "500 + 50 bonus",     popular: true },
-  { key: "pro",        label: "Pro",        creditsNum: 2200, credits: "2,200", price: "₹1,599", perCredit: "₹0.73 per credit", bonus: "2,000 + 200 bonus"  },
-  { key: "enterprise", label: "Enterprise", creditsNum: 5500, credits: "5,500", price: "₹3,499", perCredit: "₹0.64 per credit", bonus: "5,000 + 500 bonus"  },
+  { key: "standard",   label: "Standard",   creditsNum: 550,  credits: "550",   price: "₹449",   perCredit: "₹0.82 per credit", bonus: "500 + 50 bonus",    popular: true },
+  { key: "pro",        label: "Pro",        creditsNum: 2200, credits: "2,200", price: "₹1,599", perCredit: "₹0.73 per credit", bonus: "2,000 + 200 bonus" },
+  { key: "enterprise", label: "Enterprise", creditsNum: 5500, credits: "5,500", price: "₹3,499", perCredit: "₹0.64 per credit", bonus: "5,000 + 500 bonus" },
 ];
 
-export default function Credits() {
-  const [availableCredits, setAvailableCredits] = useState(100);
-  const [totalPurchased,   setTotalPurchased]   = useState(100);
-  const [totalSpent]                            = useState(0);
-  const [transactions,     setTransactions]     = useState([
-    { description: "Purchased Starter pack", type: "Purchase", credits: "+100", balance: "100", date: "8 Jul 2026" },
-  ]);
+export default function Credits({
+  initialCredits      = 0,
+  initialPurchased    = 0,
+  initialSpent        = 0,
+  initialTransactions = [],
+}) {
+  const [availableCredits, setAvailableCredits] = useState(initialCredits);
+  const [totalPurchased,   setTotalPurchased]   = useState(initialPurchased);
+  const [totalSpent]                            = useState(initialSpent);
+  const [transactions,     setTransactions]     = useState(initialTransactions);
   const [purchasingKey,    setPurchasingKey]    = useState(null);
   const [justPurchasedKey, setJustPurchasedKey] = useState(null);
 
@@ -96,7 +99,6 @@ export default function Credits() {
                     : "border-gray-200 bg-white"
                 }`}
               >
-                {/* Popular badge */}
                 {p.popular && !isPurchasing && !justPurchased && (
                   <span className="absolute -top-3 right-4 bg-blue-600 text-white
                                    text-[10.5px] font-semibold px-2.5 py-1 rounded-full shadow-sm">
@@ -105,7 +107,6 @@ export default function Credits() {
                 )}
 
                 <p className="text-[13px] font-semibold text-gray-600 mb-2">{p.label}</p>
-
                 <p className="text-[24px] font-bold text-gray-800 leading-none mb-1">
                   {p.credits}{" "}
                   <span className="text-[13px] font-medium text-gray-400">credits</span>
@@ -151,7 +152,16 @@ export default function Credits() {
         </div>
 
         {transactions.length === 0 ? (
-          <p className="text-[13px] text-gray-400 text-center py-10">No transactions yet.</p>
+          <div className="flex flex-col items-center justify-center gap-2 py-14 px-4">
+            <svg width="32" height="32" className="text-gray-300" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round"
+                d="M9 14l2 2 4-4M3 12a9 9 0 1118 0A9 9 0 013 12z" />
+            </svg>
+            <p className="text-[13.5px] font-semibold text-gray-500">Coming soon</p>
+            <p className="text-[12px] text-gray-400 text-center max-w-[220px]">
+              Transactions will appear here once you purchase credits.
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -196,9 +206,9 @@ export default function Credits() {
 // ── StatCard ─────────────────────────────────────────────────────────────────
 
 const COLOR_MAP = {
-  blue:  { icon: "bg-blue-50 text-blue-600",   value: "text-blue-600"  },
-  green: { icon: "bg-green-50 text-green-600",  value: "text-green-600" },
-  gray:  { icon: "bg-gray-100 text-gray-500",   value: "text-gray-800"  },
+  blue:  { icon: "bg-blue-50 text-blue-600",  value: "text-blue-600" },
+  green: { icon: "bg-green-50 text-green-600", value: "text-green-600" },
+  gray:  { icon: "bg-gray-100 text-gray-500",  value: "text-gray-800" },
 };
 
 function StatCard({ label, value, icon: Icon, color }) {

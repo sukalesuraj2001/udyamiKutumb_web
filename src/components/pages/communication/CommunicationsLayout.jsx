@@ -17,13 +17,7 @@ const TABS = [
   { to: "whatsapp-outreach", label: "WhatsApp Outreach", icon: MessagesSquare },
   { to: "ai-ivr-calling", label: "AI IVR Calling", icon: Sparkles },
   { to: "whatsapp-ai-chatbot", label: "WhatsApp AI Chatbot", icon: Bot },
-  { to: "credits", label: "Credits", icon: WalletCards },
-  {
-    to: "comm-service-request",
-    label: "Comm Service Request",
-    icon: Inbox,
-    adminOnly: true,           // visible to SUPERADMIN only
-  },
+  { to: "credits", label: "Credits", icon: WalletCards }
 ];
 
 export default function CommunicationsLayout() {

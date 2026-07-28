@@ -79,19 +79,6 @@ export const TREE_DATA = {
 // ─── Legacy Management Matrix ─────────────────────────────────────────────────
 // Row = manager role, value = array of role IDs they can manage
 export const CAN_MANAGE = {
-  "national-head":     ["state-head","district-head","taluk-head","ward-chairman","sector-coordinator","president","vice-president","general-secretary","treasurer","functional-role","channel-partner","member"],
-  "state-head":        ["district-head","taluk-head","ward-chairman","sector-coordinator","president","vice-president","general-secretary","treasurer","functional-role","channel-partner","member"],
-  "district-head":     ["taluk-head","ward-chairman","sector-coordinator","president","vice-president","general-secretary","treasurer","functional-role","channel-partner","member"],
-  "taluk-head":        ["ward-chairman","sector-coordinator","president","vice-president","general-secretary","treasurer","functional-role","channel-partner","member"],
-  "ward-chairman":     ["sector-coordinator","president","vice-president","general-secretary","treasurer","functional-role","channel-partner","member"],
-  "sector-coordinator":["channel-partner","member"],
-  "president":         ["member"],
-  "vice-president":    ["channel-partner","member"],
-  "general-secretary": [],
-  "treasurer":         [],
-  "functional-role":   [],
-  "channel-partner":   ["member"],
-  "member":            [],
 };
 
 // ─── Mock users for Assign Roles tab ─────────────────────────────────────────

@@ -4,17 +4,6 @@ import {
   Upload, Download, FileText, Crown, CreditCard,
 } from "lucide-react";
 
-const PAYMENTS_DATA = [
-  { id: 1, receipt: "REC-2025-0156", member: "Rajesh Gowda",  memberId: "UB-25-01001", plan: "prime", amount: 25000,  gst: 4500, type: "membership", method: "UPI",                  date: "10 Mar" },
-  { id: 2, receipt: "REC-2025-0157", member: "Sunita Hegde",  memberId: "UB-25-01002", plan: "basic", amount: 10000,  gst: 1800, type: "membership", method: "Bank Transfer",         date: "9 Mar"  },
-  { id: 3, receipt: "WAV-2025-0012", member: "Meena Patil",   memberId: "UB-25-01010", plan: "basic", amount: 5000,   gst: null, type: "waiver",     method: "Scholarship",           date: "8 Mar"  },
-  { id: 4, receipt: "REF-2025-0003", member: "Vinod Shetty",  memberId: "UB-25-01007", plan: "basic", amount: -10000, gst: 1800, type: "refund",      method: "Bank Transfer",         date: "5 Mar"  },
-  { id: 5, receipt: "REC-2025-0158", member: "Kavita Rao",    memberId: "UB-25-01004", plan: "prime", amount: 25000,  gst: 4500, type: "membership", method: "Cheque",                date: "4 Mar"  },
-  { id: 6, receipt: "WAV-2025-0013", member: "Lakshmi Devi",  memberId: "UB-25-01008", plan: "basic", amount: 7500,   gst: null, type: "waiver",     method: "Udyami Queen Discount", date: "3 Mar"  },
-  { id: 7, receipt: "REC-2025-0159", member: "Arun Sharma",   memberId: "UB-25-01011", plan: "prime", amount: 25000,  gst: 4500, type: "membership", method: "UPI",                  date: "2 Mar"  },
-  { id: 8, receipt: "REC-2025-0160", member: "Preethi Nair",  memberId: "UB-25-01012", plan: "basic", amount: 10000,  gst: 1800, type: "membership", method: "Bank Transfer",         date: "1 Mar"  },
-];
-
 const TYPE_STYLES = {
   membership: "bg-green-50 text-green-700",
   waiver:     "bg-amber-50 text-amber-700",
@@ -22,16 +11,17 @@ const TYPE_STYLES = {
 };
 
 export default function PaymentsTab() {
+  const [payments, setPayments] = useState([]); // ← empty
   const [typeFilter, setTypeFilter] = useState("all");
 
   const filtered = typeFilter === "all"
-    ? PAYMENTS_DATA
-    : PAYMENTS_DATA.filter((p) => p.type === typeFilter);
+    ? payments
+    : payments.filter((p) => p.type === typeFilter);
 
-  const totalCollected = PAYMENTS_DATA.filter((p) => p.type === "membership" && p.amount > 0).reduce((s, p) => s + p.amount, 0);
-  const gstCollected   = PAYMENTS_DATA.filter((p) => p.gst).reduce((s, p) => s + p.gst, 0);
-  const waivers        = PAYMENTS_DATA.filter((p) => p.type === "waiver").reduce((s, p) => s + p.amount, 0);
-  const refunds        = Math.abs(PAYMENTS_DATA.filter((p) => p.type === "refund").reduce((s, p) => s + p.amount, 0));
+  const totalCollected = payments.filter((p) => p.type === "membership" && p.amount > 0).reduce((s, p) => s + p.amount, 0);
+  const gstCollected   = payments.filter((p) => p.gst).reduce((s, p) => s + p.gst, 0);
+  const waivers        = payments.filter((p) => p.type === "waiver").reduce((s, p) => s + p.amount, 0);
+  const refunds        = Math.abs(payments.filter((p) => p.type === "refund").reduce((s, p) => s + p.amount, 0));
 
   const stats = [
     { label: "Total Collected",      value: `₹${(totalCollected/1000).toFixed(0)}K`, icon: <IndianRupee size={15} className="text-green-600" />, iconBg: "bg-green-50" },
@@ -89,39 +79,53 @@ export default function PaymentsTab() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p, i) => (
-              <tr key={p.id} className={`transition-colors hover:bg-gray-50 ${i < filtered.length - 1 ? "border-b border-gray-100" : ""}`}>
-                <td className="px-4 py-3.5 font-mono text-[12px] text-gray-500 whitespace-nowrap">{p.receipt}</td>
-                <td className="px-4 py-3.5">
-                  <p className="text-[13px] font-semibold text-gray-900 whitespace-nowrap">{p.member}</p>
-                  <p className="text-[11px] text-gray-400 font-mono">{p.memberId}</p>
-                </td>
-                <td className="px-4 py-3.5">
-                  {p.plan === "prime"
-                    ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700"><Crown size={10} /> Prime</span>
-                    : <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700"><CreditCard size={10} /> Basic</span>
-                  }
-                </td>
-                <td className="px-4 py-3.5 whitespace-nowrap">
-                  <span className={`text-[13px] font-semibold ${p.amount < 0 ? "text-red-600" : "text-gray-900"}`}>
-                    {p.amount < 0 ? `-₹${Math.abs(p.amount).toLocaleString("en-IN")}` : `₹${p.amount.toLocaleString("en-IN")}`}
-                  </span>
-                </td>
-                <td className="px-4 py-3.5 text-[13px] text-gray-600 whitespace-nowrap">
-                  {p.gst ? `₹${p.gst.toLocaleString("en-IN")}` : <span className="text-gray-300">—</span>}
-                </td>
-                <td className="px-4 py-3.5">
-                  <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ${TYPE_STYLES[p.type]}`}>{p.type}</span>
-                </td>
-                <td className="px-4 py-3.5 text-[13px] text-gray-600 whitespace-nowrap">{p.method}</td>
-                <td className="px-4 py-3.5 text-[13px] text-gray-500 whitespace-nowrap">{p.date}</td>
-                <td className="px-4 py-3.5">
-                  <button className="rounded-md border border-gray-200 p-1.5 text-gray-400 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                    <FileText size={13} />
-                  </button>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={9}>
+                  <div className="flex flex-col items-center justify-center py-14 gap-2.5">
+                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                      <IndianRupee size={17} className="text-gray-400" />
+                    </div>
+                    <p className="text-[12.5px] font-semibold text-gray-400">Payment data coming soon</p>
+                    <p className="text-[11px] text-gray-300">Transaction records will appear here once available</p>
+                  </div>
                 </td>
               </tr>
-            ))}
+            ) : (
+              filtered.map((p, i) => (
+                <tr key={p.id} className={`transition-colors hover:bg-gray-50 ${i < filtered.length - 1 ? "border-b border-gray-100" : ""}`}>
+                  <td className="px-4 py-3.5 font-mono text-[12px] text-gray-500 whitespace-nowrap">{p.receipt}</td>
+                  <td className="px-4 py-3.5">
+                    <p className="text-[13px] font-semibold text-gray-900 whitespace-nowrap">{p.member}</p>
+                    <p className="text-[11px] text-gray-400 font-mono">{p.memberId}</p>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    {p.plan === "prime"
+                      ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700"><Crown size={10} /> Prime</span>
+                      : <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700"><CreditCard size={10} /> Basic</span>
+                    }
+                  </td>
+                  <td className="px-4 py-3.5 whitespace-nowrap">
+                    <span className={`text-[13px] font-semibold ${p.amount < 0 ? "text-red-600" : "text-gray-900"}`}>
+                      {p.amount < 0 ? `-₹${Math.abs(p.amount).toLocaleString("en-IN")}` : `₹${p.amount.toLocaleString("en-IN")}`}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3.5 text-[13px] text-gray-600 whitespace-nowrap">
+                    {p.gst ? `₹${p.gst.toLocaleString("en-IN")}` : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3.5">
+                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold capitalize ${TYPE_STYLES[p.type]}`}>{p.type}</span>
+                  </td>
+                  <td className="px-4 py-3.5 text-[13px] text-gray-600 whitespace-nowrap">{p.method}</td>
+                  <td className="px-4 py-3.5 text-[13px] text-gray-500 whitespace-nowrap">{p.date}</td>
+                  <td className="px-4 py-3.5">
+                    <button className="rounded-md border border-gray-200 p-1.5 text-gray-400 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                      <FileText size={13} />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

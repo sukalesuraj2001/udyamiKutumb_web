@@ -1,7 +1,7 @@
 import React from "react";
 import { Users, Plus, Download, Calendar } from "lucide-react";
 import HeadTable from "../members/Headtable.jsx";
-import { STATE_HEAD_DATA } from "./Headdata.js";
+// import { STATE_HEAD_DATA } from "./Headdata.js";
 
 export default function StateHead() {
   const handleView   = (row) => console.log("View",   row.memberId);

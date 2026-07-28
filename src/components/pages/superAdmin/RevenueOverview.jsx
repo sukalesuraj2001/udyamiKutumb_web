@@ -1,35 +1,19 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { IndianRupee, Calendar, TrendingUp, Wallet, MoreHorizontal } from "lucide-react";
 
-const MONTHLY_REVENUE = [
-  { month: "Jan", revenue: 284000 }, { month: "Feb", revenue: 312000 },
-  { month: "Mar", revenue: 298000 }, { month: "Apr", revenue: 356000 },
-  { month: "May", revenue: 389000 }, { month: "Jun", revenue: 421000 },
-  { month: "Jul", revenue: 398000 }, { month: "Aug", revenue: 445000 },
-  { month: "Sep", revenue: 467000 }, { month: "Oct", revenue: 489000 },
-  { month: "Nov", revenue: 512000 }, { month: "Dec", revenue: 543000 },
-];
+const MONTHLY_REVENUE = []; // ← empty
 
 const REVENUE_STATS = [
-  { label: "Today Revenue",   value: "₹18,420",    icon: IndianRupee, badge: "↗ 12% vs yesterday",  warn: false },
-  { label: "This Month",      value: "₹5,43,200",  icon: Calendar,    badge: "↗ 8% vs last month",   warn: false },
-  { label: "Total Revenue",   value: "₹48,12,091", icon: TrendingUp,  badge: "All time",              warn: false },
-  { label: "Pending Revenue", value: "₹1,24,500",  icon: Wallet,      badge: "⚠ Awaiting clearance", warn: true  },
+  { label: "Today Revenue",   value: "— —", icon: IndianRupee, badge: "Coming soon", warn: false },
+  { label: "This Month",      value: "— —", icon: Calendar,    badge: "Coming soon", warn: false },
+  { label: "Total Revenue",   value: "— —", icon: TrendingUp,  badge: "Coming soon", warn: false },
+  { label: "Pending Revenue", value: "— —", icon: Wallet,      badge: "Coming soon", warn: true  },
 ];
-
-const ChartTooltip = ({ active, payload, label }) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-white border border-[#E2E8F0] rounded-xl px-4 py-3 shadow-[0_8px_24px_rgba(0,0,0,0.10)]">
-      <p className="text-[10.5px] font-semibold text-[#94A3B8] mb-1 uppercase tracking-wide">{label}</p>
-      <p className="text-[15px] font-bold text-[#1E293B]">₹{Number(payload[0].value).toLocaleString("en-IN")}</p>
-    </div>
-  );
-};
 
 export default function RevenueOverview() {
   return (
     <div className="bg-white rounded-2xl border border-[#E2E8F0] shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.04)] overflow-hidden">
+
       {/* Card header */}
       <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-[#F1F5F9]">
         <div className="flex items-center gap-3">
@@ -56,33 +40,22 @@ export default function RevenueOverview() {
                 <Icon size={12} className={warn ? "text-amber-500" : "text-[#2563EB]"} strokeWidth={2} />
               </div>
             </div>
-            <p className="text-[22px] font-bold text-[#1E293B] tabular-nums leading-none mb-2">{value}</p>
-            <span className={`inline-flex items-center text-[10.5px] font-semibold px-2 py-0.5 rounded-full ${
-              warn
-                ? "bg-amber-50 text-amber-700 border border-amber-100"
-                : "bg-emerald-50 text-emerald-600 border border-emerald-100"
-            }`}>{badge}</span>
+            <p className="text-[22px] font-bold text-[#CBD5E1] tabular-nums leading-none mb-2">{value}</p>
+            <span className="inline-flex items-center text-[10.5px] font-semibold px-2 py-0.5 rounded-full bg-slate-50 text-slate-400 border border-slate-100">
+              {badge}
+            </span>
           </div>
         ))}
       </div>
 
-      {/* Chart */}
+      {/* Chart — coming soon */}
       <div className="px-6 pb-6 pt-4">
-        <div className="h-[200px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={MONTHLY_REVENUE} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-              <CartesianGrid stroke="#F1F5F9" strokeDasharray="0" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#94A3B8", fontWeight: 500 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${v / 1000}k`} />
-              <Tooltip content={<ChartTooltip />} cursor={{ stroke: "#E2E8F0", strokeWidth: 1 }} />
-              <Line
-                type="monotone" dataKey="revenue"
-                stroke="#2563EB" strokeWidth={2.5}
-                dot={false}
-                activeDot={{ r: 5, fill: "#2563EB", strokeWidth: 2, stroke: "#fff" }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+        <div className="h-[200px] flex flex-col items-center justify-center gap-2.5 rounded-xl bg-slate-50 border border-dashed border-slate-200">
+          <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center">
+            <TrendingUp size={16} className="text-slate-400" />
+          </div>
+          <p className="text-[12.5px] font-semibold text-slate-400">Revenue chart coming soon</p>
+          <p className="text-[11px] text-slate-300">Data will appear here once revenue is recorded</p>
         </div>
       </div>
     </div>
