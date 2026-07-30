@@ -20,7 +20,7 @@ function AdminLayout() {
             )}
 
             <main
-                className={`transition-all duration-300 ease-in-out p-8 ${isOpen ? "ml-64" : "ml-20"
+                className={`transition-all duration-300 ease-in-out p-4 sm:p-6 md:p-8 pt-20 md:pt-8 min-w-0 flex-1 ${isOpen ? "md:ml-64" : "md:ml-[70px]"
                     }`}
             >
                 <Outlet />

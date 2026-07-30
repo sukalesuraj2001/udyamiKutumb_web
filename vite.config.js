@@ -10,9 +10,9 @@ export default defineConfig({
   ],
   server: {
     proxy: {
-      '/ward': {
-        // target: 'http://192.168.0.70:3000',
-        target: 'https://udyami-circle-db.onrender.com',
+      "/ward/": {
+        target: "https://udyami-circle-db.onrender.com",
+        // target: "http://192.168.0.70:3000",
         changeOrigin: true,
       },
     },

@@ -47,7 +47,7 @@ export default function Register() {
           longitude: pos.coords.longitude,
         }));
       },
-      () => { } // silent fail — user denied பண்ணா 0,0 போகும்
+      () => { } 
     );
   }, []);
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -55,12 +55,24 @@ export default function Register() {
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = "Name is required";
-    if (!form.email.trim()) e.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Enter a valid email";
+
+    if (!form.email.trim()) {
+      e.email = "Email is required";
+    } else if (
+      !/^[a-zA-Z0-9._%+-]+@gmail\.(com|in)$/i.test(form.email)
+    ) {
+      e.email = "Enter a valid Gmail address";
+    }
+
     if (!form.password) e.password = "Password is required";
     else if (form.password.length < 6) e.password = "At least 6 characters";
-    if (!form.mobileNumber.trim()) e.mobileNumber = "Mobile number is required";
-    else if (!/^\d{10}$/.test(form.mobileNumber)) e.mobileNumber = "Enter a valid 10-digit number";
+
+    if (!form.mobileNumber.trim()) {
+      e.mobileNumber = "Mobile number is required";
+    } else if (!/^[6-9]\d{9}$/.test(form.mobileNumber)) {
+      e.mobileNumber = "Enter a valid 10-digit mobile number";
+    } else if (!/^\d{10}$/.test(form.mobileNumber)) e.mobileNumber = "Enter a valid 10-digit number";
+
     if (!form.businessLocation.trim()) e.businessLocation = "Business location is required";
     if (!form.officeLocation.trim()) e.officeLocation = "Office location is required";
     setFieldErrors(e);
@@ -124,11 +136,17 @@ export default function Register() {
             </Field>
             <Field label="Mobile number" error={fieldErrors.mobileNumber}>
               <input
+                type="tel"
+                inputMode="numeric"
                 className={inputClass(fieldErrors.mobileNumber)}
                 placeholder="10-digit number"
                 value={form.mobileNumber}
-                onChange={update("mobileNumber")}
-                maxLength={10}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    mobileNumber: e.target.value.replace(/\D/g, "").slice(0, 10),
+                  }))
+                }
               />
             </Field>
           </div>
