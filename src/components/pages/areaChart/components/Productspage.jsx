@@ -96,8 +96,45 @@ export default function ProductsPage({ code, wardName, region, categories = SAMP
               {cat.products.map((p) => {
                 const slotId = `product-${cat.key}-${p.key}`;
                 const assigned = assignments[slotId];
-                const logoUrl = PRODUCT_LOGOS[p.key];
 
+                if (p.isPlaceholder) {
+                  const placeholderIndex = cat.products.indexOf(p);
+                  const slotId = `product-${cat.key}-slot-${placeholderIndex + 1}`; // ← meaningful slotId
+
+                  return (
+                    <div key={p.key}>
+                      <p className="text-[8px] font-bold mb-[3px] truncate leading-tight"
+                        style={{ color: cat.color }}>
+                        {p.name}  
+                      </p>
+                      <button
+                        onClick={() => onAssignClick?.(slotId, p.name)}
+                        className="group relative w-full aspect-square bg-white/40 border-[3px] border-dashed rounded-xl flex items-center justify-center overflow-hidden"
+                        style={{ borderColor: cat.color }}
+                      >
+                        {assigned?.photoUrl ? (
+                          <img
+                            src={assigned.photoUrl}
+                            alt={assigned.name}
+                            className="absolute inset-0 w-full h-full object-cover rounded-[9px]"
+                          />
+                        ) : (
+                          !isSuperAdmin && (
+                            <Plus size={14} className="opacity-30 group-hover:opacity-100 transition-opacity"
+                              style={{ color: cat.color }} />
+                          )
+                        )}
+                      </button>
+                      {assigned?.name && (
+                        <p className="text-[7px] font-medium text-ink mt-[2px] truncate text-center">
+                          {assigned.name}
+                        </p>
+                      )}
+                    </div>
+                  );
+                }
+
+                // ── Normal product slot ── (existing code same)
                 return (
                   <div key={p.key}>
                     <p className="text-[8px] font-bold mb-[3px] truncate leading-tight" style={{ color: cat.color }}>
@@ -108,19 +145,32 @@ export default function ProductsPage({ code, wardName, region, categories = SAMP
                       className="group relative w-full aspect-square bg-white border-[3px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden"
                       style={{ borderColor: cat.color }}
                     >
-                      
-                        <span className="text-[7px] font-bold uppercase text-muted text-center leading-tight px-0.5">
+                      {/* ── Assigned image ── */}
+                      {assigned?.photoUrl ? (
+                        <img
+                          src={assigned.photoUrl}
+                          alt={assigned.name}
+                          className="absolute inset-0 w-full h-full object-cover rounded-[9px]"
+                        />
+                      ) : (
+                        <span className="text-[7px] font-bold uppercase text-muted text-center leading-tight px-0.5 max-w-full truncate block">
                           {p.sub}
                         </span>
-                      
+                      )}
+
+                      {/* ── Hover overlay — assigned ── */}
                       {!isSuperAdmin && (
-                        <span className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-colors">
+                        <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center transition-colors rounded-[9px]">
                           <Plus size={14} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                         </span>
                       )}
                     </button>
+
+                    {/* ── Name below card ── */}
                     {assigned?.name && (
-                      <p className="text-[7px] font-medium text-ink mt-[2px] truncate text-center">{assigned.name}</p>
+                      <p className="text-[7px] font-medium text-ink mt-[2px] truncate text-center">
+                        {assigned.name}
+                      </p>
                     )}
                   </div>
                 );

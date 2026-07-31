@@ -99,11 +99,11 @@ export default function AreaChartBuilder() {
         </div>
 
         {/* Header-level filter dropdowns */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <select
             value={constituencyFilter}
             onChange={(e) => setConstituencyFilter(e.target.value)}
-            className="h-8 text-[12.5px] font-medium text-gray-700 border border-gray-200 rounded-lg px-3 pr-7 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-400 transition-all appearance-none cursor-pointer"
+            className="h-8 text-[12.5px] font-medium text-gray-700 border border-gray-200 rounded-lg px-3 pr-7 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-400 transition-all appearance-none cursor-pointer w-full xs:w-auto min-w-[130px]"
           >
             {constituencies.map((c) => (
               <option key={c} value={c}>
@@ -111,10 +111,10 @@ export default function AreaChartBuilder() {
               </option>
             ))}
           </select>
-          <select className="h-8 text-[12.5px] font-medium text-gray-400 border border-gray-200 rounded-lg px-3 pr-7 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-400 transition-all appearance-none cursor-pointer">
+          <select className="h-8 text-[12.5px] font-medium text-gray-400 border border-gray-200 rounded-lg px-3 pr-7 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-400 transition-all appearance-none cursor-pointer w-full xs:w-auto min-w-[130px]">
             <option>All Wards</option>
           </select>
-          <select className="h-8 text-[12.5px] font-medium text-gray-400 border border-gray-200 rounded-lg px-3 pr-7 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-400 transition-all appearance-none cursor-pointer">
+          <select className="h-8 text-[12.5px] font-medium text-gray-400 border border-gray-200 rounded-lg px-3 pr-7 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-400 transition-all appearance-none cursor-pointer w-full xs:w-auto min-w-[130px]">
             <option>Pick a Hobli (Rural)</option>
           </select>
         </div>
@@ -125,7 +125,7 @@ export default function AreaChartBuilder() {
         <button
           disabled
           title="Open a ward's chart first"
-          className="inline-flex items-center gap-2 h-8 bg-gray-900 text-white text-[12.5px] font-semibold px-4 rounded-lg opacity-40 cursor-not-allowed select-none"
+          className="inline-flex items-center justify-center gap-2 h-8 bg-gray-900 text-white text-[12.5px] font-semibold px-4 rounded-lg opacity-40 cursor-not-allowed select-none w-full sm:w-auto"
         >
           <UserPlus size={13} />
           Invite Member
@@ -140,7 +140,7 @@ export default function AreaChartBuilder() {
             key={label}
             disabled
             title="Open a ward's chart first"
-            className="inline-flex items-center gap-2 h-8 bg-white border border-gray-200 text-[12.5px] font-medium text-gray-400 px-4 rounded-lg cursor-not-allowed select-none"
+            className="inline-flex items-center justify-center gap-2 h-8 bg-white border border-gray-200 text-[12.5px] font-medium text-gray-400 px-4 rounded-lg cursor-not-allowed select-none w-full sm:w-auto"
           >
             <Icon size={13} />
             {label}
@@ -149,7 +149,7 @@ export default function AreaChartBuilder() {
       </div>
 
       {/* ── Stat Cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard
           label="Total Wards"
           value={stats.total}
@@ -185,11 +185,11 @@ export default function AreaChartBuilder() {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white p-1">
+      <div className="flex flex-wrap sm:inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white p-1 w-full sm:w-auto">
         <TabButton
           active={tab === "urban"}
           onClick={() => setTab("urban")}
-          label={`Wards / Hobili (${wards.length})`}
+          label={`Wards / Hoblis (${wards.length})`}
         />
         <TabButton
           active={tab === "rural"}
@@ -200,7 +200,7 @@ export default function AreaChartBuilder() {
 
       {/* ── Rural empty state ── */}
       {tab === "rural" ? (
-        <div className="rounded-xl border border-dashed border-gray-200 bg-white p-14 text-center">
+        <div className="rounded-xl border border-dashed border-gray-200 bg-white p-6 sm:p-14 text-center">
           <div className="w-11 h-11 rounded-lg bg-gray-100 flex items-center justify-center mx-auto mb-3">
             <PackageOpen size={20} className="text-gray-400" />
           </div>
@@ -215,7 +215,7 @@ export default function AreaChartBuilder() {
         <>
           {/* ── Search + Bulk Print ── */}
           <div className="flex flex-wrap gap-3">
-            <div className="flex-1 min-w-[240px] flex items-center gap-2 h-9 border border-gray-200 rounded-lg px-3 bg-white focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
+            <div className="flex-1 min-w-[200px] flex items-center gap-2 h-9 border border-gray-200 rounded-lg px-3 bg-white focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all">
               <Search size={13} className="text-gray-400 shrink-0" />
               <input
                 value={search}
@@ -224,7 +224,7 @@ export default function AreaChartBuilder() {
                 className="w-full text-[13px] text-gray-800 placeholder:text-gray-400 focus:outline-none bg-transparent"
               />
             </div>
-            <button className="inline-flex items-center gap-2 h-9 bg-blue-600 text-white text-[12.5px] font-semibold px-4 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors shrink-0">
+            <button className="inline-flex items-center justify-center gap-2 h-9 bg-blue-600 text-white text-[12.5px] font-semibold px-4 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors shrink-0 w-full sm:w-auto">
               <Download size={13} />
               Bulk Print All Wards (ZIP)
             </button>

@@ -52,13 +52,13 @@ export default function PositionDetailsModal({ open, position, onClose }) {
   return (
     /* ── Backdrop ── */
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
       style={{ backgroundColor: "rgba(10, 14, 40, 0.65)", backdropFilter: "blur(4px)" }}
       onClick={onClose}
     >
       {/* ── Card ── */}
       <div
-        className="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl"
+        className="relative w-full max-w-sm rounded-2xl overflow-hidden shadow-2xl max-h-[90vh] overflow-y-auto"
         style={{ background: "#ffffff" }}
         onClick={(e) => e.stopPropagation()}
       >

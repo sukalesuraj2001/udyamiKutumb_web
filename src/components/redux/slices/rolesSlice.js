@@ -16,7 +16,7 @@ export const fetchRoles = createAsyncThunk(
   }
 );
 
-// ── Full payload object-ஐ directly accept பண்ணும் ──────────────────────────
+// ── Full payload object- directly accept  ──────────────────────────
 // district_head  → { userId, roleId, type, districtId, assignedBy }
 // taluka_head    → { userId, roleId, type, districtHeadId, talukaIds[], assignedBy }
 // ward_chairman  → { userId, roleId, type, talukaHeadId[], talukaId, wardId, assignedBy }

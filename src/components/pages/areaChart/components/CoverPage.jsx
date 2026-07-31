@@ -47,7 +47,7 @@ export default function CoverPage({
 
       {/* Title */}
       <div className="px-[6.9%] mt-[4%]">
-        <h1 className="text-[30px] font-extrabold text-brick tracking-tight leading-none">
+        <h1 className="text-[30px] font-extrabold text-brick tracking-tight leading-none truncate max-w-full">
           {code} {regionName?.toUpperCase()}
         </h1>
       </div>

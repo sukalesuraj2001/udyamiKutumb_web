@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -32,8 +32,8 @@ const NAV = {
             ]
         },
         {
-            type: "group", key: "Oprations", name: "Oprations", icon: Briefcase, children: [
-                { name: "Lead Managemant", path: "/admin-dashboard/lead-management" },
+            type: "group", key: "Operations", name: "Operations", icon: Briefcase, children: [
+                { name: "Lead Management", path: "/admin-dashboard/lead-management" },
                 { name: "Send Messages", path: "/admin-dashboard/communications" },
                 { name: "Comm Service Request", path: "/admin-dashboard/service-request" },
                 { name: "Comm Credits Admin", path: "/register" },
@@ -70,7 +70,7 @@ const NAV = {
         },
         {
             type: "group", key: "digital", name: "Digital", icon: Globe, children: [
-                { name: "Social Onbording", path: "/admin-dashboard/users" },
+                { name: "Social Onboarding", path: "/admin-dashboard/users" },
                 { name: "Social Management", path: "/register" },
                 { name: "Social Media Manager", path: "/admin-dashboard/users" },
                 { name: "Social Media Overview", path: "/admin-dashboard/users" },
@@ -98,14 +98,14 @@ const NAV = {
             type: "group", key: "sp-members", name: "Members", icon: Users, children: [
                 // { name: "State Head", path: "/super-admin-dashboard/state-head" },
                 { name: "District Head", path: "/super-admin-dashboard/district-head" },
-                { name: "Taluk Head", path: "/super-admin-dashboard/taluk-head" },
+                { name: "Taluka Head", path: "/super-admin-dashboard/taluk-head" },
                 { name: "Ward / Hobli Head", path: "/super-admin-dashboard/ward-head" },
                 // { name: "Channel Partners", path: "/super-admin-dashboard/members/channelPartners" },
             ]
         },
         {
-            type: "group", key: "WC-Oprations", name: "Oprations", icon: Briefcase, children: [
-                // { name: "Lead Managemant", path: "/admin-dashboard/lead-management" },
+            type: "group", key: "WC-Operations", name: "Operations", icon: Briefcase, children: [
+                // { name: "Lead Management", path: "/admin-dashboard/lead-management" },
                 { name: "Send Messages", path: "/super-admin-dashboard/communications" },
                 // { name: "Comm Service Request", path: "/admin-dashboard/users" },
                 // { name: "Comm Credits Admin", path: "/register" },
@@ -124,7 +124,14 @@ const NAV = {
         {
             type: "group", key: "sp-revenue", name: "Membership", icon: Briefcase, children: [
                 { name: "Manage Membership", path: "/super-admin-dashboard/membership" },
-                { name: "Registation", path: "/super-admin-dashboard/membership/registration" },
+                { name: "Registrations", path: "/super-admin-dashboard/membership/registration" },
+            ]
+        },
+        {
+            type: "group", key: "moderation", name: "Moderation", icon: ShieldCheck, children: [
+                { name: "Job Management", path: "/super-admin-dashboard/job-management" },
+                // { name: "Post Management", path: "/register" },
+                { name: "News Management", path: "/super-admin-dashboard/news-management" },
             ]
         },
         {
@@ -132,15 +139,76 @@ const NAV = {
                 // { name: "Add Employee", path: "/super-admin-dashboard/user-management" },
                 // { name: "Manage Employee", path: "/manage" },
                 { name: "Manage Roles", path: "/super-admin-dashboard/membership/role-management" },
-                { name: "Create Ward", path: "/super-admin-dashboard/create-ward" },
+                { name: "Create Ward / Hobli", path: "/super-admin-dashboard/create-ward" },
             ]
         },
-        // {
-        //     type: "group", key: "sp-formFeild", name: "Form Feild", icon: UserCog, children: [
-        //         { name: "Member Onboard", path: "/admin-dashboard/users" },
-        //         { name: "Channel Partnern Onboard", path: "/super-admin-dashboard/cp-onbording" },
-        //     ]
-        // },
+        {
+            type: "group", key: "sp-formfield", name: "Form Field", icon: UserCog, children: [
+                // { name: "Member Onboard", path: "/admin-dashboard/users" },
+                { name: "Channel Partners Onboard", path: "/super-admin-dashboard/cp-onboarding" },
+            ]
+        },
+    ],
+    NationalHead: [
+        {
+            type: "link",
+            name: "Dashboard",
+            icon: LayoutDashboard,
+            path: "/national-head-dashboard",
+        },
+        {
+            type: "group",
+            key: "nh-members",
+            name: "Members",
+            icon: Users,
+            children: [
+                { name: "State Head", path: "/national-head-dashboard/state-head" },
+                { name: "District Head", path: "/national-head-dashboard/district-head" },
+                { name: "Taluk Head", path: "/national-head-dashboard/taluk-head" },
+                { name: "Ward / Hobli Head", path: "/national-head-dashboard/ward-head" },
+                // { name: "Channel Partners", path: "/national-head-dashboard/members/channelPartners" },
+            ],
+        },
+        {
+            type: "group",
+            key: "nh-operations",
+            name: "Operations",
+            icon: Briefcase,
+            children: [
+                { name: "Send Messages", path: "/national-head-dashboard/communications" },
+                { name: "Member Map", path: "/national-head-dashboard/member-map" },
+                { name: "Business Circle", path: "/national-head-dashboard/business-circle" },
+            ],
+        },
+        {
+            type: "group",
+            key: "nh-wardChart",
+            name: "Ward Chart",
+            icon: Users,
+            children: [
+                { name: "Area Chart", path: "/national-head-dashboard/area-chart" },
+            ],
+        },
+        {
+            type: "group",
+            key: "nh-membership",
+            name: "Membership",
+            icon: Briefcase,
+            children: [
+                { name: "Manage Membership", path: "/national-head-dashboard/membership" },
+                { name: "Registration", path: "/national-head-dashboard/membership/registration" },
+            ],
+        },
+        {
+            type: "group",
+            key: "nh-employees",
+            name: "Employees",
+            icon: UserCog,
+            children: [
+                { name: "Manage Roles", path: "/national-head-dashboard/membership/role-management" },
+                { name: "Create Ward", path: "/national-head-dashboard/create-ward" },
+            ],
+        },
     ],
     StateHead: [
         { type: "link", name: "Dashboard", icon: LayoutDashboard, path: "/state-head-dashboard" },
@@ -160,8 +228,8 @@ const NAV = {
             ]
         },
         {
-            type: "group", key: "SH-Oprations", name: "Oprations", icon: Briefcase, children: [
-                { name: "Lead Managemant", path: "/state-head-dashboard/lead-management" },
+            type: "group", key: "SH-Operations", name: "Operations", icon: Briefcase, children: [
+                { name: "Lead Management", path: "/state-head-dashboard/lead-management" },
                 { name: "Send Messages", path: "/state-head-dashboard/communications" },
                 { name: "Comm Service Request", path: "/state-head-dashboard/users" },
                 { name: "Comm Credits Admin", path: "/register" },
@@ -191,7 +259,7 @@ const NAV = {
         },
         {
             type: "group", key: "SH-digital", name: "Digital", icon: Globe, children: [
-                { name: "Social Onbording", path: "/state-head-dashboard/users" },
+                { name: "Social Onboarding", path: "/state-head-dashboard/users" },
                 { name: "Social Management", path: "/register" },
                 { name: "Social Media Manager", path: "/state-head-dashboard/users" },
                 { name: "Social Media Overview", path: "/state-head-dashboard/users" },
@@ -224,8 +292,8 @@ const NAV = {
         //     ]
         // },
         {
-            type: "group", key: "DH-Oprations", name: "Oprations", icon: Briefcase, children: [
-                // { name: "Lead Managemant", path: "/district-head-dashboard/lead-management" },
+            type: "group", key: "DH-Operations", name: "Operations", icon: Briefcase, children: [
+                // { name: "Lead Management", path: "/district-head-dashboard/lead-management" },
                 // { name: "Send Messages", path: "/district-head-dashboard/communications" },
                 // { name: "Comm Service Request", path: "/district-head-dashboard/users" },
                 // { name: "Comm Credits Admin", path: "/register" },
@@ -255,7 +323,7 @@ const NAV = {
         // },
         // {
         //     type: "group", key: "DH-digital", name: "Digital", icon: Globe, children: [
-        //         { name: "Social Onbording", path: "/district-head-dashboard/users" },
+        //         { name: "Social Onboarding", path: "/district-head-dashboard/users" },
         //         { name: "Social Management", path: "/register" },
         //         { name: "Social Media Manager", path: "/district-head-dashboard/users" },
         //         { name: "Social Media Overview", path: "/district-head-dashboard/users" },
@@ -294,8 +362,8 @@ const NAV = {
         //     ]
         // },
         {
-            type: "group", key: "TH-Oprations", name: "Oprations", icon: Briefcase, children: [
-                // { name: "Lead Managemant", path: "/taluk-head-dashboard/lead-management" },
+            type: "group", key: "TH-Operations", name: "Operations", icon: Briefcase, children: [
+                // { name: "Lead Management", path: "/taluk-head-dashboard/lead-management" },
                 // { name: "Send Messages", path: "/taluk-head-dashboard/communications" },
                 // { name: "Comm Service Request", path: "/taluk-head-dashboard/users" },
                 // { name: "Comm Credits Admin", path: "/register" },
@@ -325,7 +393,7 @@ const NAV = {
         // },
         // {
         //     type: "group", key: "TH-digital", name: "Digital", icon: Globe, children: [
-        //         { name: "Social Onbording", path: "/taluk-head-dashboard/users" },
+        //         { name: "Social Onboarding", path: "/taluk-head-dashboard/users" },
         //         { name: "Social Management", path: "/register" },
         //         { name: "Social Media Manager", path: "/taluk-head-dashboard/users" },
         //         { name: "Social Media Overview", path: "/taluk-head-dashboard/users" },
@@ -363,8 +431,8 @@ const NAV = {
         //     ]
         // },
         {
-            type: "group", key: "WC-Oprations", name: "Oprations", icon: Briefcase, children: [
-                // { name: "Lead Managemant", path: "/wardChairman-head-dashboard/lead-management" },
+            type: "group", key: "WC-Operations", name: "Operations", icon: Briefcase, children: [
+                // { name: "Lead Management", path: "/wardChairman-head-dashboard/lead-management" },
                 // { name: "Send Messages", path: "/wardChairman-head-dashboard/communications" },
                 // // { name: "Comm Service Request", path: "/wardChairman-head-dashboard/users" },
                 // { name: "Comm Credits Admin", path: "/register" },
@@ -394,7 +462,7 @@ const NAV = {
         // },
         // {
         //     type: "group", key: "WC-digital", name: "Digital", icon: Globe, children: [
-        //         { name: "Social Onbording", path: "/wardChairman-head-dashboard/users" },
+        //         { name: "Social Onboarding", path: "/wardChairman-head-dashboard/users" },
         //         { name: "Social Management", path: "/register" },
         //         { name: "Social Media Manager", path: "/wardChairman-head-dashboard/users" },
         //         { name: "Social Media Overview", path: "/wardChairman-head-dashboard/users" },
@@ -419,8 +487,8 @@ const NAV = {
             ]
         },
         {
-            type: "group", key: "CP-Oprations", name: "Oprations", icon: Briefcase, children: [
-                { name: "Lead Managemant", path: "/channelPartner-dashboard/lead-management" },
+            type: "group", key: "CP-Operations", name: "Operations", icon: Briefcase, children: [
+                { name: "Lead Management", path: "/channelPartner-dashboard/lead-management" },
                 { name: "Send Messages", path: "/channelPartner-dashboard/communications" },
                 { name: "Comm Service Request", path: "/channelPartner-dashboard/users" },
                 { name: "Comm Credits Admin", path: "/register" },
@@ -450,7 +518,7 @@ const NAV = {
         },
         {
             type: "group", key: "CP-digital", name: "Digital", icon: Globe, children: [
-                { name: "Social Onbording", path: "/channelPartner-dashboard/users" },
+                { name: "Social Onboarding", path: "/channelPartner-dashboard/users" },
                 { name: "Social Management", path: "/register" },
                 { name: "Social Media Manager", path: "/channelPartner-dashboard/users" },
                 { name: "Social Media Overview", path: "/channelPartner-dashboard/users" },
@@ -468,7 +536,7 @@ const NAV = {
     Member: [
         { type: "link", name: "Dashboard", icon: LayoutDashboard, path: "/member-dashboard" },
         {
-            type: "group", key: "CP-Oprations", name: "Oprations", icon: Briefcase, children: [
+            type: "group", key: "CP-Operations", name: "Operations", icon: Briefcase, children: [
                 { name: "Send Messages", path: "/member/communications" },
                 { name: "Member Map", path: "/member-dashboard/member-map" },
                 // { name: "Area Chart", path: "/member/area-chart" },
@@ -477,7 +545,7 @@ const NAV = {
         },
         // {
         //     type: "group", key: "CP-digital", name: "Digital", icon: Globe, children: [
-        //         { name: "Social Onbording", path: "/admin-dashboard/users" },
+        //         { name: "Social Onboarding", path: "/admin-dashboard/users" },
         //         { name: "Social Management", path: "/register" },
         //         { name: "Social Media Manager", path: "/admin-dashboard/users" },
         //         { name: "Social Media Overview", path: "/admin-dashboard/users" },
@@ -491,6 +559,7 @@ function Sidebar({ isOpen, onToggle }) {
     const location = useLocation();
     const dispatch = useDispatch();
     const navigate = useNavigate();
+    const sidebarRef = useRef(null);
 
     const bp = useBreakpoint();
     const isMobile = bp === "mobile";
@@ -508,27 +577,41 @@ function Sidebar({ isOpen, onToggle }) {
 
     const [openGroups, setOpenGroups] = useState({
         // admin
-        members: true, Oprations: true, revenue: true, community: true,
+        members: true, Operations: true, revenue: true, community: true,
         growth: true, digital: true, moderation: true, admin: true,
         // SuperAdmin
         "sp-members": true, "sp-wardChart": true, "sp-revenue": true,
         "sp-admin": true, "sp-formFeild": true,
         // StateHead
-        "SH-members": true, "SHG-members": true, "SH-Oprations": true,
+        "SH-members": true, "SHG-members": true, "SH-Operations": true,
         "SH-community": true, "SH-growth": true, "SH-digital": true, "SH-moderation": true,
         // DistrictHead
-        "DH-members": true, "DH-members-db": true, "DH-Oprations": true,
+        "DH-members": true, "DH-members-db": true, "DH-Operations": true,
         "DH-community": true, "DH-growth": true, "DH-digital": true, "DH-moderation": true,
         // TalukHead
-        "TH-members": true, "TH-members-db": true, "TH-Oprations": true,
+        "TH-members": true, "TH-members-db": true, "TH-Operations": true,
         "TH-community": true, "TH-growth": true, "TH-digital": true, "TH-moderation": true,
         // WardChairman
-        "WC-members": true, "WC-members-db": true, "WC-Oprations": true,
+        "WC-members": true, "WC-members-db": true, "WC-Operations": true,
         "WC-community": true, "WC-growth": true, "WC-digital": true, "WC-moderation": true,
         // ChannelPartner
-        "CP-members": true, "CP-Oprations": true, "CP-community": true,
+        "CP-members": true, "CP-Operations": true, "CP-community": true,
         "CP-growth": true, "CP-digital": true, "CP-moderation": true,
     });
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (isMobile && isOpen && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
+                onToggle();
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        document.addEventListener("touchstart", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener("touchstart", handleClickOutside);
+        };
+    }, [isMobile, isOpen, onToggle]);
 
     const toggleGroup = (key) => {
         setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -543,211 +626,254 @@ function Sidebar({ isOpen, onToggle }) {
         if (isMobile) onToggle();
     };
 
-    const sidebarVisible = isMobile ? isOpen : true;
     const sidebarOpen = isMobile ? true : isOpen;
 
     return (
         <>
-            {/* ── Mobile backdrop ──────────────────────────────────────────── */}
-            {isMobile && isOpen && (
+            {/* ── Fixed Mobile Header ────────────────────────────────────────── */}
+            <header className="fixed top-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-md border-b border-[#E5E7EB] z-30 flex items-center justify-between px-4 shadow-xs md:hidden">
+                <div className="flex items-center gap-3 min-w-0">
+                    <button
+                        onClick={onToggle}
+                        className="w-10 h-10 rounded-xl bg-slate-50 border border-[#E5E7EB] flex items-center justify-center text-slate-700 hover:text-[#2563EB] hover:bg-[#EFF6FF] active:scale-95 transition-all duration-150 shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]"
+                        aria-label="Open navigation menu"
+                        aria-expanded={isOpen}
+                    >
+                        <Menu size={20} strokeWidth={2.2} />
+                    </button>
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-white border border-[#E5E7EB] flex items-center justify-center overflow-hidden shadow-xs shrink-0">
+                            <img
+                                src="https://udyamicircle.in/assets/logo-BWGNLCfH.png"
+                                alt="Udyami Bharat"
+                                className="w-9 h-9 object-contain shrink-0"
+                            />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                            <span className="font-bold text-sm text-slate-900 tracking-tight truncate leading-tight">
+                                Udyami Bharat
+                            </span>
+                            <span className="text-[9px] font-semibold text-[#2563EB] uppercase tracking-[0.16em] truncate">
+                                Admin Portal
+                            </span>
+                        </div>
+                    </div>
+                </div>
                 <div
-                    className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm md:hidden"
-                    onClick={onToggle}
-                    aria-hidden="true"
-                />
-            )}
-
-            {/* ── Sidebar panel ────────────────────────────────────────────── */}
-            {sidebarVisible && (
-                <aside
-                    className={`
-                        fixed top-0 left-0 h-screen bg-white border-r border-[#E5E7EB]
-                        shadow-[1px_0_20px_rgba(0,0,0,0.04)]
-                        transition-[width,transform] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
-                        flex flex-col
-                        ${isMobile
-                            ? "z-40 w-64 translate-x-0"
-                            : `z-40 ${sidebarOpen ? "w-64" : "w-[70px]"}`
-                        }
-                    `}
+                    onClick={() => {
+                        navigate(profilePath[role] || "/profile");
+                    }}
+                    className="w-9 h-9 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-xs font-bold shadow-xs cursor-pointer active:scale-95 transition-transform shrink-0"
+                    title="View Profile"
                 >
-                    {/* ── Floating toggle (tablet / desktop only) ─────────── */}
-                    {!isMobile && (
-                        <button
-                            onClick={onToggle}
-                            className="absolute top-7 -right-3 w-6 h-6 rounded-full bg-white border border-[#E5E7EB]
-                                shadow-[0_2px_8px_rgba(0,0,0,0.10)] flex items-center justify-center
-                                text-slate-400 hover:text-[#2563EB] hover:border-[#2563EB]/30 hover:scale-110
-                                transition-all duration-200 z-50"
-                            aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-                        >
-                            {sidebarOpen
-                                ? <ChevronLeft size={13} strokeWidth={2.5} />
-                                : <ChevronRight size={13} strokeWidth={2.5} />}
-                        </button>
-                    )}
+                    {initials}
+                </div>
+            </header>
 
-                    {/* ── Mobile close button ──────────────────────────────── */}
-                    {isMobile && (
-                        <button
-                            onClick={onToggle}
-                            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center
-                                rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100
-                                transition-colors z-50"
-                            aria-label="Close sidebar"
-                        >
-                            <CloseIcon size={16} strokeWidth={2} />
-                        </button>
-                    )}
+            {/* ── Mobile backdrop overlay ──────────────────────────────────── */}
+            <div
+                className={`fixed inset-0 z-40 bg-black/50 backdrop-blur-xs transition-opacity duration-300 ease-in-out md:hidden ${isMobile && isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+                    }`}
+                onClick={onToggle}
+                aria-hidden="true"
+            />
 
-                    {/* ── Brand ────────────────────────────────────────────── */}
-                    <div className="h-16 flex items-center gap-3 px-4 border-b border-[#E5E7EB]/70 shrink-0">
-                        <div className="w-10 h-10 rounded-xl bg-white border border-[#E5E7EB] flex items-center justify-center overflow-hidden shadow-sm shrink-0">
+            {/* ── Sidebar drawer panel ────────────────────────────────────── */}
+            <aside
+                ref={sidebarRef}
+                aria-label="Sidebar Navigation"
+                role="navigation"
+                className={`
+                    fixed top-0 left-0 h-screen h-[100dvh] bg-white border-r border-[#E5E7EB]
+                    shadow-[1px_0_20px_rgba(0,0,0,0.06)]
+                    flex flex-col z-50
+                    transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+                    ${isMobile
+                        ? `w-72 max-w-[85vw] ${isOpen ? "translate-x-0" : "-translate-x-full"}`
+                        : `translate-x-0 z-40 ${sidebarOpen ? "w-64" : "w-[70px]"}`
+                    }
+                `}
+            >
+                {/* ── Floating toggle (tablet / desktop only) ─────────── */}
+                {!isMobile && (
+                    <button
+                        onClick={onToggle}
+                        className="absolute top-7 -right-3.5 w-7 h-7 rounded-full bg-white border border-[#E5E7EB]
+                            shadow-[0_2px_8px_rgba(0,0,0,0.12)] flex items-center justify-center
+                            text-slate-400 hover:text-[#2563EB] hover:border-[#2563EB]/40 hover:scale-110
+                            focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]
+                            transition-all duration-200 z-50 cursor-pointer"
+                        aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+                    >
+                        {sidebarOpen
+                            ? <ChevronLeft size={14} strokeWidth={2.5} />
+                            : <ChevronRight size={14} strokeWidth={2.5} />}
+                    </button>
+                )}
+
+                {/* ── Brand & Header ────────────────────────────────────────────── */}
+                <div className="h-16 flex items-center justify-between gap-3 px-4 border-b border-[#E5E7EB]/70 shrink-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-white border border-[#E5E7EB] flex items-center justify-center overflow-hidden shadow-xs shrink-0">
                             <img
                                 src="https://udyamicircle.in/assets/logo-BWGNLCfH.png"
                                 alt="Udyami Bharat"
                                 className="w-11 h-11 object-contain shrink-0"
                             />
                         </div>
-                        <div className={`flex flex-col transition-all duration-200 ${sidebarOpen ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"}`}>
-                            <span className="font-bold text-[15px] text-slate-900 tracking-tight whitespace-nowrap leading-tight">
+                        <div className={`flex flex-col min-w-0 transition-all duration-200 ${sidebarOpen ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"}`}>
+                            <span className="font-bold text-[15px] text-slate-900 tracking-tight truncate whitespace-nowrap leading-tight">
                                 Udyami Bharat
                             </span>
-                            <span className="text-[10px] font-medium text-[#2563EB] uppercase tracking-[0.18em] whitespace-nowrap">
+                            <span className="text-[10px] font-semibold text-[#2563EB] uppercase tracking-[0.18em] truncate whitespace-nowrap">
                                 Admin Portal
                             </span>
                         </div>
                     </div>
+                    {isMobile && (
+                        <button
+                            onClick={onToggle}
+                            className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 active:bg-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] transition-colors shrink-0"
+                            aria-label="Close sidebar"
+                        >
+                            <CloseIcon size={18} strokeWidth={2.2} />
+                        </button>
+                    )}
+                </div>
 
-                    {/* ── Nav ──────────────────────────────────────────────── */}
-                    <div className="flex-1 px-3 py-4 overflow-y-auto overflow-x-hidden">
-                        <p className={`px-2 mb-3 text-[10px] font-semibold tracking-[0.15em] uppercase text-slate-500 whitespace-nowrap transition-all duration-200 ${sidebarOpen ? "opacity-100" : "opacity-0"}`}>
-                            Main Menu
-                        </p>
+                {/* ── Nav List ──────────────────────────────────────────────── */}
+                <div className="flex-1 px-3 py-4 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-200 hover:scrollbar-thumb-slate-300">
+                    <p className={`px-2 mb-3 text-[10px] font-semibold tracking-[0.15em] uppercase text-slate-400 whitespace-nowrap transition-all duration-200 ${sidebarOpen ? "opacity-100" : "opacity-0"}`}>
+                        Main Menu
+                    </p>
 
-                        <div className="space-y-0.5">
-                            {items.map((item) => {
-                                if (item.type === "link") {
-                                    const isActive = location.pathname === item.path;
-                                    return (
-                                        <Link
-                                            key={`${item.type}-${item.name}`}
-                                            to={item.path}
-                                            onClick={handleNavClick}
-                                            title={!sidebarOpen ? item.name : undefined}
-                                            className={`
-                                                group relative flex items-center gap-3 px-3 py-3.5 rounded-xl
-                                                text-[13px] font-medium overflow-hidden transition-all duration-200
-                                                ${sidebarOpen ? "justify-start" : "justify-center"}
-                                                ${isActive
-                                                    ? "bg-[#2563EB] text-white shadow-[0_2px_8px_rgba(37,99,235,0.30)]"
-                                                    : "text-slate-500 hover:bg-[#EFF6FF] hover:text-[#2563EB]"}
-                                            `}
-                                        >
-                                            <item.icon size={18} strokeWidth={isActive ? 2.2 : 1.9} className="shrink-0 transition-transform duration-200 group-hover:scale-[1.06]" />
-                                            <span className={`whitespace-nowrap transition-all duration-200 ${sidebarOpen ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
+                    <div className="space-y-1">
+                        {items.map((item) => {
+                            if (item.type === "link") {
+                                const isActive = location.pathname === item.path;
+                                return (
+                                    <Link
+                                        key={`${item.type}-${item.name}`}
+                                        to={item.path}
+                                        onClick={handleNavClick}
+                                        title={!sidebarOpen ? item.name : undefined}
+                                        className={`
+                                            group relative flex items-center gap-3 px-3 py-3 rounded-xl
+                                            text-[13px] font-medium transition-all duration-200 min-h-[44px]
+                                            focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]
+                                            ${sidebarOpen ? "justify-start" : "justify-center"}
+                                            ${isActive
+                                                ? "bg-[#2563EB] text-white shadow-[0_2px_8px_rgba(37,99,235,0.30)]"
+                                                : "text-slate-600 hover:bg-[#EFF6FF] hover:text-[#2563EB]"}
+                                        `}
+                                    >
+                                        <item.icon size={18} strokeWidth={isActive ? 2.2 : 1.9} className="shrink-0 transition-transform duration-200 group-hover:scale-[1.06]" />
+                                        <span className={`truncate min-w-0 transition-all duration-200 ${sidebarOpen ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"}`}>
+                                            {item.name}
+                                        </span>
+                                    </Link>
+                                );
+                            }
+
+                            if (!sidebarOpen) {
+                                return (
+                                    <button
+                                        key={item.key}
+                                        onClick={onToggle}
+                                        title={item.name}
+                                        className="w-full flex items-center justify-center min-h-[44px] py-3 rounded-xl text-slate-500 hover:text-[#2563EB] hover:bg-[#EFF6FF] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] transition-colors"
+                                    >
+                                        <item.icon size={18} strokeWidth={1.9} />
+                                    </button>
+                                );
+                            }
+
+                            const isGroupOpen = openGroups[item.key] !== false;
+
+                            return (
+                                <div key={item.key} className="pt-3 first:pt-1">
+                                    <button
+                                        onClick={() => toggleGroup(item.key)}
+                                        aria-expanded={isGroupOpen}
+                                        className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg hover:bg-slate-100/80 active:bg-slate-200/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] transition-colors group mb-0.5 min-h-[36px]"
+                                    >
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <item.icon size={13} strokeWidth={2.2} className="text-slate-400 shrink-0 group-hover:text-slate-600" />
+                                            <span className="text-[10px] font-bold tracking-[0.14em] uppercase text-slate-400 truncate group-hover:text-slate-600">
                                                 {item.name}
                                             </span>
-                                        </Link>
-                                    );
-                                }
-
-                                if (!sidebarOpen) {
-                                    return (
-                                        <button
-                                            key={item.key}
-                                            onClick={onToggle}
-                                            title={item.name}
-                                            className="w-full flex items-center justify-center py-3.5 rounded-xl text-slate-400 hover:text-[#2563EB] hover:bg-[#EFF6FF] transition-colors"
-                                        >
-                                            <item.icon size={17} strokeWidth={2} />
-                                        </button>
-                                    );
-                                }
-
-                                const isGroupOpen = openGroups[item.key] !== false;
-
-                                return (
-                                    <div key={item.key} className="pt-4 first:pt-1">
-                                        <button
-                                            onClick={() => toggleGroup(item.key)}
-                                            className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-[#F8FAFC] transition-colors group mb-0.5"
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <item.icon size={12} strokeWidth={2.2} className="text-slate-400 shrink-0" />
-                                                <span className="text-[10px] font-semibold tracking-[0.12em] uppercase text-slate-400">
-                                                    {item.name}
-                                                </span>
-                                            </div>
-                                            <span className={`text-slate-400 transition-transform duration-300 group-hover:text-slate-500 ${isGroupOpen ? "rotate-0" : "-rotate-90"}`}>
-                                                {isGroupOpen ? <ChevronUp size={13} strokeWidth={2.5} /> : <ChevronDown size={13} strokeWidth={2.5} />}
-                                            </span>
-                                        </button>
-
-                                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isGroupOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}`}>
-                                            {item.children.map((child) => {
-                                                const isActive = location.pathname === child.path;
-                                                return (
-                                                    <Link
-                                                        key={`${item.key}-${child.name}`}
-                                                        to={child.path}
-                                                        onClick={handleNavClick}
-                                                        className={`
-                                                            flex items-center ml-5 pl-3 pr-2 py-3 my-0.5 rounded-lg text-[12.5px]
-                                                            border-l-2 transition-all duration-150
-                                                            ${isActive
-                                                                ? "border-[#2563EB] text-[#2563EB] font-semibold bg-[#EFF6FF]"
-                                                                : "border-transparent text-slate-500 hover:text-[#2563EB] hover:bg-[#EFF6FF] hover:border-[#2563EB]/30"}
-                                                        `}
-                                                    >
-                                                        {child.name}
-                                                    </Link>
-                                                );
-                                            })}
                                         </div>
+                                        <span className={`text-slate-400 shrink-0 transition-transform duration-200 group-hover:text-slate-600 ${isGroupOpen ? "rotate-0" : "-rotate-90"}`}>
+                                            {isGroupOpen ? <ChevronUp size={13} strokeWidth={2.5} /> : <ChevronDown size={13} strokeWidth={2.5} />}
+                                        </span>
+                                    </button>
+
+                                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isGroupOpen ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"}`}>
+                                        {item.children.map((child) => {
+                                            const isActive = location.pathname === child.path;
+                                            return (
+                                                <Link
+                                                    key={`${item.key}-${child.name}`}
+                                                    to={child.path}
+                                                    onClick={handleNavClick}
+                                                    className={`
+                                                        flex items-center ml-4 pl-3 pr-2 py-2.5 my-0.5 rounded-lg text-[12.5px]
+                                                        border-l-2 transition-all duration-150 min-h-[40px] min-w-0
+                                                        focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]
+                                                        ${isActive
+                                                            ? "border-[#2563EB] text-[#2563EB] font-semibold bg-[#EFF6FF]"
+                                                            : "border-slate-200 text-slate-600 hover:text-[#2563EB] hover:bg-[#EFF6FF] hover:border-[#2563EB]/40"}
+                                                    `}
+                                                >
+                                                    <span className="truncate min-w-0">{child.name}</span>
+                                                </Link>
+                                            );
+                                        })}
                                     </div>
-                                );
-                            })}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* ── Profile footer ────────────────────────────────────── */}
+                <div className="border-t border-[#E5E7EB]/70 p-3 shrink-0 bg-slate-50/70">
+                    <div
+                        onClick={() => {
+                            navigate(profilePath[role] || "/profile");
+                            if (isMobile) onToggle();
+                        }}
+                        className={`flex items-center gap-3 rounded-xl px-2.5 py-3 mb-1.5 transition-all duration-200 cursor-pointer min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] hover:bg-white hover:border hover:border-[#E5E7EB] hover:shadow-xs ${sidebarOpen ? "bg-white border border-[#E5E7EB] shadow-xs" : "justify-center"}`}
+                        title={!sidebarOpen ? user?.userName || "Profile" : undefined}
+                    >
+                        <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center shrink-0 shadow-[0_2px_6px_rgba(37,99,235,0.30)]">
+                            <span className="text-white text-[11px] font-bold tracking-wide">{initials}</span>
+                        </div>
+                        <div className={`min-w-0 flex-1 transition-all duration-200 ${sidebarOpen ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"}`}>
+                            <p className="text-[13px] font-semibold text-slate-800 truncate leading-tight">{user?.userName || "Account"}</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-widest text-[#2563EB] truncate mt-0.5">{role}</p>
                         </div>
                     </div>
 
-                    {/* ── Profile footer ────────────────────────────────────── */}
-                    <div className="border-t border-[#E5E7EB]/70 p-3 shrink-0 bg-[#F8FAFC]/60">
-                        <div
-                            onClick={() => {
-                                navigate(profilePath[role] || "/profile");
-                                if (isMobile) onToggle();
-                            }}
-                            className={`flex items-center gap-3 rounded-xl px-2.5 py-3.5 mb-1.5 transition-all duration-200 cursor-pointer hover:bg-white hover:border hover:border-[#E5E7EB] hover:shadow-[0_1px_4px_rgba(0,0,0,0.04)] ${sidebarOpen ? "bg-white border border-[#E5E7EB] shadow-[0_1px_4px_rgba(0,0,0,0.04)]" : ""}`}
-                        >
-                            <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center shrink-0 shadow-[0_2px_6px_rgba(37,99,235,0.30)]">
-                                <span className="text-white text-[11px] font-bold tracking-wide">{initials}</span>
-                            </div>
-                            <div className={`min-w-0 transition-all duration-200 ${sidebarOpen ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
-                                <p className="text-[13px] font-semibold text-slate-800 truncate leading-tight">{user?.userName || "Account"}</p>
-                                <p className="text-[10px] font-semibold uppercase tracking-widest text-[#2563EB] truncate mt-0.5">{role}</p>
-                            </div>
-                        </div>
-
-                        <button
-                            onClick={handleLogout}
-                            title={!sidebarOpen ? "Log out" : undefined}
-                            className={`
-                                w-full flex items-center gap-3 px-3 py-3.5 rounded-xl
-                                text-[13px] font-medium text-slate-500
-                                hover:bg-red-50 hover:text-red-600
-                                transition-all duration-200
-                                ${sidebarOpen ? "justify-start" : "justify-center"}
-                            `}
-                        >
-                            <LogOut size={17} strokeWidth={1.9} className="shrink-0" />
-                            <span className={`whitespace-nowrap transition-all duration-200 ${sidebarOpen ? "opacity-100 w-auto" : "opacity-0 w-0"}`}>
-                                Log out
-                            </span>
-                        </button>
-                    </div>
-                </aside>
-            )}
+                    <button
+                        onClick={handleLogout}
+                        title={!sidebarOpen ? "Log out" : undefined}
+                        className={`
+                            w-full flex items-center gap-3 px-3 py-3 rounded-xl min-h-[44px]
+                            text-[13px] font-medium text-slate-600
+                            hover:bg-red-50 hover:text-red-600
+                            focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500
+                            transition-all duration-200
+                            ${sidebarOpen ? "justify-start" : "justify-center"}
+                        `}
+                    >
+                        <LogOut size={17} strokeWidth={1.9} className="shrink-0" />
+                        <span className={`truncate min-w-0 transition-all duration-200 ${sidebarOpen ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"}`}>
+                            Log out
+                        </span>
+                    </button>
+                </div>
+            </aside>
         </>
     );
 }

@@ -15,7 +15,7 @@ import CoverPage from "./components/CoverPage.jsx";
 import ChartPreviewFrame from "./components/ChartPreviewFrame.jsx";
 import { useSelector, useDispatch } from "react-redux";
 import PositionDetailsModal from "./models/PositionDetailsModal.jsx";
-import { deleteWardChartMember, selectWardInfo } from "../../redux/slices/Areachartslice.js";
+import { deleteWardChartMember, selectLayoutConfig, selectWardInfo } from "../../redux/slices/Areachartslice.js";
 import {
   createWardChartData,
   getWardChartData,
@@ -41,10 +41,14 @@ import { mapApiToAssignments } from "./utils/Mapapitoassignments.js";
 const DEFAULT_CONFIG = {
   slotCounts: {
     patrons: 10,
-    chairmenPage2: 10,
+    chairmenPage2: 4,
     chairmenPage3: 13,
     advisories: 3,
     mentors: 3,
+    udyamiQueens: 20,          // UB Queen's
+    ubRealtyConstruction: 5,   // ← NEW
+    ubFinanceIT: 5,            // ← NEW
+    ubSocialBrand: 5,
   },
   sectors: [
     { key: "reality", label: "Reality Sector", enabled: true },
@@ -95,22 +99,49 @@ function userTypeFromSlotId(slotId) {
 }
 
 function buildSingleMemberPayload(ward, user, slotId, assignmentData) {
+  // CoreTeam slotId → coreRole extract
+  const coreRoleMap = {
+    "core-president": "President",
+    "core-vice-president": "Vice-President",
+    "core-general-secretary": "General Secretary",
+    "core-treasurer": "Treasurer",
+  };
+
+  let sectorKey = null;
+  let umsKey = null;
+  if (slotId.startsWith("sector-")) sectorKey = slotId.replace("sector-", "");
+  if (slotId.startsWith("ums-")) umsKey = slotId.replace("ums-", "");
+
+  const memberObj = {
+    userType: userTypeFromSlotId(slotId),
+    slotId,                                    // ← ADD THIS
+    name: assignmentData.name || "",
+    mobileNumber: assignmentData.mobileNumber || "",
+    email: assignmentData.email || "",
+    companyName: assignmentData.company || "",
+    profileImage: assignmentData.photoUrl || "",
+    status: assignmentData.status || "registered",
+    slotLabel: assignmentData.slotLabel || slotId,
+  };
+
+
+  if (coreRoleMap[slotId]) {
+    memberObj.coreRole = coreRoleMap[slotId];
+  }
+
+
+  if (sectorKey) {
+    memberObj.sectorKey = sectorKey;
+  }
+
+  if (umsKey) {
+    memberObj.umsKey = umsKey;
+  }
+
   return {
     wardHeadId: user?.userId || "",
     ward: ward.ward_name || ward.ward_number || "",
-    members: [
-      {
-        userType: userTypeFromSlotId(slotId),
-        slotId,
-        name: assignmentData.name || "",
-        mobileNumber: assignmentData.mobileNumber || "",
-        email: assignmentData.email || "",
-        companyName: assignmentData.company || "",
-        profileImage: assignmentData.photoUrl || "",
-        status: assignmentData.status || "registered",
-        slotLabel: assignmentData.slotLabel || slotId,
-      },
-    ],
+    members: [memberObj],
   };
 }
 
@@ -177,7 +208,7 @@ export default function WardChartDetail() {
   const handleRemove = (row) => {
     console.log("ward:", ward);
     if (!row.memberId) {
-      console.warn("memberId இல்லை:", row);
+      console.warn("memberId:", row);
       return;
     }
     dispatch(deleteWardChartMember(row.memberId))
@@ -192,7 +223,7 @@ export default function WardChartDetail() {
 
   const isWardChairman = user?.role === "WardChairman";
   const isSuperAdmin = user?.role === "SuperAdmin";
-
+  const layoutConfig = useSelector(selectLayoutConfig);
   const [assignments, setAssignments] = useState({});
   const [tab, setTab] = useState(user?.role === "WardChairman" ? "build" : "preview");
   const [config, setConfig] = useState(DEFAULT_CONFIG);
@@ -217,14 +248,26 @@ export default function WardChartDetail() {
     if (fetchStatus === "succeeded" && fetchedData) {
       const mapped = mapApiToAssignments(fetchedData);
       setAssignments(mapped);
+
+      // ← ADD THESE LINES
+      if (layoutConfig) {
+        setConfig((prev) => ({
+          ...DEFAULT_CONFIG,
+          ...layoutConfig,
+          slotCounts: {
+            ...DEFAULT_CONFIG.slotCounts,
+            ...layoutConfig.slotCounts,
+          },
+        }));
+      }
     }
-  }, [fetchStatus, fetchedData]);
+  }, [fetchStatus, fetchedData, layoutConfig]);
 
   // ── Assign handler ────────────────────────────────────────────
   const handleAssign = (data) => {
     const slotId = modal.slotId;
     const photoFile = data.photoFile;
-    const photoUrl = data.photoUrl;   
+    const photoUrl = data.photoUrl;
     setModal(null);
 
     const { photoFile: _f, photoUrl: _u, ...restData } = data;
@@ -278,19 +321,37 @@ export default function WardChartDetail() {
     });
   };
 
+  function isBlockedForWardChairman(slotId) {
+    return (
+      slotId === "mla" ||
+      slotId.startsWith("official-") ||
+      slotId.startsWith("patron-") ||
+      slotId.startsWith("chairman-")
+    );
+  }
+
   // ── Slot click handler ────────────────────────────────────────
   // Preview mode → show details only if slot is already assigned
   // Build mode   → WardChairman opens assign modal; others see details
   const handleSlotClick = (id, label) => {
     const a = assignments[id];
+
+    // ── WardChairman blocked slots → details only ──
+    if (isWardChairman && (id === "ward-chairman" || isBlockedForWardChairman(id))) {
+      if (a?.name) openDetails(id, label);
+      return;
+    }
+
     if (isPreviewMode) {
       if (a?.name) openDetails(id, label);
       return;
     }
-    if (isWardChairman) {
-      setModal({ slotId: id, label });
+
+    // ── Everyone — assigned  details, modal ──
+    if (a?.name) {
+      openDetails(id, label);
     } else {
-      if (a?.name) openDetails(id, label);
+      setModal({ slotId: id, label });
     }
   };
 
@@ -306,12 +367,57 @@ export default function WardChartDetail() {
 
   const activeSectors = config.sectors.filter((s) => s.enabled);
   const activeUms = config.umsRoles.filter((s) => s.enabled);
+
+  const CATEGORY_COUNT_MAP = {
+    "ub-queens": "udyamiQueens",
+    "ub-realty": "ubRealtyConstruction",
+    "ub-finance-it": "ubFinanceIT",
+    "ub-social": "ubSocialBrand",
+  };
+
   const activeBrandCategories = useMemo(
     () =>
-      config.brandTiles
-        .map((cat) => ({ ...cat, products: cat.products.filter((p) => p.enabled) }))
+      DEFAULT_CONFIG.brandTiles
+        .map((defaultCat) => {
+          // layoutConfig-ல இந்த category-ஓட saved config எடு
+          const savedCat = config.brandTiles.find((c) => c.key === defaultCat.key);
+
+          // Default products-ஐ base-ஆ வச்சு, saved enabled status merge பண்ணு
+          const mergedProducts = defaultCat.products.map((p) => {
+            const savedProduct = savedCat?.products.find((sp) => sp.key === p.key);
+            return {
+              ...p,
+              enabled: savedProduct ? savedProduct.enabled : true,
+            };
+          });
+
+          const enabledProducts = mergedProducts.filter((p) => p.enabled);
+          const countKey = CATEGORY_COUNT_MAP[defaultCat.key];
+          const maxCount = countKey
+            ? (config.slotCounts[countKey] ?? enabledProducts.length)
+            : enabledProducts.length;
+
+          const slots = [...enabledProducts];
+
+          // Placeholder — enabled products-ஐ விட maxCount அதிகமா இருந்தா மட்டும்
+          while (slots.length < maxCount) {
+            const idx = slots.length;
+            slots.push({
+              key: `placeholder-${idx}`,
+              name: `Slot ${idx + 1}`,        // ← name add
+              sub: `Position ${idx + 1}`,     // ← sub add
+              enabled: true,
+              isPlaceholder: true,
+            });
+          }
+
+          return {
+            ...defaultCat,
+            products: slots.slice(0, maxCount),
+          };
+        })
         .filter((cat) => cat.products.length > 0),
-    [config.brandTiles]
+    [config.brandTiles, config.slotCounts]
   );
 
   const rows = useMemo(
@@ -346,7 +452,7 @@ export default function WardChartDetail() {
   const isBusy = apiStatus === "loading" || fetchStatus === "loading";
 
   return (
-    <div className="space-y-5 bg-[#f4f5f7] -m-6 p-6 min-h-full">
+    <div className="space-y-5 bg-[#f4f5f7] -m-4 sm:-m-6 p-4 sm:p-6 min-h-full overflow-x-hidden">
 
       {/* ── Admin Header ── */}
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -361,7 +467,7 @@ export default function WardChartDetail() {
             Area Chart Builder
           </h1>
         </div>
-        <div className="flex items-center gap-2 text-[12.5px] text-gray-500">
+        <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-gray-500">
           <span className="font-medium text-gray-900">All Constituencies</span>
           <span>·</span>
           <span className="font-medium text-gray-900">
@@ -383,163 +489,130 @@ export default function WardChartDetail() {
 
       {/* ── Action Buttons ── */}
       <div className="flex flex-wrap gap-2">
-        {isWardChairman && (
-          <>
-            <button
-              onClick={() => setModal({ slotId: `extra-${Date.now()}`, label: "Member" })}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-colors"
-            >
-              <UserPlus size={14} /> Invite Member
-            </button>
-            <button
-              onClick={() => setShowCustomize(true)}
-              className="flex items-center gap-2 bg-white border border-gray-200 text-[12.5px] font-medium text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <SlidersHorizontal size={14} /> Customize Layout
-            </button>
-          </>
-        )}
-        <button className="flex items-center gap-2 bg-white border border-gray-200 text-[12.5px] font-medium text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+
+        <button
+          onClick={() => setModal({ slotId: `extra-${Date.now()}`, label: "Member" })}
+          className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-colors w-full sm:w-auto"
+        >
+          <UserPlus size={14} /> Invite Member
+        </button>
+        <button
+          onClick={() => setShowCustomize(true)}
+          className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-[12.5px] font-medium text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto"
+        >
+          <SlidersHorizontal size={14} /> Customize Layout
+        </button>
+
+        <button className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-[12.5px] font-medium text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto">
           <Printer size={14} /> Print Chart
         </button>
-        <button className="flex items-center gap-2 bg-white border border-gray-200 text-[12.5px] font-medium text-gray-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+        <button className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-[12.5px] font-medium text-gray-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto">
           <Download size={14} /> Download PDF
         </button>
       </div>
 
       {/* ── Build / Preview Tabs ── */}
-      {isWardChairman && (
-        <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
-          {[
-            { id: "build", icon: Pencil, label: "Build Chart" },
-            { id: "preview", icon: FileCheck2, label: "Print Preview" },
-          ].map(({ id, icon: Icon, label }) => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-md text-[12.5px] font-semibold transition-colors ${tab === id ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-900"
-                }`}
-            >
-              <Icon size={13} /> {label}
-            </button>
-          ))}
-        </div>
-      )}
+
+      <div className="flex flex-wrap sm:inline-flex rounded-lg border border-gray-200 bg-white p-1 w-full sm:w-auto">
+        {[
+          { id: "build", icon: Pencil, label: "Build Chart" },
+          { id: "preview", icon: FileCheck2, label: "Print Preview" },
+        ].map(({ id, icon: Icon, label }) => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-md text-[12.5px] font-semibold transition-colors ${tab === id ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-900"
+              }`}
+          >
+            <Icon size={13} /> {label}
+          </button>
+        ))}
+      </div>
+
 
       {/* ══════════════════════════════════════════════
           PAGE 1 — COVER
       ══════════════════════════════════════════════ */}
-      <ChartPreviewFrame pageLabel="Page 1 — Cover">
+      <ChartPreviewFrame pageLabel="Cover Page">
         <CoverPage code={wardInfo?.wardNumber ?? ""}
           regionName={wardInfo?.wardName ?? ""} wardNumber={ward.ward_number} wardName={ward.ward_name} />
       </ChartPreviewFrame>
-
-      {/* ══════════════════════════════════════════════
+      {!isWardChairman && (
+        <>
+          {/* ══════════════════════════════════════════════
           PAGE 2 — MLA + Officials + Patrons + First 10 Chairmen
       ══════════════════════════════════════════════ */}
-      <ChartPage pageLabel="Page 2 — MLA · Patrons · Chairmen (1–10)" pageNum={2} ward={ward}>
-        <div className="px-[3%] py-[2%] space-y-[2%]">
-          <div className="flex justify-center pt-[1%]">
-            <MlaCard
-              mlaLabel={`MLA - ${ward.ward_name} Assembly constituency`}
-              assigned={assignments.mla}
-              dimmed={isDimmed("mla", "core", assignments.mla?.name)}
-              onAssignClick={slotClickProp}
-              showPlus={!isPreviewMode}
-              isSuperAdmin={isSuperAdmin}
-            />
-          </div>
+          <ChartPage pageLabel="MLA · Patrons · Chairmen (1–10)" pageNum={2} ward={ward}>
+            <div className="px-[3%] py-[2%] space-y-[2%]">
+              <div className="flex justify-center pt-[1%]">
+                <MlaCard
+                  mlaLabel={`MLA - ${ward.ward_name} Assembly constituency`}
+                  assigned={assignments.mla}
+                  dimmed={isDimmed("mla", "core", assignments.mla?.name)}
+                  onAssignClick={slotClickProp}
+                  showPlus={!isPreviewMode && !isWardChairman}
+                  isSuperAdmin={isSuperAdmin}
+                />
+              </div>
 
-          <div className="relative">
-            <div className="absolute left-1/2 -translate-x-1/2 -top-[2%] w-px h-[2%] bg-ink/40" />
-            <div className="absolute left-[10%] right-[10%] top-0 h-px bg-ink/40" />
-            <div className="grid grid-cols-4 gap-4 pt-2">
-              {Array.from({ length: 4 }).map((_, i) => {
-                const slotId = `official-${i + 1}`;
-                return (
-                  <div key={slotId} className="flex flex-col items-center">
-                    <div className="w-px h-3 bg-ink/40 mb-1" />
+              <div className="relative">
+                <div className="absolute left-1/2 -translate-x-1/2 -top-[2%] w-px h-[2%] bg-ink/40" />
+                <div className="absolute left-[10%] right-[10%] top-0 h-px bg-ink/40" />
+                <div className="grid grid-cols-4 gap-4 pt-2">
+                  {Array.from({ length: 4 }).map((_, i) => {
+                    const slotId = `official-${i + 1}`;
+                    return (
+                      <div key={slotId} className="flex flex-col items-center">
+                        <div className="w-px h-3 bg-ink/40 mb-1" />
+                        <PdfSlot
+                          key={slotId}
+                          slotId={slotId}
+                          topLabel={`Official ${i + 1}`}
+                          tone="navy"
+                          assigned={assignments[slotId]}
+                          dimmed={isDimmed(slotId, "patrons", assignments[slotId]?.name)}
+                          onAssignClick={slotClickProp}
+                          showPlus={!isPreviewMode && !isWardChairman}
+                          isSuperAdmin={isSuperAdmin}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="relative flex justify-center items-center py-2">
+                <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[2px] bg-[#1a2e5e]" />
+                <div className="relative z-10">
+                  <div className="relative bg-[#b5121b] text-white text-[13px] font-bold uppercase px-10 py-[6px] w-[210px] text-center rounded-t-sm rounded-b-xl">
+                    UDYAMI PATRON
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-5 gap-4">
+                {Array.from({ length: config.slotCounts.patrons }).map((_, i) => {
+                  const slotId = `patron-${i + 1}`;
+                  return (
                     <PdfSlot
+                      key={slotId}
                       slotId={slotId}
-                      topLabel={`Official ${i + 1}`}
+                      // topLabel="NAME"
                       tone="navy"
                       assigned={assignments[slotId]}
-                      dimmed={isDimmed(slotId, "core", assignments[slotId]?.name)}
+                      dimmed={isDimmed(slotId, "patrons", assignments[slotId]?.name)}
                       onAssignClick={slotClickProp}
                       showPlus={!isPreviewMode}
                       isSuperAdmin={isSuperAdmin}
                     />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="relative flex justify-center items-center py-2">
-            <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[2px] bg-[#1a2e5e]" />
-            <div className="relative z-10">
-              <div className="relative bg-[#b5121b] text-white text-[13px] font-bold uppercase px-10 py-[6px] w-[210px] text-center rounded-t-sm rounded-b-xl">
-                UDYAMI PATRON
+                  );
+                })}
               </div>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-5 gap-4">
-            {Array.from({ length: config.slotCounts.patrons }).map((_, i) => {
-              const slotId = `patron-${i + 1}`;
-              return (
-                <PdfSlot
-                  key={slotId}
-                  slotId={slotId}
-                  // topLabel="NAME"
-                  tone="navy"
-                  assigned={assignments[slotId]}
-                  dimmed={isDimmed(slotId, "patrons", assignments[slotId]?.name)}
-                  onAssignClick={slotClickProp}
-                  showPlus={!isPreviewMode}
-                  isSuperAdmin={isSuperAdmin}
-                />
-              );
-            })}
-          </div>
+              <div className="border-t border-ink/20" />
 
-          <div className="border-t border-ink/20" />
-
-          <div className="grid grid-cols-5 gap-4">
-            {chairmenP2.map((i) => {
-              const slotId = `chairman-${i + 1}`;
-              const label = `${gCode}.${i + 1} Chairman`;
-              return (
-                <div key={slotId}>
-                  <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">
-                    {label}
-                  </p>
-                  <PdfSlot
-                    slotId={slotId}
-                    // topLabel="NAME"
-                    tone="brick"
-                    assigned={assignments[slotId]}
-                    dimmed={isDimmed(slotId, "chairmen", assignments[slotId]?.name)}
-                    onAssignClick={slotClickProp}
-                    showPlus={!isPreviewMode}
-                    isSuperAdmin={isSuperAdmin}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </ChartPage>
-
-      {/* ══════════════════════════════════════════════
-          PAGE 3 — Chairmen continued (11–23)
-      ══════════════════════════════════════════════ */}
-      <ChartPage pageLabel="Page 3 — Chairmen (11–23)" pageNum={2} ward={ward}>
-        <div className="flex-1 h-full px-[3%] py-[2%]">
-          <div className="space-y-6">
-            {[firstRow, secondRow].map((row, ri) => (
-              <div key={ri} className="grid grid-cols-5 gap-5">
-                {row.map((i) => {
+              <div className="grid grid-cols-5 gap-4">
+                {chairmenP2.map((i) => {
                   const slotId = `chairman-${i + 1}`;
                   const label = `${gCode}.${i + 1} Chairman`;
                   return (
@@ -561,39 +634,73 @@ export default function WardChartDetail() {
                   );
                 })}
               </div>
-            ))}
-
-            <div className="flex justify-center gap-5">
-              {thirdRow.map((i) => {
-                const slotId = `chairman-${i + 1}`;
-                const label = `${gCode}.${i + 1} Chairman`;
-                return (
-                  <div key={slotId}>
-                    <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">
-                      {label}
-                    </p>
-                    <PdfSlot
-                      slotId={slotId}
-                      // topLabel="NAME"
-                      tone="brick"
-                      assigned={assignments[slotId]}
-                      dimmed={isDimmed(slotId, "chairmen", assignments[slotId]?.name)}
-                      onAssignClick={slotClickProp}
-                      showPlus={!isPreviewMode}
-                      isSuperAdmin={isSuperAdmin}
-                    />
-                  </div>
-                );
-              })}
             </div>
-          </div>
-        </div>
-      </ChartPage>
+          </ChartPage>
+
+          {/* ══════════════════════════════════════════════
+          PAGE 3 — Chairmen continued (11–23)
+      ══════════════════════════════════════════════ */}
+          <ChartPage pageLabel="Chairmen (11–23)" pageNum={2} ward={ward}>
+            <div className="flex-1 h-full px-[3%] py-[2%]">
+              <div className="space-y-6">
+                {[firstRow, secondRow].map((row, ri) => (
+                  <div key={ri} className="grid grid-cols-5 gap-5">
+                    {row.map((i) => {
+                      const slotId = `chairman-${i + 1}`;
+                      const label = `${gCode}.${i + 1} Chairman`;
+                      return (
+                        <div key={slotId}>
+                          <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">
+                            {label}
+                          </p>
+                          <PdfSlot
+                            slotId={slotId}
+                            // topLabel="NAME"
+                            tone="brick"
+                            assigned={assignments[slotId]}
+                            dimmed={isDimmed(slotId, "chairmen", assignments[slotId]?.name)}
+                            onAssignClick={slotClickProp}
+                            showPlus={!isPreviewMode}
+                            isSuperAdmin={isSuperAdmin}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+
+                <div className="flex justify-center gap-5">
+                  {thirdRow.map((i) => {
+                    const slotId = `chairman-${i + 1}`;
+                    const label = `${gCode}.${i + 1} Chairman`;
+                    return (
+                      <div key={slotId}>
+                        <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">
+                          {label}
+                        </p>
+                        <PdfSlot
+                          slotId={slotId}
+                          // topLabel="NAME"
+                          tone="brick"
+                          assigned={assignments[slotId]}
+                          dimmed={isDimmed(slotId, "chairmen", assignments[slotId]?.name)}
+                          onAssignClick={slotClickProp}
+                          showPlus={!isPreviewMode}
+                          isSuperAdmin={isSuperAdmin}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </ChartPage>
+        </>)}
 
       {/* ══════════════════════════════════════════════
           PAGE 4 — Advisory/Mentor + Leadership + Sectors/UMS
       ══════════════════════════════════════════════ */}
-      <ChartPage pageLabel="Page 4 — Advisory · Leadership · Sectors · UMS" pageNum={2} ward={ward}>
+      <ChartPage pageLabel="Advisory · Leadership · Sectors · UMS" pageNum={2} ward={ward}>
         <div className="flex flex-col min-h-full">
 
           <div className="flex items-start justify-center gap-3 px-[2%] py-[1.5%] bg-white border-b border-slate-100">
@@ -706,7 +813,7 @@ export default function WardChartDetail() {
                       {assignments[slotId]?.name || "NAME"}
                     </p>
                     <p className="text-[6px] text-white/60 text-center leading-none mt-1">
-                      {assignments[slotId]?.company || "Company Name"}
+                      {assignments[slotId]?.company}
                     </p>
                   </div>
                 );
@@ -788,7 +895,7 @@ export default function WardChartDetail() {
       {/* ══════════════════════════════════════════════
           PAGE 5 — Products
       ══════════════════════════════════════════════ */}
-      <ChartPreviewFrame pageLabel="Page 5 — Products">
+      <ChartPreviewFrame pageLabel="Products">
         <ProductsPage
           code={gCode}
           wardName={ward.ward_name}
@@ -828,8 +935,34 @@ export default function WardChartDetail() {
           config={config}
           onClose={() => setShowCustomize(false)}
           onSave={(next) => {
-            setConfig(next);
+            const merged = {
+              ...DEFAULT_CONFIG,
+              ...next,
+              slotCounts: {
+                ...DEFAULT_CONFIG.slotCounts,
+                ...next.slotCounts,
+              },
+            };
+            setConfig(merged);
             setShowCustomize(false);
+
+            const formData = new FormData();
+            formData.append(
+              "data",
+              JSON.stringify({
+                wardHeadId: user?.userId,
+                wardId: ward.id,
+                ward: ward.ward_name || ward.ward_number || "",
+                members: [],
+                layoutConfig: {
+                  slotCounts: merged.slotCounts,
+                  sectors: merged.sectors,
+                  umsRoles: merged.umsRoles,
+                  brandTiles: merged.brandTiles,
+                },
+              })
+            );
+            dispatch(createWardChartData(formData));
           }}
         />
       )}

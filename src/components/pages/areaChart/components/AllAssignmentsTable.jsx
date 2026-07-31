@@ -112,7 +112,7 @@ export default function AllAssignmentsTable({ rows = [], onRemove }) {
 
                     {/* Actions — View + Remove */}
                     <td className="px-5 py-3.5 text-right">
-                      <div className="inline-flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="inline-flex items-center gap-3 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         {/* View */}
                         <button
                           onClick={() => handleView(r)}

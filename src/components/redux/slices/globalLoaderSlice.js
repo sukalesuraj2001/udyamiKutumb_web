@@ -5,7 +5,7 @@ const globalLoaderSlice = createSlice({
   name: "globalLoader",
   initialState: {
     isLoading: false,
-    activeRequests: 0, // counter — multiple APIs same time la call aidhalum safe
+    activeRequests: 0, 
   },
   reducers: {
     showLoader(state) {

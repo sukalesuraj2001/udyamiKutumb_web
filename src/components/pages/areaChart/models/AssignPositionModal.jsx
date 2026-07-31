@@ -124,21 +124,52 @@ function MemberCard({ member, selected, onSelect }) {
 }
 
 // ── Main Modal ────────────────────────────────────────────────────
-export default function AssignPositionModal({ position, wardName, onClose, onAssign }) {
+export default function AssignPositionModal({
+  wardName,
+  slotId,
+  position = "Position",
+  isSaving = false,
+  onClose,
+  onAssign,
+}) {
   const dispatch = useDispatch();
-
-  const apiStatus = useSelector(selectAreaChartStatus);
   const searchResults = useSelector(selectSearchResults);
   const searchStatus = useSelector(selectSearchStatus);
-  const isSaving = apiStatus === "loading";
-  const isSearching = searchStatus === "loading";
 
-  const [tab, setTab] = useState("invite");
-
-  // Existing member search
+  const [tab, setTab] = useState("existing");
   const [search, setSearch] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
   const debounceRef = useRef(null);
+
+  // Animation state
+  const [animate, setAnimate] = useState(false);
+
+  useEffect(() => {
+    const timer = requestAnimationFrame(() => setAnimate(true));
+    return () => cancelAnimationFrame(timer);
+  }, []);
+
+  const handleClose = () => {
+    setAnimate(false);
+    setTimeout(() => {
+      onClose();
+    }, 300);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") handleClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
 
   // Invite form
   const [photoFile, setPhotoFile] = useState(null);
@@ -248,25 +279,12 @@ export default function AssignPositionModal({ position, wardName, onClose, onAss
   // ── Get all members ──
   const handleGetAll = () => {
     setSearch("");
-    setSelectedMember(null);
-    dispatch(searchMembers(""));   // empty name → returns all
   };
 
-  // ── Empty state helper ──
+  const isSearching = searchStatus === "loading";
+
   const renderSearchEmpty = () => {
-    if (isSearching)
-      return (
-        <div className="flex items-center justify-center gap-2 py-8 text-muted">
-          <Loader2 size={16} className="animate-spin" />
-          <span className="text-[13px]">Loading…</span>
-        </div>
-      );
-    if (search.trim().length > 0 && search.trim().length < 2)
-      return (
-        <p className="text-[13px] text-muted text-center py-8">
-          2 characters type pannu to search
-        </p>
-      );
+    if (isSearching) return null;
     if (searchResults.length === 0 && search.trim().length >= 2)
       return (
         <p className="text-[13px] text-muted text-center py-8">
@@ -276,20 +294,20 @@ export default function AssignPositionModal({ position, wardName, onClose, onAss
     if (searchResults.length === 0)
       return (
         <p className="text-[13px] text-muted text-center py-8">
-          Search pannalum, "Get All" button press pannalum
+          Search members above
         </p>
       );
     return null;
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-ink/40" onClick={onClose} />
+    <div className={`fixed inset-0 z-50 flex justify-end transition-opacity duration-300 ${animate ? "opacity-100" : "opacity-0"}`}>
+      <div className="absolute inset-0 bg-ink/40" onClick={handleClose} />
 
-      <div className="relative w-full max-w-md bg-white h-full shadow-2xl p-6 overflow-y-auto">
+      <div className={`relative w-full max-w-md bg-white h-full shadow-2xl p-4 sm:p-6 overflow-y-auto transform transition-all duration-300 ${animate ? "translate-x-0 opacity-100 ease-out" : "translate-x-full opacity-0 ease-in"}`}>
         {/* Header */}
         <div className="flex items-start justify-between mb-1">
-          <h2 className="font-display text-[20px] text-ink">
+          <h2 className="font-display text-[18px] sm:text-[20px] text-ink">
             Assign Position: {position}
           </h2>
           <button onClick={onClose} className="text-muted hover:text-ink">
@@ -302,7 +320,7 @@ export default function AssignPositionModal({ position, wardName, onClose, onAss
         <div className="inline-flex w-full rounded-xl border border-hairline bg-paper p-1 mb-6">
           <button
             onClick={() => setTab("existing")}
-            className={`flex-1 px-4 py-1.5 rounded-lg text-[13px] font-semibold transition-colors ${
+            className={`flex-1 px-3 sm:px-4 py-1.5 rounded-lg text-[12.5px] sm:text-[13px] font-semibold transition-colors ${
               tab === "existing" ? "bg-white text-ink shadow-sm" : "text-muted"
             }`}
           >
@@ -310,7 +328,7 @@ export default function AssignPositionModal({ position, wardName, onClose, onAss
           </button>
           <button
             onClick={() => setTab("invite")}
-            className={`flex-1 px-4 py-1.5 rounded-lg text-[13px] font-semibold transition-colors ${
+            className={`flex-1 px-3 sm:px-4 py-1.5 rounded-lg text-[12.5px] sm:text-[13px] font-semibold transition-colors ${
               tab === "invite" ? "bg-white text-ink shadow-sm" : "text-muted"
             }`}
           >
@@ -400,7 +418,7 @@ export default function AssignPositionModal({ position, wardName, onClose, onAss
           /* ── INVITE TAB ── */
           <div className="space-y-4">
             <Field label="Full Name *" value={form.name} onChange={handleField("name")} />
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field
                 label="Mobile *"
                 value={form.mobileNumber}

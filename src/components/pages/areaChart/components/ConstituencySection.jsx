@@ -45,7 +45,7 @@ export default function ConstituencySection({ constituency, wards }) {
 
       {/* Ward Grid */}
       {open && (
-        <div className="border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5">
+        <div className="border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-3 sm:p-4 md:p-5">
           {wards.map((w) => (
             <WardCard key={w.id} ward={w} />
           ))}

@@ -14,6 +14,8 @@ import taxonomyReducer from './slices/taxonomySlice.js'
 import districtHeadReducer from './slices/Districtheadslice.js'
 import headReducer from './slices/headSlice.js'
 import membershipPlansReducer from "./slices/membershipPlansSlice.js";
+import jobReducer from "./slices/Jobslice.js";
+import newsReducer from "./slices/newsSlice.js";
 // import globalLoaderReducer from './slices/globalLoaderSlice.js'
 export const store = configureStore({
     reducer: {
@@ -32,6 +34,8 @@ export const store = configureStore({
         taxonomy: taxonomyReducer,
         districtHead: districtHeadReducer,
         head: headReducer,
-        membershipPlans: membershipPlansReducer
+        membershipPlans: membershipPlansReducer,
+        jobs: jobReducer,
+        news: newsReducer,
     }
 })

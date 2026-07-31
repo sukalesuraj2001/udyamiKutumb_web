@@ -70,6 +70,8 @@ import Reports from '../pages/businessCircle/Reports.jsx'
 import Spinoff from '../pages/businessCircle/SpinOff.jsx'
 import UCTraining from '../pages/businessCircle/admin/Uctraining.jsx'
 import CreateWard from "../pages/superAdmin/CreateWard.jsx";
+import JobManagement from "../pages/superAdmin/JobManagement.jsx";
+import NewsManagement from "../pages/superAdmin/NewsManagement.jsx";
 // const AppRouter = [
 //   {
 //     element: <RouteGuard guestOnly />,
@@ -847,6 +849,9 @@ const AppRouter = [
           { path: "/super-admin-dashboard/cp-onbording", element: <ChannelPartnerOnboard /> },
           { path: "/super-admin-dashboard/form-builder/channelPartner", element: <FormBuilder /> },
           { path: "/super-admin-dashboard/create-ward", element: <CreateWard /> },
+          { path: "/super-admin-dashboard/job-management", element: <JobManagement /> },
+          { path: "/super-admin-dashboard/news-management", element: <NewsManagement /> },
+
         ],
       },
     ],

@@ -133,7 +133,7 @@ export default function ChartSlot({
               {assigned?.name || (nameCase === "upper" ? "NAME" : "Name")}
             </p>
             <p className={`text-[6.6px] leading-tight truncate ${companyColor}`}>
-              {assigned?.company || "Company Name"}
+              {assigned?.company}
             </p>
           </div>
         )}

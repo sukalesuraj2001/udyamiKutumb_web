@@ -25,7 +25,7 @@ export default function ChairmanHighlightCard({ wardNumber, assigned, dimmed, on
       </div>
 
       {assigned?.name && (
-        <p className="text-white text-[10px] font-semibold text-center leading-tight">{assigned.name}</p>
+        <p className="text-white text-[10px] font-semibold text-center leading-tight truncate w-full max-w-full px-1">{assigned.name}</p>
       )}
     </button>
   );
