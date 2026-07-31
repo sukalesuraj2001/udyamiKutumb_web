@@ -7,7 +7,7 @@ import {
   searchMembers,
   selectSearchResults,
   selectSearchStatus,
-} from "../../../redux/slices/Areachartslice.js";
+} from "../../../redux/slices/areaChartSlice.js";
 import getCroppedImg from "../../../utils/cropImage.js";
 
 const isValidMobile = (mobile) => /^[6-9]\d{9}$/.test(mobile);

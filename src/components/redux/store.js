@@ -3,7 +3,7 @@ import authSlice from './slices/authSlice.js'
 import wardMapReducer from "./slices/wardMapSlice";
 import profileReducer from "./slices/profileSlice.js";
 import dashboardReducer from "./slices/dashboardSlice.js";
-import areaChartReducer from './slices/Areachartslice.js'
+import areaChartReducer from './slices/areaChartSlice.js'
 import globalLoaderReducer from "./slices/globalLoaderSlice";
 import sendMessageReducer from './slices/sendMessageSlice.js'
 import rolesReducer from "./slices/rolesSlice";
