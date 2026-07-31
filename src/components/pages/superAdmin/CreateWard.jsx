@@ -560,7 +560,7 @@ import {
   fetchWardsByTalukaId,
   selectTalukaWards,
   selectTalukaWardsStatus,
-} from "../../redux/slices/areaChartSlice.js";
+} from "../../../redux/slices/areaChartSlice.js";
 
 const S = {
   page: {
