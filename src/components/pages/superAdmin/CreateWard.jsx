@@ -557,10 +557,10 @@ import {
   selectCreateError,
 } from "../../redux/slices/wardSlice.js";
 import {
-  fetchWardsByTalukaId,
-  selectTalukaWards,
-  selectTalukaWardsStatus,
-} from "../../../redux/slices/areaChartSlice.js";
+     fetchWardsByTalukaId,
+     selectTalukaWards,
+     selectTalukaWardsStatus,
+   } from "../../redux/slices/areaChartSlice.js";
 
 const S = {
   page: {

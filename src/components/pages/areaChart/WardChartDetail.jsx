@@ -15,7 +15,7 @@ import CoverPage from "./components/CoverPage.jsx";
 import ChartPreviewFrame from "./components/ChartPreviewFrame.jsx";
 import { useSelector, useDispatch } from "react-redux";
 import PositionDetailsModal from "./models/PositionDetailsModal.jsx";
-import { deleteWardChartMember, selectLayoutConfig, selectWardInfo } from "../../redux/slices/Areachartslice.js";
+import { deleteWardChartMember, selectLayoutConfig, selectWardInfo } from "../../redux/slices/areaChartSlice.js";
 import {
   createWardChartData,
   getWardChartData,
@@ -23,7 +23,7 @@ import {
   selectAreaChartError,
   selectFetchStatus,
   selectFetchedData,
-} from "../../redux/slices/Areachartslice.js";
+} from "../../redux/slices/areaChartSlice.js";
 import { mapApiToAssignments } from "./utils/Mapapitoassignments.js";
 
 // ─── PDF Structure ────────────────────────────────────────────────

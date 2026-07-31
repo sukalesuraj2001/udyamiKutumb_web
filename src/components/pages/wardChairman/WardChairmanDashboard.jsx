@@ -28,7 +28,7 @@ import {
   BarChart2,
   InboxIcon,
 } from "lucide-react";
-import { getLocationByWardHeadId, selectWardInfo } from "../../redux/slices/Areachartslice.js";
+import { getLocationByWardHeadId, selectWardInfo } from "../../redux/slices/areaChartSlice.js";
 import { selectUser } from "../../redux/slices/authSlice";
 
 // ============================================================

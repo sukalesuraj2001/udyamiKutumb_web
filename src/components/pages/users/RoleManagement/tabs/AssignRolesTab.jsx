@@ -11,7 +11,7 @@ import {
   fetchWardsByTalukaId,
   selectTalukaWards,
   selectTalukaWardsStatus,
-} from "../../../../redux/slices/Areachartslice";
+} from "../../../../redux/slices/areaChartSlice";
 
 function RowSelect({ value, onChange, placeholder, options, loading, minWidth = "120px" }) {
   return (
