@@ -420,6 +420,6 @@ export const selectSearchResults = (s) => s.areaChart.searchResults;
 export const selectSearchStatus = (s) => s.areaChart.searchStatus;
 export const selectSearchError = (s) => s.areaChart.searchError;
 export const selectWardInfo = (s) => s.areaChart.wardInfo;
-
+export const selectLayoutConfig = (s) => s.areaChart.fetchedData?.data?.layoutConfig ?? null;
 export const { clearAreaChartState, clearLocationState } = areaChartSlice.actions;
 export default areaChartSlice.reducer;

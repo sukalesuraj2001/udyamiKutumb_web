@@ -131,8 +131,8 @@ const S = {
     border: hasFile
       ? "0.5px dashed #86efac"
       : drag
-      ? "0.5px dashed #3b82f6"
-      : "0.5px dashed #cbd5e1",
+        ? "0.5px dashed #3b82f6"
+        : "0.5px dashed #cbd5e1",
     borderRadius: "10px",
     padding: "22px 16px",
     display: "flex",
@@ -248,20 +248,20 @@ const S = {
 export default function CreateWard({ onCancel }) {
   const dispatch = useDispatch();
 
-  const districts        = useSelector(selectDistricts);
-  const talukas          = useSelector(selectTalukas);
+  const districts = useSelector(selectDistricts);
+  const talukas = useSelector(selectTalukas);
   const loadingDistricts = useSelector(selectLoadingDistricts);
-  const loadingTalukas   = useSelector(selectLoadingTalukas);
-  const creating         = useSelector(selectCreating);
-  const createSuccess    = useSelector(selectCreateSuccess);
-  const createError      = useSelector(selectCreateError);
+  const loadingTalukas = useSelector(selectLoadingTalukas);
+  const creating = useSelector(selectCreating);
+  const createSuccess = useSelector(selectCreateSuccess);
+  const createError = useSelector(selectCreateError);
 
   const [form, setForm] = useState({
     wardName: "", wardNumber: "", districtId: "", talukaId: "", geoJsonFile: null,
   });
-  const [focused, setFocused]     = useState(null);
-  const [errors, setErrors]       = useState({});
-  const [dragging, setDragging]   = useState(false);
+  const [focused, setFocused] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [dragging, setDragging] = useState(false);
   const fileRef = useRef(null);
 
   useEffect(() => {
@@ -297,10 +297,10 @@ export default function CreateWard({ onCancel }) {
 
   const validate = () => {
     const e = {};
-    if (!form.wardName.trim())                              e.wardName  = "Required";
-    if (!form.wardNumber || Number(form.wardNumber) <= 0)  e.wardNumber = "Enter a valid number";
-    if (!form.districtId)                                   e.districtId = "Select a district";
-    if (!form.talukaId)                                     e.talukaId   = "Select a taluka";
+    if (!form.wardName.trim()) e.wardName = "Required";
+    if (!form.wardNumber || Number(form.wardNumber) <= 0) e.wardNumber = "Enter a valid number";
+    if (!form.districtId) e.districtId = "Select a district";
+    if (!form.talukaId) e.talukaId = "Select a taluka";
     return e;
   };
 
@@ -341,8 +341,8 @@ export default function CreateWard({ onCancel }) {
         {createError && (
           <div style={S.alertErr}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
+              <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
             {createError}
           </div>
@@ -350,54 +350,11 @@ export default function CreateWard({ onCancel }) {
         {createSuccess && (
           <div style={S.alertOk}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="20 6 9 17 4 12"/>
+              <polyline points="20 6 9 17 4 12" />
             </svg>
             Ward created successfully!
           </div>
         )}
-
-        {/* ── Section 1: Identity */}
-        <div style={S.formSection}>
-          <div style={S.sectionLabel}>
-            Identity <div style={S.sectionLine} />
-          </div>
-          <div style={S.fieldRow}>
-            <div style={S.field}>
-              <label style={S.label}>Ward name <span style={S.req}>*</span></label>
-              <div style={S.inputWrap}>
-                <span style={S.leadIcon}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                </span>
-                <input
-                  style={S.input(focused === "wardName", !!errors.wardName)}
-                  name="wardName" value={form.wardName} onChange={handleChange}
-                  onFocus={() => setFocused("wardName")} onBlur={() => setFocused(null)}
-                  placeholder="North Ward" autoComplete="off"
-                />
-              </div>
-              {errors.wardName && <span style={S.errText}>{errors.wardName}</span>}
-            </div>
-
-            <div style={S.field}>
-              <label style={S.label}>Ward number <span style={S.req}>*</span></label>
-              <div style={S.inputWrap}>
-                <span style={S.leadIcon}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
-                </span>
-                <input
-                  style={S.input(focused === "wardNumber", !!errors.wardNumber)}
-                  name="wardNumber" type="number" min="1" value={form.wardNumber}
-                  onChange={handleChange}
-                  onFocus={() => setFocused("wardNumber")} onBlur={() => setFocused(null)}
-                  placeholder="12"
-                />
-              </div>
-              {errors.wardNumber
-                ? <span style={S.errText}>{errors.wardNumber}</span>
-                : <span style={S.hint}>Must be unique within the taluka</span>}
-            </div>
-          </div>
-        </div>
 
         {/* ── Section 2: Location */}
         <div style={S.formSection}>
@@ -409,7 +366,7 @@ export default function CreateWard({ onCancel }) {
               <label style={S.label}>District <span style={S.req}>*</span></label>
               <div style={S.inputWrap}>
                 <span style={S.leadIcon}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
                 </span>
                 <select
                   style={S.select(focused === "districtId", !!errors.districtId)}
@@ -432,7 +389,7 @@ export default function CreateWard({ onCancel }) {
               <label style={S.label}>Taluka <span style={S.req}>*</span></label>
               <div style={S.inputWrap}>
                 <span style={S.leadIcon}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11" /></svg>
                 </span>
                 <select
                   style={S.select(focused === "talukaId", !!errors.talukaId)}
@@ -457,13 +414,58 @@ export default function CreateWard({ onCancel }) {
             {selectedDistrict && talukas.length > 0 && (
               <div style={{ ...S.fieldFull }}>
                 <div style={S.chip}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
                   {selectedDistrict.districtName || selectedDistrict.name} — {talukas.length} taluka{talukas.length !== 1 ? "s" : ""} available
                 </div>
               </div>
             )}
           </div>
         </div>
+
+        {/* ── Section 1: Identity */}
+        <div style={S.formSection}>
+          <div style={S.sectionLabel}>
+            Identity <div style={S.sectionLine} />
+          </div>
+          <div style={S.fieldRow}>
+            <div style={S.field}>
+              <label style={S.label}>Ward name <span style={S.req}>*</span></label>
+              <div style={S.inputWrap}>
+                <span style={S.leadIcon}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
+                </span>
+                <input
+                  style={S.input(focused === "wardName", !!errors.wardName)}
+                  name="wardName" value={form.wardName} onChange={handleChange}
+                  onFocus={() => setFocused("wardName")} onBlur={() => setFocused(null)}
+                  placeholder="North Ward" autoComplete="off"
+                />
+              </div>
+              {errors.wardName && <span style={S.errText}>{errors.wardName}</span>}
+            </div>
+
+            <div style={S.field}>
+              <label style={S.label}>Ward number <span style={S.req}>*</span></label>
+              <div style={S.inputWrap}>
+                <span style={S.leadIcon}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9" /><line x1="4" y1="15" x2="20" y2="15" /><line x1="10" y1="3" x2="8" y2="21" /><line x1="16" y1="3" x2="14" y2="21" /></svg>
+                </span>
+                <input
+                  style={S.input(focused === "wardNumber", !!errors.wardNumber)}
+                  name="wardNumber" type="number" min="1" value={form.wardNumber}
+                  onChange={handleChange}
+                  onFocus={() => setFocused("wardNumber")} onBlur={() => setFocused(null)}
+                  placeholder="12"
+                />
+              </div>
+              {errors.wardNumber
+                ? <span style={S.errText}>{errors.wardNumber}</span>
+                : <span style={S.hint}>Must be unique within the taluka</span>}
+            </div>
+          </div>
+        </div>
+
+
 
         {/* ── Section 3: Boundary file */}
         <div style={S.formSection}>
@@ -479,8 +481,8 @@ export default function CreateWard({ onCancel }) {
           >
             <div style={S.dropIconBg}>
               {form.geoJsonFile
-                ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
-                : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+                ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2"><polyline points="20 6 9 17 4 12" /></svg>
+                : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16" /><line x1="12" y1="12" x2="12" y2="21" /><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" /></svg>
               }
             </div>
             {form.geoJsonFile ? (
@@ -512,7 +514,7 @@ export default function CreateWard({ onCancel }) {
         {/* ── Footer */}
         <div style={S.footer}>
           <div style={S.statusBadge}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
             {filledCount} of 4 fields filled
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
@@ -527,9 +529,9 @@ export default function CreateWard({ onCancel }) {
               {creating
                 ? <><div style={S.spinner} /> Creating…</>
                 : <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Create ward
-                  </>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                  Create ward
+                </>
               }
             </button>
           </div>

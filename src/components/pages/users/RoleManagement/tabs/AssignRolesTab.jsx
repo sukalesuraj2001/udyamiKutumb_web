@@ -285,9 +285,9 @@ export default function AssignRolesTab() {
 
     const roleObj = roles.find((r) => r.roleId === Number(roleId));
 
-    console.log("roleObj →", roleObj);                    // ← TalukHead வருதா?
-    console.log("currentUserRole →", currentUserRole);    // ← "DistrictHead" வருதா?
-    console.log("locationData →", locationData);          // ← districtId இருக்கா?
+    console.log("roleObj →", roleObj);                    
+    console.log("currentUserRole →", currentUserRole);    
+    console.log("locationData →", locationData);          
 
     // ── TalukHead flow ──
     if (roleObj?.role === "TalukHead") {
@@ -308,7 +308,7 @@ export default function AssignRolesTab() {
       }
     }
 
-    // ── WardChairman + TalukHead login ── ✅ இங்கே இருக்கணும்
+    // ── WardChairman + TalukHead login ─
     if (roleObj?.role === "WardChairman" && currentUserRole === "TalukHead") {
       const { talukaId } = locationData;
       if (talukaId) {
@@ -354,7 +354,7 @@ export default function AssignRolesTab() {
     if (isDistrictHead) return !!rowDistrict;
     if (isTalukaHead) return !!selectedDistrictHeadId && selectedTalukaIds.length > 0;
     if (isWardChairman) {
-      if (currentUserRole === "TalukHead") return !!selectedWardId; // ← taluka auto-set ஆகும்
+      if (currentUserRole === "TalukHead") return !!selectedWardId; 
       return !!wcTaluka && !!selectedTalukaHeadId && !!selectedWardId;
     }
     return false;
@@ -536,7 +536,7 @@ export default function AssignRolesTab() {
                         {/* ── TALUKA HEAD flow ─────── */}
                         {isTalukaHead && (
                           <>
-                            {/* SuperAdmin மட்டும் district dropdown பாக்கணும் */}
+                            {/* SuperAdmin district dropdown */}
                             {currentUserRole !== "DistrictHead" && (
                               <RowSelect
                                 value={selectedDHDistrict}
@@ -548,7 +548,7 @@ export default function AssignRolesTab() {
                               />
                             )}
 
-                            {/* DistrictHead ku — district name badge show பண்ணு */}
+                            {/* DistrictHead ku — district name badge show */}
                             {currentUserRole === "DistrictHead" && locationData.districtName && (
                               <span className="h-7 px-2.5 flex items-center text-[11.5px] font-medium bg-blue-50 border border-blue-200 text-blue-700 rounded-lg">
                                 📍 {locationData.districtName}
@@ -637,7 +637,7 @@ export default function AssignRolesTab() {
                               </span>
                             )}
 
-                            {/* Ward dropdown — TalukHead ku auto-loaded, others ku selectedTalukaHeadId பண்ணிட்டா */}
+                            {/* Ward dropdown — TalukHead  auto-loaded */}
                             {(currentUserRole === "TalukHead" || selectedTalukaHeadId) && (
                               <RowSelect
                                 value={selectedWardId}

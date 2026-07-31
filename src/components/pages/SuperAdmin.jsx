@@ -233,19 +233,7 @@ export default function SuperAdmin() {
           <h1 className="text-[17px] sm:text-[20px] font-bold text-[#0F172A] leading-tight">Super Admin</h1>
           <p className="text-[11px] sm:text-[12px] text-[#94A3B8] mt-0.5">Platform overview · Live data</p>
         </div>
-        {/* <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 bg-white border border-[#E2E8F0] rounded-lg px-3 py-1.5 text-[12px] text-[#475569]">
-            <Calendar size={13} className="text-[#94A3B8]" />
-            <span>Jan 2025 – Dec 2025</span>
-          </div>
-          <button className="flex items-center gap-1.5 bg-white border border-[#E2E8F0] rounded-lg px-3 py-1.5 text-[12px] text-[#475569] hover:bg-[#F1F5F9] transition-colors">
-            <Download size={13} />
-            Export
-          </button>
-          <button className="flex items-center gap-1.5 bg-[#2563EB] text-white rounded-lg px-3 py-1.5 text-[12px] font-medium hover:bg-[#1D4ED8] transition-colors">
-            + Add Partner
-          </button>
-        </div> */}
+ 
       </div>
 
       {/* ── 4 PRIMARY KPI CARDS ──────────────────────────────── */}
@@ -366,78 +354,9 @@ export default function SuperAdmin() {
       </div>
 
       {/* ── ROW 2: Membership Growth (3fr) + CP Summary (2fr) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4">
+      {/* <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-4">
 
-        {/* Membership Growth */}
-        {/* <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden">
-          <CardHeader icon={UserPlus} title="Membership Growth" subtitle="Weekly cumulative count" />
-
-          <div className="grid grid-cols-4 divide-x divide-[#F1F5F9] border-b border-[#F1F5F9]">
-            {GROWTH_STATS.map(({ label, value, badge }) => (
-              <div key={label} className="px-4 py-3.5">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[#94A3B8] mb-1">{label}</p>
-                <p className="text-[16px] font-bold text-[#0F172A] tabular-nums leading-none mb-1.5">{value}</p>
-                <span className="inline-flex text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100">
-                  {badge}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          <div className="px-5 pt-4 pb-5 h-[210px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={GROWTH_DATA} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="mgGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#2563EB" stopOpacity={0.12} />
-                    <stop offset="100%" stopColor="#2563EB" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="#F1F5F9" vertical={false} />
-                <XAxis dataKey="week" tick={{ fontSize: 10.5, fill: "#94A3B8", fontWeight: 500 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10.5, fill: "#94A3B8" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1000).toFixed(1)}k`} />
-                <Tooltip content={<GrowthTooltip />} cursor={{ stroke: "#E2E8F0", strokeWidth: 1 }} />
-                <Area type="monotone" dataKey="members" stroke="#2563EB" strokeWidth={2.5}
-                  fill="url(#mgGrad)" dot={false}
-                  activeDot={{ r: 4, fill: "#2563EB", strokeWidth: 2, stroke: "#fff" }} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div> */}
-
-        {/* Top Partners mini-list */}
-        {/* <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden flex flex-col">
-          <CardHeader icon={Network} title="Partner Summary" subtitle="Top performers by members" />
-
-          <div className="divide-y divide-[#F8FAFC] flex-1">
-            {CP_DATA.slice(0, 5).map(({ name, region, members, revenue }, i) => {
-              const initials = name.split(" ").map((n) => n[0]).join("");
-              return (
-                <div key={i} className="flex items-center gap-3 px-5 py-3 hover:bg-[#F8FAFC] transition-colors">
-                  <span className="text-[11px] font-bold text-[#CBD5E1] w-4 shrink-0 tabular-nums">#{i + 1}</span>
-                  <div className="w-7 h-7 rounded-full bg-[#EFF6FF] border border-[#DBEAFE] flex items-center justify-center shrink-0">
-                    <span className="text-[10px] font-bold text-[#2563EB]">{initials}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12.5px] font-semibold text-[#1E293B] truncate leading-tight">{name}</p>
-                    <p className="text-[11px] text-[#94A3B8] truncate">{region}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[12.5px] font-bold text-[#1E293B] tabular-nums">{members}</p>
-                    <p className="text-[10.5px] text-[#94A3B8]">{revenue}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="px-5 py-3 border-t border-[#F1F5F9]">
-            <button className="w-full text-center text-[12px] font-semibold text-[#2563EB] hover:text-[#1D4ED8] transition-colors">
-              View all {CP_DATA.length} partners →
-            </button>
-          </div>
-        </div> */}
-      </div>
+      </div> */}
 
       {/* ── FULL-WIDTH CP TABLE ──────────────────────────────── */}
       <div className="bg-white border border-[#E2E8F0] rounded-2xl overflow-hidden">
