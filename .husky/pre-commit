@@ -1,0 +1,5 @@
+node checkCaseV2.cjs
+if [ $? -ne 0 ]; then
+  echo "❌ Case mismatch found. Fix imports before committing."
+  exit 1
+fi
