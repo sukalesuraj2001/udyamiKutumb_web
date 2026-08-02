@@ -72,6 +72,7 @@ import UCTraining from '../pages/businessCircle/admin/Uctraining.jsx'
 import CreateWard from "../pages/superAdmin/CreateWard.jsx";
 import JobManagement from "../pages/superAdmin/JobManagement.jsx";
 import NewsManagement from "../pages/superAdmin/NewsManagement.jsx";
+import Cp from '../pages/cp/Cp.jsx'
 // const AppRouter = [
 //   {
 //     element: <RouteGuard guestOnly />,
@@ -846,7 +847,7 @@ const AppRouter = [
           { path: "/super-admin-dashboard/membership", element: <Membership /> },
           { path: "/super-admin-dashboard/membership/registration", element: <RegistrationPage /> },
           { path: "/super-admin-dashboard/membership/role-management", element: <RoleManagement /> },
-          { path: "/super-admin-dashboard/cp-onbording", element: <ChannelPartnerOnboard /> },
+          { path: "/super-admin-dashboard/cp-onboarding", element: <ChannelPartnerOnboard /> },
           { path: "/super-admin-dashboard/form-builder/channelPartner", element: <FormBuilder /> },
           { path: "/super-admin-dashboard/create-ward", element: <CreateWard /> },
           { path: "/super-admin-dashboard/job-management", element: <JobManagement /> },
@@ -1141,8 +1142,9 @@ const AppRouter = [
           { path: "/wardChairman-head-dashboard/membership", element: <Membership /> },
           { path: "/wardChairman-head-dashboard/membership/registration", element: <RegistrationPage /> },
           { path: "/wardChairman-head-dashboard/membership/role-management", element: <RoleManagement /> },
-          { path: "/wardChairman-head-dashboard/cp-onbording", element: <ChannelPartnerOnboard /> },
+          { path: "/wardChairman-head-dashboard/cp-onboarding", element: <ChannelPartnerOnboard /> },
           { path: "/wardChairman-head-dashboard/form-builder/channelPartner", element: <FormBuilder /> },
+          { path: "/wardChairman-head-dashboard/channel-partner", element: <Cp /> },
         ],
       },
     ],

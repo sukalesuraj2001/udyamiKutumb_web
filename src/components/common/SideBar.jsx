@@ -476,6 +476,15 @@ const NAV = {
         //         { name: "News Management", path: "/wardChairman-head-dashboard/users" },
         //     ]
         // },
+        {
+            type: "group", key: "WC-cp", name: "Channel Partner", icon: ShieldCheck, children: [
+                { name: "Channel Partner", path: "/wardChairman-head-dashboard/channel-partner" },
+                { name: "Channel Partners Onboard", path: "/wardChairman-head-dashboard/cp-onboarding" },
+
+                // { name: "Post Management", path: "/register" },
+                // { name: "News Management", path: "/wardChairman-head-dashboard/users" },
+            ]
+        },
     ],
     ChannelPartner: [
         { type: "link", name: "Dashboard", icon: LayoutDashboard, path: "/channelPartner-dashboard" },
