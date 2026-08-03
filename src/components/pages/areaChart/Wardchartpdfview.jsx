@@ -191,8 +191,64 @@ export default function WardChartPdfView() {
     const gCode = wardNumber;
     const noop = () => { };
 
-    const activeSectors = config.sectors.filter((s) => s.enabled);
-    const activeUms = config.umsRoles.filter((s) => s.enabled);
+    const activeSectors = useMemo(() => config.sectors.filter((s) => s.enabled), [config.sectors]);
+    const activeUms = useMemo(() => config.umsRoles.filter((s) => s.enabled), [config.umsRoles]);
+
+    const sectorsAndUmsPagination = useMemo(() => {
+        const totalSectors = activeSectors.length;
+        const totalUms = activeUms.length;
+
+        const advisoriesCount = config?.slotCounts?.advisories ?? 3;
+        const mentorsCount = config?.slotCounts?.mentors ?? 3;
+
+        // Rule 1: Both Advisory and Mentor <= 3
+        const isRule1AdvisoryMentor = advisoriesCount <= 3 && mentorsCount <= 3;
+
+        if (isRule1AdvisoryMentor) {
+            // Under Rule 1: if sectors <= 12 and UMS <= 10, EVERYTHING stays on Page 4!
+            if (totalSectors <= 12 && totalUms <= 10) {
+                return {
+                    firstPageSectors: activeSectors,
+                    firstPageUms: activeUms,
+                    continuationPages: [],
+                };
+            }
+        }
+
+        // When Advisory & Mentor <= 3, Page 1 takes MORE sectors (9 sectors) + 10 UMS roles!
+        // When Advisory or Mentor > 3, Page 1 takes 6 sectors + 8 UMS roles!
+        const p1SecCount = isRule1AdvisoryMentor ? 9 : 6;
+        const p1UmsCount = isRule1AdvisoryMentor ? 10 : 8;
+
+        const firstSecs = activeSectors.slice(0, p1SecCount);
+        const firstUms = activeUms.slice(0, p1UmsCount);
+
+        const remSecs = activeSectors.slice(p1SecCount);
+        const remUms = activeUms.slice(p1UmsCount);
+
+        const continuations = [];
+        let secIdx = 0;
+        let umsIdx = 0;
+
+        while (secIdx < remSecs.length || umsIdx < remUms.length) {
+            const pageSecs = remSecs.slice(secIdx, secIdx + 12);
+            const pageUms = remUms.slice(umsIdx, umsIdx + 12);
+            continuations.push({
+                sectors: pageSecs,
+                ums: pageUms,
+            });
+            secIdx += 12;
+            umsIdx += 12;
+        }
+
+        return {
+            firstPageSectors: firstSecs,
+            firstPageUms: firstUms,
+            continuationPages: continuations,
+        };
+    }, [activeSectors, activeUms, config?.slotCounts?.advisories, config?.slotCounts?.mentors]);
+
+    const { firstPageSectors, firstPageUms, continuationPages } = sectorsAndUmsPagination;
 
     const activeBrandCategories = useMemo(() =>
         DEFAULT_CONFIG.brandTiles
@@ -500,12 +556,12 @@ export default function WardChartPdfView() {
                         </div>
                     </div>
 
-                    {/* Red container: Sectors + UMS (Fills 100% remaining height to footer) */}
+                    {/* Red container: Sectors + UMS (Fills remaining height to footer) */}
                     <div style={{ display: "flex", gap: "10px", padding: "2%", background: "#c8102e", flex: 1, minHeight: 0 }}>
                         {/* Sectors */}
                         <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-evenly", padding: "8px 0" }}>
-                            {Array.from({ length: Math.ceil(activeSectors.length / 3) }).map((_, rowIdx) => {
-                                const rowSectors = activeSectors.slice(rowIdx * 3, rowIdx * 3 + 3);
+                            {Array.from({ length: Math.ceil(firstPageSectors.length / 3) }).map((_, rowIdx) => {
+                                const rowSectors = firstPageSectors.slice(rowIdx * 3, rowIdx * 3 + 3);
                                 return (
                                     <div key={rowIdx} style={{ display: "flex", justifyContent: "center", gap: "24px", padding: "0 16px" }}>
                                         {rowSectors.map((s) => {
@@ -529,13 +585,13 @@ export default function WardChartPdfView() {
                         </div>
 
                         {/* UMS panel */}
-                        {activeUms.length > 0 && (
-                            <div style={{ width: "250px", borderRadius: "2px", border: "1px solid #1B2430", flexShrink: 0, background: "white", overflow: "hidden", display: "flex", flexDirection: "column", height: "100%" }}>
+                        {firstPageUms.length > 0 && (
+                            <div style={{ width: "250px", borderRadius: "2px", border: "1px solid #1B2430", flexShrink: 0, background: "white", overflow: "hidden", display: "flex", flexDirection: "column", height: "fit-content", alignSelf: "flex-start" }}>
                                 <div style={{ background: "#1a2e5e", padding: "5px 0", textAlign: "center", flexShrink: 0 }}>
                                     <p style={{ fontSize: "7px", fontWeight: "500", color: "white", margin: 0 }}>Udyami Management System</p>
                                 </div>
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", padding: "12px", gap: "12px 20px", flex: 1, alignContent: "space-evenly" }}>
-                                    {activeUms.map((s) => {
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", padding: "12px", gap: "12px 16px", alignContent: "flex-start" }}>
+                                    {firstPageUms.map((s) => {
                                         const slotId = `ums-${s.key}`;
                                         return (
                                             <div key={s.key} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -555,6 +611,70 @@ export default function WardChartPdfView() {
                 </div>
                 <PageFooter num={4} />
             </PdfPage>
+
+            {/* ══════ PAGE 4 CONTINUATION — Sectors / UMS Overflow ══════ */}
+            {continuationPages.map((contPage, idx) => {
+                const pageNum = 5 + idx;
+                return (
+                    <PdfPage key={`page4-cont-${idx}`}>
+                        <div style={{ display: "flex", flexDirection: "column", height: "1095px" }}>
+                            <ChartHeaderBanner code={gCode} wardName={wardName} region={constituency} />
+                            <div style={{ display: "flex", gap: "10px", padding: "2%", background: "#c8102e", flex: 1, minHeight: 0 }}>
+                                {/* Sectors */}
+                                <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-start", gap: "16px", padding: "12px 0" }}>
+                                    {Array.from({ length: Math.ceil(contPage.sectors.length / 3) }).map((_, rowIdx) => {
+                                        const rowSectors = contPage.sectors.slice(rowIdx * 3, rowIdx * 3 + 3);
+                                        return (
+                                            <div key={rowIdx} style={{ display: "flex", justifyContent: "center", gap: "24px", padding: "0 16px" }}>
+                                                {rowSectors.map((s) => {
+                                                    const slotId = `sector-${s.key}`;
+                                                    return (
+                                                        <div key={s.key} style={{ width: "118px", flexShrink: 0 }}>
+                                                            <SectorCard
+                                                                slotId={slotId} label={s.label}
+                                                                assigned={assignments[slotId]}
+                                                                onAssignClick={noop} showPlus={false} isSuperAdmin={true}
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
+                                                {rowSectors.length < 3 && Array.from({ length: 3 - rowSectors.length }).map((_, fi) => (
+                                                    <div key={`fill-${fi}`} style={{ width: "118px", flexShrink: 0, opacity: 0 }} />
+                                                ))}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* UMS panel */}
+                                {contPage.ums.length > 0 && (
+                                    <div style={{ width: "250px", borderRadius: "2px", border: "1px solid #1B2430", flexShrink: 0, background: "white", overflow: "hidden", display: "flex", flexDirection: "column", height: "fit-content", alignSelf: "flex-start" }}>
+                                        <div style={{ background: "#1a2e5e", padding: "5px 0", textAlign: "center", flexShrink: 0 }}>
+                                            <p style={{ fontSize: "7px", fontWeight: "500", color: "white", margin: 0 }}>Udyami Management System (Continued)</p>
+                                        </div>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", padding: "12px", gap: "12px 20px", flex: 1, alignContent: "flex-start" }}>
+                                            {contPage.ums.map((s) => {
+                                                const slotId = `ums-${s.key}`;
+                                                return (
+                                                    <div key={s.key} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                                                        <p style={{ fontSize: "6px", fontWeight: "500", color: "#b5121b", textAlign: "center", marginBottom: "6px", minHeight: "14px", lineHeight: 1.2 }}>{s.label}</p>
+                                                        <div style={{ position: "relative", width: "100%", aspectRatio: "3/2", border: "1px solid #c8102e", borderRadius: "2px", background: "#d0d0d8", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                            {assignments[slotId]?.photoUrl && (
+                                                                <img src={assignments[slotId].photoUrl} alt={assignments[slotId].name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <PageFooter num={pageNum} />
+                    </PdfPage>
+                );
+            })}
 
             {/* ══════ PRODUCT PAGES ══════ */}
             {/* Hidden measure div */}

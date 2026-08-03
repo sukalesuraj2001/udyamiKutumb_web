@@ -42,14 +42,16 @@ export default function CustomizeLayoutModal({
   // ── Custom brand product per category ─────────────────────────
   const [customBrand, setCustomBrand] = useState({});
 
-  // ── Derive staged counts from draft vs original config ────────
-  // FIX: Don't use separate state counters — compute dynamically.
-  // This auto-corrects when user removes/disables newly added items.
-  const originalSectorCount = useRef(config.sectors?.length ?? 0);
-  const originalUmsCount = useRef(config.umsRoles?.length ?? 0);
+  // ── Derive staged counts from draft vs original enabled config ──
+  const originalEnabledSectorsCount = useRef(
+    config.sectors?.filter((s) => s.enabled).length ?? 6
+  );
+  const originalEnabledUmsCount = useRef(
+    config.umsRoles?.filter((s) => s.enabled).length ?? 10
+  );
 
-  const stagedSectors = draft.sectors.length - originalSectorCount.current;
-  const stagedUms = draft.umsRoles.length - originalUmsCount.current;
+  const stagedSectors = draft.sectors.filter((s) => s.enabled).length - originalEnabledSectorsCount.current;
+  const stagedUms = draft.umsRoles.filter((s) => s.enabled).length - originalEnabledUmsCount.current;
 
   useEffect(() => {
     const timer = requestAnimationFrame(() => setAnimate(true));
@@ -227,10 +229,26 @@ export default function CustomizeLayoutModal({
     setCustomBrand((p) => ({ ...p, [categoryKey]: "" }));
   };
 
-  // ── Ratio validation removed — user can save any combination ──
-  const hasCustomAdditions = stagedSectors > 0 || stagedUms > 0;
-  const ratioValid = true;
-  const ratioMessage = null;
+  // ── Sector & UMS 3:2 Ratio Validation ─────────────────────────────
+  const baseSectorsCount = originalEnabledSectorsCount.current; // default 6
+  const baseUmsCount = originalEnabledUmsCount.current;       // default 10
+
+  const activeSectorsCount = draft.sectors.filter((s) => s.enabled).length;
+  const activeUmsCount = draft.umsRoles.filter((s) => s.enabled).length;
+
+  const extraSectors = Math.max(0, activeSectorsCount - baseSectorsCount);
+  const extraUms = Math.max(0, activeUmsCount - baseUmsCount);
+
+  // Mandatory ratio: Every 3 extra sectors require 2 extra UMS roles
+  const requiredExtraUms = Math.ceil(extraSectors / 3) * 2;
+  const missingUms = requiredExtraUms - extraUms;
+
+  const isRatioDeficit = extraSectors > 0 && missingUms > 0;
+  const ratioValid = !isRatioDeficit;
+
+  const ratioMessage = isRatioDeficit
+    ? `Please add ${missingUms} UMS role(s) to match the selected ${extraSectors} extra sector(s).`
+    : null;
 
   // ── Original sector keys (to show remove only on new items) ───
   const originalSectorKeys = useRef(
@@ -612,14 +630,14 @@ export default function CustomizeLayoutModal({
         {/* ── Footer ── */}
         <div className="px-4 sm:px-6 py-4 border-t border-gray-100 bg-gray-50 flex flex-col gap-2">
           {ratioMessage && (
-            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
-              <span className="text-red-500 text-[13px] shrink-0">⚠</span>
-              <p className="text-[11.5px] text-red-600 font-medium leading-snug">
-                {ratioMessage}
-                <span className="block text-[10.5px] text-red-400 mt-0.5">
-                  Rule: Every 3 sectors → 2 UMS roles (3:2 ratio mandatory)
-                </span>
-              </p>
+            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 mb-1">
+              <span className="text-red-500 text-[14px] shrink-0 font-bold">⚠</span>
+              <div className="text-[11.5px] text-red-600 font-medium leading-snug">
+                <p className="font-bold text-red-700">{ratioMessage}</p>
+                <p className="text-[10.5px] text-red-500 mt-0.5">
+                  Rule: Every 3 extra sectors require 2 extra UMS roles (e.g. 3 sectors : 2 UMS, 6 sectors : 4 UMS).
+                </p>
+              </div>
             </div>
           )}
           <div className="flex items-center justify-between mb-3 text-[12px]">
@@ -648,8 +666,15 @@ export default function CustomizeLayoutModal({
               Cancel
             </button>
             <button
-              onClick={() => onSave(draft)}
-              className="flex-1 min-w-[100px] text-[13px] font-semibold py-2.5 rounded-xl transition-colors bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+              onClick={() => {
+                if (ratioValid) onSave(draft);
+              }}
+              disabled={!ratioValid}
+              className={`flex-1 min-w-[100px] text-[13px] font-semibold py-2.5 rounded-xl transition-colors ${
+                ratioValid
+                  ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed opacity-60"
+              }`}
             >
               Save layout
             </button>

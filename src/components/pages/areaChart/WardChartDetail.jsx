@@ -110,6 +110,21 @@ function userTypeFromSlotId(slotId) {
   return "Member";
 }
 
+const getEffectiveWardHeadId = (user) => {
+  if (user?.role === "WardChairman") {
+    return user?.userId || "";
+  }
+  try {
+    const meta = JSON.parse(localStorage.getItem("wardChartMeta") || "{}");
+    if (meta && meta.wardHeadId) {
+      return meta.wardHeadId;
+    }
+  } catch (e) {
+    // fallback if JSON parse fails
+  }
+  return user?.userId || "";
+};
+
 function buildSingleMemberPayload(ward, user, slotId, assignmentData) {
   const coreRoleMap = {
     "core-president": "President",
@@ -140,7 +155,7 @@ function buildSingleMemberPayload(ward, user, slotId, assignmentData) {
   if (umsKey) memberObj.umsKey = umsKey;
 
   return {
-    wardHeadId: user?.userId || "",
+    wardHeadId: getEffectiveWardHeadId(user),
     ward: ward.ward_name || ward.ward_number || "",
     members: [memberObj],
   };
@@ -159,13 +174,13 @@ function PageFooter({ num }) {
 function ChartPage({ pageLabel, pageNum, ward, children }) {
   return (
     <ChartPreviewFrame pageLabel={pageLabel}>
-      <div className="flex flex-col min-h-full bg-white">
+      <div className="flex flex-col h-full bg-white">
         <ChartHeaderBanner
           code={ward.g_code || ward.ward_number}
           wardName={ward.ward_name}
           region={ward.region || ward.district || ward.constituency}
         />
-        <div className="flex-1 overflow-visible">{children}</div>
+        <div className="flex-1 flex flex-col min-h-0 overflow-visible">{children}</div>
         <PageFooter num={pageNum} />
       </div>
     </ChartPreviewFrame>
@@ -233,7 +248,7 @@ export default function WardChartDetail() {
     const croppedFile = new File([blob], "hero-image.jpg", { type: "image/jpeg" });
     const formData = new FormData();
     formData.append("data", JSON.stringify({
-      wardHeadId: user?.userId || "",
+      wardHeadId: getEffectiveWardHeadId(user),
       wardId: ward.id,
       ward: ward.ward_name || ward.ward_number || "",
       layoutCount: getLayoutCountString(config),
@@ -742,8 +757,64 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
     return false;
   };
 
-  const activeSectors = config.sectors.filter((s) => s.enabled);
-  const activeUms = config.umsRoles.filter((s) => s.enabled);
+  const activeSectors = useMemo(() => config.sectors.filter((s) => s.enabled), [config.sectors]);
+  const activeUms = useMemo(() => config.umsRoles.filter((s) => s.enabled), [config.umsRoles]);
+
+  const sectorsAndUmsPagination = useMemo(() => {
+    const totalSectors = activeSectors.length;
+    const totalUms = activeUms.length;
+
+    const advisoriesCount = config?.slotCounts?.advisories ?? 3;
+    const mentorsCount = config?.slotCounts?.mentors ?? 3;
+
+    // Rule 1: Both Advisory and Mentor <= 3
+    const isRule1AdvisoryMentor = advisoriesCount <= 3 && mentorsCount <= 3;
+
+    if (isRule1AdvisoryMentor) {
+      // Under Rule 1: if sectors <= 12 and UMS <= 10, EVERYTHING stays on Page 4!
+      if (totalSectors <= 12 && totalUms <= 10) {
+        return {
+          firstPageSectors: activeSectors,
+          firstPageUms: activeUms,
+          continuationPages: [],
+        };
+      }
+    }
+
+    // When Advisory & Mentor <= 3, Page 1 takes MORE sectors (9 sectors) + 10 UMS roles!
+    // When Advisory or Mentor > 3, Page 1 takes 6 sectors + 8 UMS roles!
+    const p1SecCount = isRule1AdvisoryMentor ? 9 : 6;
+    const p1UmsCount = isRule1AdvisoryMentor ? 10 : 8;
+
+    const firstSecs = activeSectors.slice(0, p1SecCount);
+    const firstUms = activeUms.slice(0, p1UmsCount);
+
+    const remSecs = activeSectors.slice(p1SecCount);
+    const remUms = activeUms.slice(p1UmsCount);
+
+    const continuations = [];
+    let secIdx = 0;
+    let umsIdx = 0;
+
+    while (secIdx < remSecs.length || umsIdx < remUms.length) {
+      const pageSecs = remSecs.slice(secIdx, secIdx + 12);
+      const pageUms = remUms.slice(umsIdx, umsIdx + 12);
+      continuations.push({
+        sectors: pageSecs,
+        ums: pageUms,
+      });
+      secIdx += 12;
+      umsIdx += 12;
+    }
+
+    return {
+      firstPageSectors: firstSecs,
+      firstPageUms: firstUms,
+      continuationPages: continuations,
+    };
+  }, [activeSectors, activeUms, config?.slotCounts?.advisories, config?.slotCounts?.mentors]);
+
+  const { firstPageSectors, firstPageUms, continuationPages } = sectorsAndUmsPagination;
 
 
 
@@ -1089,12 +1160,12 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
               </div>
             </div>
 
-            {/* Red container: Sectors + UMS (Fills 100% of remaining Page 4 height to footer) */}
+            {/* Red container: Sectors + UMS (Fills remaining Page 4 height to footer) */}
             <div className="flex gap-2.5 px-[2%] py-[2%] bg-[#c8102e] flex-1 min-h-0">
               {/* Sectors flex column */}
               <div className="flex-1 flex flex-col justify-evenly py-2 gap-2">
-                {Array.from({ length: Math.ceil(activeSectors.length / 3) }).map((_, rowIdx) => {
-                  const rowSectors = activeSectors.slice(rowIdx * 3, rowIdx * 3 + 3);
+                {Array.from({ length: Math.ceil(firstPageSectors.length / 3) }).map((_, rowIdx) => {
+                  const rowSectors = firstPageSectors.slice(rowIdx * 3, rowIdx * 3 + 3);
                   return (
                     <div key={rowIdx} className="flex justify-center gap-6 px-4">
                       {rowSectors.map((s) => {
@@ -1118,13 +1189,13 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
               </div>
 
               {/* UMS panel */}
-              {activeUms.length > 0 && (
-                <div className="w-[250px] rounded-sm border border-ink shrink-0 bg-white overflow-hidden flex flex-col min-h-0 h-full">
+              {firstPageUms.length > 0 && (
+                <div className="w-[250px] rounded-sm border border-ink shrink-0 bg-white overflow-hidden flex flex-col h-fit self-start">
                   <div className="bg-[#1a2e5e] py-[5px] text-center shrink-0">
                     <p className="text-[7px] font-medium text-white">Udyami Management System</p>
                   </div>
-                  <div className="grid grid-cols-2 px-3 py-3 gap-x-5 gap-y-3 flex-1 flex flex-col justify-evenly">
-                    {activeUms.map((s) => {
+                  <div className="grid grid-cols-2 px-3 py-3 gap-x-4 gap-y-3 content-start">
+                    {firstPageUms.map((s) => {
                       const slotId = `ums-${s.key}`;
                       return (
                         <div key={s.key} className="flex flex-col items-center">
@@ -1149,6 +1220,92 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
             </div>
           </div>
         </ChartPage>
+
+        {/* ══════ PAGE 4 CONTINUATION — Sectors / UMS Overflow ══════ */}
+        {continuationPages.map((contPage, idx) => {
+          const pageNum = 5 + idx;
+          return (
+            <ChartPage
+              key={`page4-cont-${idx}`}
+              pageLabel="Sectors · UMS (Continued)"
+              pageNum={pageNum}
+              ward={ward}
+            >
+              <div className="flex flex-col h-full min-h-full">
+                <div className="flex gap-2.5 px-[2%] py-[2%] bg-[#c8102e] flex-1 min-h-0">
+                  {/* Sectors flex column */}
+                  <div className="flex-1 flex flex-col justify-start py-3 gap-4">
+                    {Array.from({ length: Math.ceil(contPage.sectors.length / 3) }).map((_, rowIdx) => {
+                      const rowSectors = contPage.sectors.slice(rowIdx * 3, rowIdx * 3 + 3);
+                      return (
+                        <div key={rowIdx} className="flex justify-center gap-6 px-4">
+                          {rowSectors.map((s) => {
+                            const slotId = `sector-${s.key}`;
+                            return (
+                              <div key={s.key} className="w-[118px] shrink-0">
+                                <SectorCard
+                                  slotId={slotId}
+                                  label={s.label}
+                                  assigned={assignments[slotId]}
+                                  dimmed={isDimmed(slotId, "sectors", assignments[slotId]?.name)}
+                                  onAssignClick={slotClickProp}
+                                  showPlus={!isPreviewMode}
+                                  isSuperAdmin={isSuperAdmin}
+                                />
+                              </div>
+                            );
+                          })}
+                          {rowSectors.length < 3 &&
+                            Array.from({ length: 3 - rowSectors.length }).map((_, fi) => (
+                              <div key={`fill-${fi}`} className="w-[118px] shrink-0 opacity-0" />
+                            ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* UMS panel */}
+                  {contPage.ums.length > 0 && (
+                    <div className="w-[250px] rounded-sm border border-ink shrink-0 bg-white overflow-hidden flex flex-col h-fit self-start">
+                      <div className="bg-[#1a2e5e] py-[5px] text-center shrink-0">
+                        <p className="text-[7px] font-medium text-white">Udyami Management System (Continued)</p>
+                      </div>
+                      <div className="grid grid-cols-2 px-3 py-3 gap-x-4 gap-y-3 content-start">
+                        {contPage.ums.map((s) => {
+                          const slotId = `ums-${s.key}`;
+                          return (
+                            <div key={s.key} className="flex flex-col items-center">
+                              <p className="text-[6px] font-medium text-[#b5121b] text-center mb-1 min-h-[12px] leading-tight">
+                                {s.label}
+                              </p>
+                              <div
+                                onClick={() => handleSlotClick(slotId, s.label)}
+                                className={`relative w-full aspect-[3/2] border border-[#c8102e] rounded-sm bg-[#d0d0d8] overflow-hidden flex items-center justify-center ${
+                                  !isPreviewMode ? "cursor-pointer group" : "cursor-default"
+                                }`}
+                              >
+                                {assignments[slotId]?.photoUrl && (
+                                  <img
+                                    src={assignments[slotId].photoUrl}
+                                    alt={assignments[slotId].name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                )}
+                                {!isPreviewMode && !isSuperAdmin && (
+                                  <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </ChartPage>
+          );
+        })}
 
         {/* ══════ PRODUCT PAGES ══════ */}
         {/* Hidden measure div */}
@@ -1255,7 +1412,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
 
             const formData = new FormData();
             formData.append("data", JSON.stringify({
-              wardHeadId: user?.userId,
+              wardHeadId: getEffectiveWardHeadId(user),
               wardId: ward.id,
               ward: ward.ward_name || ward.ward_number || "",
               layoutCount: layoutCountStr,

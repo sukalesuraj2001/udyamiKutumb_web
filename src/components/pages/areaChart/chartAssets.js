@@ -1,7 +1,8 @@
-export const UDYAMI_LOGO_URL = "/logos/logo.png";
-export const KUTUMBA_LOGO_URL = "/logos/logo.png";
-
+import logoFile from '../../../assets/logo.png';
 import logoimg from '../../../assets/pdflog.png.jpg';
+
+export const UDYAMI_LOGO_URL = logoFile;
+export const KUTUMBA_LOGO_URL = logoFile;
 export const HERO_IMAGE_URL = logoimg;
 export const CHART_BG_TEXTURE = "/area-chart/img_29.png";
 
@@ -16,9 +17,9 @@ export const PRODUCT_LOGOS = {
   firstchoice: "/area-chart/img_53.jpeg",
   firstgo: "/area-chart/img_55.png",
   buildhive: "/area-chart/img_57.png",
-  "ums-kutumba": "/logos/kutumba-logo.png",
+  "ums-kutumba": logoFile,
 };
 
 export const UMS_ICON_URLS = {
-  kutumba: "/logos/kutumba-logo.png",
+  kutumba: logoFile,
 };
