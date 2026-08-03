@@ -155,7 +155,7 @@ export default function BusinessLeads() {
             value={form.area}
             onChange={update("area")}
             placeholder="Select constituency"
-            options={["Bengluru north", "Mahadevapura", "B.T.M Layout"]}
+            options={["Bengaluru North", "Mahadevapura", "B.T.M Layout"]}
           />
 
           <div>

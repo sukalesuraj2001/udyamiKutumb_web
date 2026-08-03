@@ -7,12 +7,13 @@ import BuilderSection from "./Buildersection";
  * Props:
  *   sections        – array of section objects
  *   activeSection   – id of the currently active section
- *   expandedMap     – { [sectionId]: boolean }
- *   onToggleSection – (sectionId) => void
- *   onEditField     – (sectionId, fieldId) => void
- *   onDeleteField   – (sectionId, fieldId) => void
- *   onAddField      – (sectionId) => void
+ *   expandedMap     – { [id]: boolean }
+ *   onToggleSection – (id) => void
+ *   onEditField     – (id, fieldId) => void
+ *   onDeleteField   – (id, fieldId) => void
+ *   onAddField      – (id) => void
  *   onAddSection    – () => void
+ *   onRenameSection – (id, newTitle) => void   ← NEW
  */
 export default function BuilderSidebar({
   sections,
@@ -23,6 +24,7 @@ export default function BuilderSidebar({
   onDeleteField,
   onAddField,
   onAddSection,
+  onRenameSection,
 }) {
   const [query, setQuery] = useState("");
 
@@ -76,6 +78,7 @@ export default function BuilderSidebar({
               onEditField={onEditField}
               onDeleteField={onDeleteField}
               onAddField={onAddField}
+              onRenameSection={onRenameSection}
             />
           ))
         )}

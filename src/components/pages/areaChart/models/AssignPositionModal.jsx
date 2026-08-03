@@ -61,11 +61,10 @@ function MemberCard({ member, selected, onSelect }) {
   return (
     <button
       onClick={() => onSelect(member)}
-      className={`w-full text-left px-4 py-3.5 rounded-2xl border transition-all duration-150 ${
-        selected
+      className={`w-full text-left px-4 py-3.5 rounded-2xl border transition-all duration-150 ${selected
           ? "border-amber bg-amber/5 shadow-sm"
           : "border-hairline hover:border-amber/40 hover:bg-ink/[.02]"
-      }`}
+        }`}
     >
       <div className="flex items-start gap-3">
         <Avatar src={photo} name={member.name} />
@@ -262,9 +261,14 @@ export default function AssignPositionModal({
 
   const handleCropComplete = (_, pixels) => setCroppedAreaPixels(pixels);
 
+  // AFTER (fix)
   const handleSaveCrop = async () => {
     if (!rawImage || !croppedAreaPixels) return;
-    const file = await getCroppedImg(rawImage, croppedAreaPixels);
+    const blob = await getCroppedImg(rawImage, croppedAreaPixels);
+
+    // Blob → proper File object with filename + type
+    const file = new File([blob], "profile-photo.jpg", { type: "image/jpeg" });
+
     setPhotoFile(file);
     setPhotoPreview(URL.createObjectURL(file));
     setCropModalOpen(false);
@@ -320,17 +324,15 @@ export default function AssignPositionModal({
         <div className="inline-flex w-full rounded-xl border border-hairline bg-paper p-1 mb-6">
           <button
             onClick={() => setTab("existing")}
-            className={`flex-1 px-3 sm:px-4 py-1.5 rounded-lg text-[12.5px] sm:text-[13px] font-semibold transition-colors ${
-              tab === "existing" ? "bg-white text-ink shadow-sm" : "text-muted"
-            }`}
+            className={`flex-1 px-3 sm:px-4 py-1.5 rounded-lg text-[12.5px] sm:text-[13px] font-semibold transition-colors ${tab === "existing" ? "bg-white text-ink shadow-sm" : "text-muted"
+              }`}
           >
             Existing Member
           </button>
           <button
             onClick={() => setTab("invite")}
-            className={`flex-1 px-3 sm:px-4 py-1.5 rounded-lg text-[12.5px] sm:text-[13px] font-semibold transition-colors ${
-              tab === "invite" ? "bg-white text-ink shadow-sm" : "text-muted"
-            }`}
+            className={`flex-1 px-3 sm:px-4 py-1.5 rounded-lg text-[12.5px] sm:text-[13px] font-semibold transition-colors ${tab === "invite" ? "bg-white text-ink shadow-sm" : "text-muted"
+              }`}
           >
             Invite New
           </button>

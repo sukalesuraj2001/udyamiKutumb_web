@@ -357,7 +357,7 @@ export default function AssignRolesTab() {
       if (currentUserRole === "TalukHead") return !!selectedWardId; 
       return !!wcTaluka && !!selectedTalukaHeadId && !!selectedWardId;
     }
-    return false;
+    return true;
   })();
   // ── Payload & dispatch ───────────────────────────────────────────────────────
   const handleAssign = () => {

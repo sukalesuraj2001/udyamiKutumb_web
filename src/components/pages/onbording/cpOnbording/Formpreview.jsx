@@ -1,6 +1,6 @@
 import { ChevronDown } from "lucide-react";
 
-// ── Shared primitive styles (read-only) ──────────────────────────────────────
+// ── Shared primitive styles ──────────────────────────────────────────────────
 const inputCls =
   "w-full h-9 px-3 text-[12.5px] text-gray-800 bg-white border border-gray-200 " +
   "rounded-lg cursor-default pointer-events-none placeholder:text-gray-300";
@@ -13,11 +13,12 @@ function ReadInput({ placeholder }) {
   return <input readOnly className={inputCls} placeholder={placeholder || "Enter value"} />;
 }
 
-function ReadSelect({ placeholder = "Select…" }) {
+function ReadSelect({ options = [], placeholder = "Select…" }) {
   return (
     <div className="relative">
       <select disabled className={selectCls}>
         <option>{placeholder}</option>
+        {options.map((o, i) => <option key={i}>{o}</option>)}
       </select>
       <ChevronDown
         size={13}
@@ -77,8 +78,8 @@ function ReadCheckboxGrid({ items = [] }) {
   );
 }
 
-// ── Section wrapper ─────────────────────────────────────────────────────────
-function PreviewSection({ id, icon, title, subtitle, isActive, children }) {
+// ── Section wrapper ──────────────────────────────────────────────────────────
+function PreviewSection({ id, icon, title, isActive, children }) {
   return (
     <div
       id={`preview-${id}`}
@@ -92,19 +93,13 @@ function PreviewSection({ id, icon, title, subtitle, isActive, children }) {
         <span className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-[14px] shrink-0">
           {icon || "📋"}
         </span>
-        <div>
-          <h3 className="text-[13px] font-bold text-gray-900">{title || "Untitled Section"}</h3>
-          {subtitle && (
-            <p className="text-[11.5px] text-gray-400 mt-0.5">{subtitle}</p>
-          )}
-        </div>
+        <h3 className="text-[13px] font-bold text-gray-900">{title || "Untitled Section"}</h3>
       </div>
       <div className="px-5 py-5">{children}</div>
     </div>
   );
 }
 
-// helpers
 function Label({ children, required }) {
   return (
     <label className="block text-[12px] font-semibold text-gray-700 mb-1.5">
@@ -113,56 +108,50 @@ function Label({ children, required }) {
     </label>
   );
 }
-function Grid2({ children }) {
-  return <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>;
-}
-function Grid3({ children }) {
-  return <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">{children}</div>;
-}
-function Field({ children }) {
-  return <div className="flex flex-col">{children}</div>;
-}
 
-// ── Dynamic field renderer ──────────────────────────────────────────────────
+// ── FIX 3: use field.label (not field.name), normalise type to lowercase ─────
 function renderField(field) {
   if (!field) return null;
 
-  const commonProps = {
-    placeholder: field.placeholder || `Enter ${field.name?.toLowerCase() || "value"}`,
-  };
+  const placeholder = field.placeholder || `Enter ${(field.label || "value").toLowerCase()}`;
+  const type = (field.type || "text").toLowerCase();
 
-  switch (field.type) {
-    case "Text":
-    case "Email":
-    case "Tel":
-    case "Number":
-    case "Date":
-    case "URL":
-      return <ReadInput {...commonProps} />;
+  switch (type) {
+    case "text":
+    case "email":
+    case "tel":
+    case "number":
+    case "date":
+    case "url":
+      return <ReadInput placeholder={placeholder} />;
 
-    case "Select":
-      return <ReadSelect {...commonProps} />;
+    case "select":
+      return <ReadSelect options={field.options || []} placeholder={placeholder} />;
 
-    case "Textarea":
-      return <ReadTextarea {...commonProps} rows={3} />;
+    case "textarea":
+      return <ReadTextarea placeholder={placeholder} rows={3} />;
 
-    case "Radio":
-      return <ReadRadio options={["Yes", "No"]} />;
+    case "radio":
+      return (
+        <ReadRadio
+          options={
+            field.options && field.options.length > 0 ? field.options : ["Yes", "No"]
+          }
+        />
+      );
 
-    case "Checkbox":
-      // If it's a checkbox with items (like Skills), show grid
-      if (field.options && Array.isArray(field.options) && field.options.length > 0) {
+    case "checkbox":
+      if (field.options && field.options.length > 0) {
         return <ReadCheckboxGrid items={field.options} />;
       }
-      // Single checkbox
-      return <ReadCheckbox label={field.name || "Checkbox"} />;
+      return <ReadCheckbox label={field.label} />;
 
     default:
-      return <ReadInput {...commonProps} />;
+      return <ReadInput placeholder={placeholder} />;
   }
 }
 
-// ── Dynamic Section Renderer ──────────────────────────────────────────────
+// ── Dynamic Section Renderer ─────────────────────────────────────────────────
 function DynamicSection({ section, isActive }) {
   if (!section) return null;
 
@@ -171,51 +160,22 @@ function DynamicSection({ section, isActive }) {
       id={section.id}
       icon={section.icon}
       title={section.title}
-      subtitle={section.subtitle}
       isActive={isActive}
     >
       <div className="space-y-4">
         {section.fields && section.fields.length > 0 ? (
-          // Group fields in grids based on count for better layout
-          (() => {
-            const fields = section.fields;
-            const groups = [];
-            let i = 0;
-            while (i < fields.length) {
-              // Take 3 fields for a row, or remaining
-              const chunk = fields.slice(i, i + 3);
-              // If only 2 fields left, use Grid2, else Grid3
-              if (chunk.length === 2) {
-                groups.push(
-                  <Grid2 key={i}>
-                    {chunk.map((f) => (
-                      <Field key={f.id}>
-                        <Label required={f.required}>{f.name}</Label>
-                        {renderField(f)}
-                      </Field>
-                    ))}
-                  </Grid2>
-                );
-                i += 2;
-              } else {
-                groups.push(
-                  <Grid3 key={i}>
-                    {chunk.map((f) => (
-                      <Field key={f.id}>
-                        <Label required={f.required}>{f.name}</Label>
-                        {renderField(f)}
-                      </Field>
-                    ))}
-                  </Grid3>
-                );
-                i += 3;
-              }
-            }
-            return groups;
-          })()
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {section.fields.map((f) => (
+              <div key={f.id} className="flex flex-col">
+                {/* FIX 3: use f.label */}
+                <Label required={f.required}>{f.label || "Untitled Field"}</Label>
+                {renderField(f)}
+              </div>
+            ))}
+          </div>
         ) : (
           <p className="text-[12px] text-gray-400 text-center py-4">
-            No fields in this section. Add fields using the builder.
+            No fields in this section yet.
           </p>
         )}
       </div>
@@ -223,21 +183,13 @@ function DynamicSection({ section, isActive }) {
   );
 }
 
-// ─── FormPreview ─────────────────────────────────────────────────────────────
-/**
- * FormPreview (Right Panel)
- * Props:
- *   sections      – current section list (used for ordering)
- *   activeSection – id of the active/highlighted section
- */
-export default function FormPreview({ sections, activeSection }) {
-  // If no sections, show empty state
+// ── FormPreview ──────────────────────────────────────────────────────────────
+export default function FormPreview({ sections, activeSection, title, description }) {
   if (!sections || sections.length === 0) {
     return (
       <div className="flex-1 overflow-y-auto bg-gray-50 px-6 py-5">
         <div className="max-w-3xl mx-auto text-center py-12">
           <p className="text-[14px] text-gray-400">No sections configured yet.</p>
-          <p className="text-[12px] text-gray-300 mt-1">Add a section using the "Add Section" button.</p>
         </div>
       </div>
     );
@@ -248,33 +200,24 @@ export default function FormPreview({ sections, activeSection }) {
       <div className="max-w-3xl mx-auto">
         {/* Preview top bar */}
         <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold
-              bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
-              Live Preview
-            </span>
-            <span className="text-[11.5px] text-gray-400">
-              Previewing:{" "}
-              <span className="font-semibold text-gray-600">
-                {sections.find((s) => s.id === activeSection)?.title ?? "All Sections"}
-              </span>
-            </span>
-          </div>
+          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold
+            bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 inline-block" />
+            Live Preview
+          </span>
           <span className="text-[11px] text-gray-400">Read-only</span>
         </div>
 
-        {/* Form header card */}
+        {/* FIX 3: dynamic title & description from props */}
         <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-4">
           <h1 className="text-[15px] font-bold text-gray-900">
-            Channel Partner Onboarding
+            {title || "Untitled Form"}
           </h1>
-          <p className="text-[12px] text-gray-400 mt-0.5">
-            Complete all required fields to register a new Channel Partner
-          </p>
+          {description && (
+            <p className="text-[12px] text-gray-400 mt-0.5">{description}</p>
+          )}
         </div>
 
-        {/* Render sections dynamically */}
         {sections.map((section) => (
           <DynamicSection
             key={section.id}

@@ -1,11 +1,15 @@
-import React, { useState,useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, Link } from "react-router-dom";
 import { EyeIcon } from "../common/Icons.jsx";
 import { registerUser, clearAuthError } from "../redux/slices/authSlice.js";
+import LocationPickerModal from "./LocationPickerModal.jsx"; // ← adjust path
+
+const MAPS_API_KEY = "YOUR_GOOGLE_MAPS_API_KEY"; // ← replace with your key
 
 const inputClass = (hasError) =>
-  `w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition focus:ring-4 focus:ring-[#1B2430]/10 focus:border-[#1B2430] ${hasError ? "border-red-400" : "border-[#E2DDD1]"
+  `w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition focus:ring-4 focus:ring-[#1B2430]/10 focus:border-[#1B2430] ${
+    hasError ? "border-red-400" : "border-[#E2DDD1]"
   }`;
 
 function Field({ label, error, children }) {
@@ -18,6 +22,20 @@ function Field({ label, error, children }) {
   );
 }
 
+function MapPinButton({ onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Pick on map"
+      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#1a56db] hover:text-[#1547c0] transition"
+    >
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+      </svg>
+    </button>
+  );
+}
 
 export default function Register() {
   const dispatch = useDispatch();
@@ -27,16 +45,23 @@ export default function Register() {
 
   const [showPw, setShowPw] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [mapModal, setMapModal] = useState(null); // null | "businessLocation" | "officeLocation"
+
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
     mobileNumber: "",
     businessLocation: "",
+    businessLat: 0,
+    businessLng: 0,
     officeLocation: "",
+    officeLat: 0,
+    officeLng: 0,
     latitude: 0,
     longitude: 0,
   });
+
   useEffect(() => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -47,32 +72,38 @@ export default function Register() {
           longitude: pos.coords.longitude,
         }));
       },
-      () => { } 
+      () => {}
     );
   }, []);
+
   const update = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const handleLocationSelect = ({ address, lat, lng }) => {
+    if (mapModal === "businessLocation") {
+      setForm((f) => ({ ...f, businessLocation: address, businessLat: lat, businessLng: lng }));
+      setFieldErrors((e) => ({ ...e, businessLocation: undefined }));
+    } else if (mapModal === "officeLocation") {
+      setForm((f) => ({ ...f, officeLocation: address, officeLat: lat, officeLng: lng }));
+      setFieldErrors((e) => ({ ...e, officeLocation: undefined }));
+    }
+    setMapModal(null);
+  };
 
   const validate = () => {
     const e = {};
     if (!form.name.trim()) e.name = "Name is required";
-
     if (!form.email.trim()) {
       e.email = "Email is required";
-    } else if (
-      !/^[a-zA-Z0-9._%+-]+@gmail\.(com|in)$/i.test(form.email)
-    ) {
+    } else if (!/^[a-zA-Z0-9._%+-]+@gmail\.(com|in)$/i.test(form.email)) {
       e.email = "Enter a valid Gmail address";
     }
-
     if (!form.password) e.password = "Password is required";
     else if (form.password.length < 6) e.password = "At least 6 characters";
-
     if (!form.mobileNumber.trim()) {
       e.mobileNumber = "Mobile number is required";
     } else if (!/^[6-9]\d{9}$/.test(form.mobileNumber)) {
       e.mobileNumber = "Enter a valid 10-digit mobile number";
-    } else if (!/^\d{10}$/.test(form.mobileNumber)) e.mobileNumber = "Enter a valid 10-digit number";
-
+    }
     if (!form.businessLocation.trim()) e.businessLocation = "Business location is required";
     if (!form.officeLocation.trim()) e.officeLocation = "Office location is required";
     setFieldErrors(e);
@@ -83,18 +114,33 @@ export default function Register() {
     ev.preventDefault();
     dispatch(clearAuthError());
     if (!validate()) return;
-    const result = await dispatch(registerUser(form));
+    const payload = {
+      name: form.name,
+      email: form.email,
+      password: form.password,
+      mobileNumber: form.mobileNumber,
+      businessLocation: form.businessLocation,
+      officeLocation: form.officeLocation,
+      latitude: form.latitude,
+      longitude: form.longitude,
+      businessLatitude: form.businessLat,
+      businessLongitude: form.businessLng,
+      officeLatitude: form.officeLat,
+      officeLongitude: form.officeLng,
+    };
+    const result = await dispatch(registerUser(payload));
     if (registerUser.fulfilled.match(result)) {
       const role = result.payload?.user?.role;
       navigate(role === "admin" ? "/admin-dashboard" : "/dashboard");
     }
   };
 
+  const mapCenter = form.latitude !== 0 ? { lat: form.latitude, lng: form.longitude } : null;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F0F4FF] px-4 py-10">
       <div className="w-full max-w-lg bg-white rounded-2xl border border-[#E2E8F4] shadow-sm p-8 md:p-10">
 
-        {/* Logo */}
         <div className="flex items-center justify-center gap-2.5 mb-6">
           <img
             src="https://udyamicircle.in/assets/logo-BWGNLCfH.png"
@@ -106,7 +152,6 @@ export default function Register() {
           </span>
         </div>
 
-        {/* Badge */}
         <div className="flex justify-center mb-3">
           <span className="text-[11px] font-semibold tracking-widest uppercase text-[#1a56db] bg-[#EEF3FF] border border-[#C7D7FA] rounded-full px-3 py-1">
             New Account
@@ -123,8 +168,6 @@ export default function Register() {
         )}
 
         <form onSubmit={submit} noValidate>
-
-          {/* Row 1 — Name + Mobile */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Full name" error={fieldErrors.name}>
               <input
@@ -151,7 +194,6 @@ export default function Register() {
             </Field>
           </div>
 
-          {/* Email */}
           <Field label="Email address" error={fieldErrors.email}>
             <input
               type="email"
@@ -162,7 +204,6 @@ export default function Register() {
             />
           </Field>
 
-          {/* Password */}
           <Field label="Password" error={fieldErrors.password}>
             <div className="relative">
               <input
@@ -183,34 +224,39 @@ export default function Register() {
             </div>
           </Field>
 
-          {/* Row 2 — Business + Office location */}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Business location" error={fieldErrors.businessLocation}>
-              <input
-                className={inputClass(fieldErrors.businessLocation)}
-                placeholder="e.g. Chennai"
-                value={form.businessLocation}
-                onChange={update("businessLocation")}
-              />
+              <div className="relative">
+                <input
+                  className={inputClass(fieldErrors.businessLocation) + " pr-9 cursor-pointer"}
+                  placeholder="Click 📍 to pick"
+                  value={form.businessLocation}
+                  readOnly
+                  onClick={() => setMapModal("businessLocation")}
+                />
+                <MapPinButton onClick={() => setMapModal("businessLocation")} />
+              </div>
             </Field>
+
             <Field label="Office location" error={fieldErrors.officeLocation}>
-              <input
-                className={inputClass(fieldErrors.officeLocation)}
-                placeholder="e.g. Anna Nagar"
-                value={form.officeLocation}
-                onChange={update("officeLocation")}
-              />
+              <div className="relative">
+                <input
+                  className={inputClass(fieldErrors.officeLocation) + " pr-9 cursor-pointer"}
+                  placeholder="Click 📍 to pick"
+                  value={form.officeLocation}
+                  readOnly
+                  onClick={() => setMapModal("officeLocation")}
+                />
+                <MapPinButton onClick={() => setMapModal("officeLocation")} />
+              </div>
             </Field>
           </div>
 
-          {/* Location detect button */}
-          {form.latitude !== 0 && (
-            <p className="text-[11.5px] text-green-600 mb-3 text-center">
+          {(form.businessLat !== 0 || form.officeLat !== 0) && (
+            <p className="text-[11.5px] text-green-600 mb-3 -mt-1 text-center">
+              ✓ Location coordinates saved
             </p>
           )}
-
-          {/* Hidden lat/lng — set via geolocation or map picker later */}
-          {/* form.latitude and form.longitude are in state, update them separately */}
 
           <button
             type="submit"
@@ -232,6 +278,20 @@ export default function Register() {
           <Link to="/login" className="text-[#1a56db] font-semibold hover:underline">Sign In</Link>
         </p>
       </div>
+
+      <LocationPickerModal
+        isOpen={mapModal !== null}
+        onClose={() => setMapModal(null)}
+        onSelect={handleLocationSelect}
+        apiKey={MAPS_API_KEY}
+        title={
+          mapModal === "businessLocation"
+            ? "Select Business Location"
+            : "Select Office Location"
+        }
+        initialLat={mapCenter?.lat}
+        initialLng={mapCenter?.lng}
+      />
     </div>
   );
 }

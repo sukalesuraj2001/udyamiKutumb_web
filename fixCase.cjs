@@ -3,7 +3,7 @@ const path = require('path');
 
 // [relativeFilePath, oldImportString, newImportString]
 const fixes = [
-  ['src/components/auth/Login.jsx', '../redux/slices/areaChartSlice.js', '../redux/slices/Areachartslice.js'],
+  ['src/components/auth/Login.jsx', '../redux/slices/areaChartSlice.js', '../redux/slices/areaChartSlice.js'],
   ['src/components/common/AdminLayout.jsx', './Sidebar.jsx', './SideBar.jsx'],
   ['src/components/pages/areaChart/AreaChartBuilder.jsx', '../../redux/slices/AuthSlice', '../../redux/slices/authSlice'],
   ['src/components/pages/businessCircle/Businessleads.jsx', '../businessCircle/closedBusiness/SlideOver.jsx', '../businessCircle/closedBusiness/Slideover.jsx'],
@@ -30,7 +30,7 @@ const fixes = [
   ['src/components/pages/superAdmin/members/TalukHead.jsx', './headData.js', './Headdata.js'],
   ['src/components/pages/superAdmin/members/WardHobliHead.jsx', './headData.js', './Headdata.js'],
   ['src/components/pages/SuperAdmin.jsx', '../redux/slices/dashboardSlice.JS', '../redux/slices/dashboardSlice.js'],
-  ['src/components/pages/users/RoleManagement/tabs/AssignRolesTab.jsx', '../../../../redux/slices/areaChartSlice', '../../../../redux/slices/Areachartslice'],
+  ['src/components/pages/users/RoleManagement/tabs/AssignRolesTab.jsx', '../../../../redux/slices/areaChartSlice', '../../../../redux/slices/areaChartSlice'],
   ['src/components/router/AppRouter.jsx', '../pages/channelPartners/ChannelPArtner.jsx', '../pages/channelPartners/ChannelPartner.jsx'],
 ];
 

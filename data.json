@@ -1,0 +1,30 @@
+ |   +---areaChart
+    |   |   |   AreaChartBuilder.jsx
+    |   |   |   chartAssets.js
+    |   |   |   WardChartDetail.jsx
+    |   |   |   Wardchartpdfview.jsx
+    |   |   |   
+    |   |   +---components
+    |   |   |       AllAssignmentsTable.jsx
+    |   |   |       Chairmanhighlightcard.jsx
+    |   |   |       ChartFilterBar.jsx
+    |   |   |       Chartheaderbanner.jsx
+    |   |   |       ChartPreviewFrame.jsx
+    |   |   |       ChartSlot.jsx
+    |   |   |       ConstituencySection.jsx
+    |   |   |       CoverPage.jsx
+    |   |   |       Mlacard.jsx
+    |   |   |       Productspage.jsx
+    |   |   |       Sectorcard.jsx
+    |   |   |       Umscard.jsx
+    |   |   |       WardCard.jsx
+    |   |   |       
+    |   |   +---models
+    |   |   |       AssignPositionModal.jsx
+    |   |   |       CustomizeLayoutModal.jsx
+    |   |   |       ImageCropModal.jsx
+    |   |   |       PositionDetailsModal.jsx
+    |   |   |       
+    |   |   \---utils
+    |   |           Mapapitoassignments.js
+    |   |           

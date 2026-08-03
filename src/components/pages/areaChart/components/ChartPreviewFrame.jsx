@@ -1,38 +1,77 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { FileText } from "lucide-react";
-import { CHART_BG_TEXTURE } from "../chartAssets.js";
-import pdfBg from "../../../../assets/pdfBg.png";
-/**
- * Wraps a single chart page in a fixed-size, A4-ratio "sheet" (1:1.4142, ISO 216)
- * so Cover / Chart body / Products all render at the exact same page dimensions,
- * matching a real PDF viewer.
- */
+
+const BASE_W = 855;
+const BASE_H = Math.round(BASE_W * 1.4142); // 1075px — true A4 ratio
+
 export default function ChartPreviewFrame({ pageLabel, pageNumber, children }) {
   const containerRef = useRef(null);
-  const [scale, setScale] = useState(1);
+  const probeRef    = useRef(null); // hidden off-screen clone — measures natural height
+  const [outerScale,   setOuterScale]   = useState(1);
+  const [contentScale, setContentScale] = useState(1);
 
+  // ── Outer scale: shrink page to fit narrow screens ─────────────────────
   useEffect(() => {
-    const updateScale = () => {
-      if (!containerRef.current) return;
-      const parentWidth = containerRef.current.clientWidth;
-      const baseWidth = 760; // Native A4 preview width
-      if (parentWidth > 0 && parentWidth < baseWidth) {
-        setScale(parentWidth / baseWidth);
-      } else {
-        setScale(1);
-      }
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth;
+      setOuterScale(w > 0 && w < BASE_W ? w / BASE_W : 1);
     };
-
-    updateScale();
-    window.addEventListener("resize", updateScale);
-    return () => window.removeEventListener("resize", updateScale);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
-  const baseWidth = 760;
-  const baseHeight = 760 * 1.4142;
+  // ── Content scale: measure natural height in a probe div, never flash ──
+  //    The probe is a sibling positioned off-screen so measurement is clean
+  //    and the visible content div always has stable styles (no reset dance).
+  const measureAndScale = useCallback(() => {
+    // Content should never shrink or scale — pagination handles splitting content cleanly across A4 pages.
+    setContentScale(1);
+  }, []);
+
+  useEffect(() => {
+    measureAndScale();
+  }, [children, measureAndScale]);
+
+  // Also re-measure if probe resizes (image load, font swap, etc.)
+  useEffect(() => {
+    const el = probeRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(measureAndScale);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [measureAndScale]);
+
+  // Derived styles for the visible content div
+  // When scaled: logical height is expanded so the full content renders,
+  //              then CSS scale() shrinks it back into BASE_H.
+  const contentStyle = {
+    width:           `${BASE_W}px`,
+    height:          contentScale < 1 ? `${BASE_H / contentScale}px` : `${BASE_H}px`,
+    // ↑ Always give a concrete height so children using h-full / min-h-full work
+    transformOrigin: "top left",
+    transform:       contentScale < 1 ? `scale(${contentScale})` : "none",
+  };
+
+  // The probe is identical in width but uses auto height so scrollHeight is accurate
+  const probeStyle = {
+    position:      "fixed",
+    top:           "-99999px",
+    left:          "-99999px",
+    width:         `${BASE_W}px`,
+    height:        "auto",
+    visibility:    "hidden",
+    pointerEvents: "none",
+    zIndex:        -1,
+  };
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 md:p-5">
+
+      {/* Page label */}
       <div className="flex items-center gap-2 mb-3 sm:mb-4">
         <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center shrink-0">
           <FileText size={12} className="text-gray-500" />
@@ -42,33 +81,30 @@ export default function ChartPreviewFrame({ pageLabel, pageNumber, children }) {
         </p>
       </div>
 
-      <div ref={containerRef} className="w-full max-w-[760px] mx-auto overflow-x-auto">
+      {/* Responsive outer shell */}
+      <div ref={containerRef} className="w-full max-w-[760px] mx-auto">
+
+        {/* A4 page — fixed 760 × BASE_H, outer-scaled on narrow screens */}
         <div
           style={{
-            width: `${baseWidth}px`,
-            height: `${baseHeight}px`,
-            transform: scale < 1 ? `scale(${scale})` : "none",
-            transformOrigin: "top left",
-            marginBottom: scale < 1 ? `-${(1 - scale) * baseHeight}px` : "0px",
-            marginRight: scale < 1 ? `-${(1 - scale) * baseWidth}px` : "0px",
+            width:          `${BASE_W}px`,
+            height:         `${BASE_H}px`,
+            transform:      outerScale < 1 ? `scale(${outerScale})` : "none",
+            transformOrigin:"top left",
+            // Collapse layout space taken by the scaled-down element
+            marginBottom:   outerScale < 1 ? `-${(1 - outerScale) * BASE_H}px` : "0",
+            marginRight:    outerScale < 1 ? `-${(1 - outerScale) * BASE_W}px` : "0",
+            overflow:       "hidden",
+            position:       "relative",
           }}
-          className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden relative"
+          className="pdf-capture-page bg-white rounded-lg border border-slate-200 shadow-sm"
         >
-          <div
-            className="absolute inset-0 overflow-y-auto"
-            style={
-              pageNumber
-                ? {
-                    // backgroundImage: `url(${CHART_BG_TEXTURE})`,
-                    // backgroundSize: "cover",
-                    // backgroundPosition: "center",
-                  }
-                : undefined
-            }
-          >
+          {/* Visible content — scale-down applied here if overflow */}
+          <div style={contentStyle}>
             {children}
           </div>
 
+          {/* Page number badge (sits on top, not inside content scale) */}
           {pageNumber != null && (
             <div className="absolute bottom-0 left-0 right-0 h-[28px] bg-ink flex items-center px-3 z-20 pointer-events-none">
               <span className="w-[22px] h-[22px] rounded-full bg-steel text-white text-[7.4px] font-bold flex items-center justify-center tabular-nums">
@@ -77,6 +113,12 @@ export default function ChartPreviewFrame({ pageLabel, pageNumber, children }) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Measurement probe (invisible, off-screen) ── */}
+      {/* Renders children at natural height so we can read scrollHeight cleanly */}
+      <div ref={probeRef} style={probeStyle} aria-hidden="true">
+        {children}
       </div>
     </div>
   );

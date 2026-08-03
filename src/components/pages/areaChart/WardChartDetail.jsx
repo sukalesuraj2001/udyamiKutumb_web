@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { UserPlus, SlidersHorizontal, Printer, Download, Pencil, FileCheck2 } from "lucide-react";
 import ChartSlot from "./components/ChartSlot.jsx";
@@ -16,6 +16,7 @@ import ChartPreviewFrame from "./components/ChartPreviewFrame.jsx";
 import { useSelector, useDispatch } from "react-redux";
 import PositionDetailsModal from "./models/PositionDetailsModal.jsx";
 import { deleteWardChartMember, selectLayoutConfig, selectWardInfo } from "../../redux/slices/areaChartSlice.js";
+import { HERO_IMAGE_URL } from "./chartAssets.js";
 import {
   createWardChartData,
   getWardChartData,
@@ -25,6 +26,14 @@ import {
   selectFetchedData,
 } from "../../redux/slices/areaChartSlice.js";
 import { mapApiToAssignments } from "./utils/Mapapitoassignments.js";
+import { paginateBrandCategories } from "./utils/paginateCategories.js";
+import { getLayoutCountString } from "./utils/calculateLayoutCount.js";
+import ImageCropModal from "./models/ImageCropModal.jsx";
+import domtoimage from "dom-to-image-more";
+import jsPDF from "jspdf";
+import axios from "axios";
+
+const BASE_URL = "https://udyami-circle-db.onrender.com";
 
 // ─── PDF Structure ────────────────────────────────────────────────
 // Page 1  : Cover (CoverPage component)
@@ -40,14 +49,16 @@ import { mapApiToAssignments } from "./utils/Mapapitoassignments.js";
 
 const DEFAULT_CONFIG = {
   slotCounts: {
-    patrons: 10,
+    patrons: 3,
     chairmenPage2: 4,
     chairmenPage3: 13,
     advisories: 3,
     mentors: 3,
-    udyamiQueens: 20,          // UB Queen's
-    ubRealtyConstruction: 5,   // ← NEW
-    ubFinanceIT: 5,            // ← NEW
+    udyamiQueens: 20,
+    ubRealtyConstruction: 5,
+    yuvaUdyami: 5,   // ← ADD
+    ec: 5,           // ← ADD
+    ubFinanceIT: 5,
     ubSocialBrand: 5,
   },
   sectors: [
@@ -99,7 +110,6 @@ function userTypeFromSlotId(slotId) {
 }
 
 function buildSingleMemberPayload(ward, user, slotId, assignmentData) {
-  // CoreTeam slotId → coreRole extract
   const coreRoleMap = {
     "core-president": "President",
     "core-vice-president": "Vice-President",
@@ -114,7 +124,7 @@ function buildSingleMemberPayload(ward, user, slotId, assignmentData) {
 
   const memberObj = {
     userType: userTypeFromSlotId(slotId),
-    slotId,                                    // ← ADD THIS
+    slotId,
     name: assignmentData.name || "",
     mobileNumber: assignmentData.mobileNumber || "",
     email: assignmentData.email || "",
@@ -124,19 +134,9 @@ function buildSingleMemberPayload(ward, user, slotId, assignmentData) {
     slotLabel: assignmentData.slotLabel || slotId,
   };
 
-
-  if (coreRoleMap[slotId]) {
-    memberObj.coreRole = coreRoleMap[slotId];
-  }
-
-
-  if (sectorKey) {
-    memberObj.sectorKey = sectorKey;
-  }
-
-  if (umsKey) {
-    memberObj.umsKey = umsKey;
-  }
+  if (coreRoleMap[slotId]) memberObj.coreRole = coreRoleMap[slotId];
+  if (sectorKey) memberObj.sectorKey = sectorKey;
+  if (umsKey) memberObj.umsKey = umsKey;
 
   return {
     wardHeadId: user?.userId || "",
@@ -171,7 +171,6 @@ function ChartPage({ pageLabel, pageNum, ward, children }) {
   );
 }
 
-// ── PdfSlot: showPlus controls plus icon; onAssignClick always wired ──
 function PdfSlot({ slotId, topLabel, tone = "brick", assigned, onAssignClick, isSuperAdmin, dimmed, showPlus }) {
   return (
     <ChartSlot
@@ -202,40 +201,68 @@ export default function WardChartDetail() {
   const apiError = useSelector(selectAreaChartError);
   const fetchStatus = useSelector(selectFetchStatus);
   const fetchedData = useSelector(selectFetchedData);
-
   const wardInfo = useSelector(selectWardInfo);
+  const layoutConfig = useSelector(selectLayoutConfig);
+
+  const [assignments, setAssignments] = useState({});
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+
+  const heroImageUrl = assignments["hero-image"]?.photoUrl || HERO_IMAGE_URL;
+  const [heroCropFile, setHeroCropFile] = useState(null);
+  const [showHeroCrop, setShowHeroCrop] = useState(false);
+  const heroCropImageUrl = heroCropFile ? URL.createObjectURL(heroCropFile) : null;
+  const [productPages, setProductPages] = useState([]);
+  const measureRef = useRef(null);
 
   const handleRemove = (row) => {
-    console.log("ward:", ward);
-    if (!row.memberId) {
-      console.warn("memberId:", row);
-      return;
-    }
+    if (!row.memberId) { console.warn("memberId:", row); return; }
     dispatch(deleteWardChartMember(row.memberId))
       .unwrap()
-      .then(() => {
-        const wardParam = ward.ward_name || ward.ward_number;
-        console.log("re-fetch ward:", wardParam);
-        dispatch(getWardChartData({ userId: user?.userId, wardId: ward.id }));
-      })
+      .then(() => dispatch(getWardChartData({ userId: user?.userId, wardId: ward.id })))
       .catch((err) => console.error("Delete failed:", err));
+  };
+
+  const handleHeroImageSelect = (file) => {
+    setHeroCropFile(file);
+    setShowHeroCrop(true);
+  };
+
+  const handleHeroCropDone = (blob) => {
+    const croppedFile = new File([blob], "hero-image.jpg", { type: "image/jpeg" });
+    const formData = new FormData();
+    formData.append("data", JSON.stringify({
+      wardHeadId: user?.userId || "",
+      wardId: ward.id,
+      ward: ward.ward_name || ward.ward_number || "",
+      layoutCount: getLayoutCountString(config),
+      members: [{
+        userType: "HeroImage",
+        slotId: "hero-image",
+        name: "Hero Image",
+        mobileNumber: "",
+        email: "",
+        companyName: "",
+        profileImage: "",
+        status: "active",
+        slotLabel: "Cover Hero Image",
+      }],
+    }));
+    formData.append("profileImages", croppedFile);
+    dispatch(createWardChartData(formData));
   };
 
   const isWardChairman = user?.role === "WardChairman";
   const isSuperAdmin = user?.role === "SuperAdmin";
-  const layoutConfig = useSelector(selectLayoutConfig);
-  const [assignments, setAssignments] = useState({});
+
   const [tab, setTab] = useState(user?.role === "WardChairman" ? "build" : "preview");
   const [config, setConfig] = useState(DEFAULT_CONFIG);
+  const pdfRef = useRef(null);
   const [showCustomize, setShowCustomize] = useState(false);
   const [modal, setModal] = useState(null);
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [search] = useState("");
   const [sectionFilter] = useState("all");
 
-  // ── Preview mode flag ─────────────────────────────────────────
-  // true  → print preview tab: no assign modal, no plus icon
-  // false → build tab: full assign interaction
   const isPreviewMode = tab === "preview";
 
   useEffect(() => {
@@ -248,20 +275,195 @@ export default function WardChartDetail() {
     if (fetchStatus === "succeeded" && fetchedData) {
       const mapped = mapApiToAssignments(fetchedData);
       setAssignments(mapped);
-
-      // ← ADD THESE LINES
       if (layoutConfig) {
-        setConfig((prev) => ({
+        setConfig({
           ...DEFAULT_CONFIG,
           ...layoutConfig,
-          slotCounts: {
-            ...DEFAULT_CONFIG.slotCounts,
-            ...layoutConfig.slotCounts,
-          },
-        }));
+          slotCounts: { ...DEFAULT_CONFIG.slotCounts, ...layoutConfig.slotCounts },
+        });
       }
     }
   }, [fetchStatus, fetchedData, layoutConfig]);
+
+  const CATEGORY_COUNT_MAP = {
+    "ub-queens": "udyamiQueens",
+    "ub-realty": "ubRealtyConstruction",
+    "yuva-udyami": "yuvaUdyami",
+    "ec": "ec",
+    "ub-finance-it": "ubFinanceIT",
+    "ub-social": "ubSocialBrand",
+  };
+
+  const activeBrandCategories = useMemo(
+    () =>
+      DEFAULT_CONFIG.brandTiles
+        .map((defaultCat) => {
+          const savedCat = config.brandTiles.find((c) => c.key === defaultCat.key);
+          const mergedProducts = defaultCat.products.map((p) => {
+            const savedProduct = savedCat?.products.find((sp) => sp.key === p.key);
+            return { ...p, enabled: savedProduct ? savedProduct.enabled : true };
+          });
+
+          const enabledProducts = mergedProducts.filter((p) => p.enabled);
+          const countKey = CATEGORY_COUNT_MAP[defaultCat.key];
+          const maxCount = countKey ? (config.slotCounts[countKey] ?? enabledProducts.length) : enabledProducts.length;
+
+          const slots = [...enabledProducts];
+          while (slots.length < maxCount) {
+            const idx = slots.length;
+            slots.push({ key: `placeholder-${idx}`, name: `Slot ${idx + 1}`, sub: `Position ${idx + 1}`, enabled: true, isPlaceholder: true });
+          }
+
+          return { ...defaultCat, products: slots.slice(0, maxCount) };
+        })
+        .filter((cat) => cat.products.length > 0),
+    [config.brandTiles, config.slotCounts]
+  );
+
+  // ─── Dynamic Product Page Pagination Engine ───
+  useEffect(() => {
+    if (!measureRef.current || activeBrandCategories.length === 0) return;
+    const timer = setTimeout(() => {
+      if (!measureRef.current) return;
+
+      const container = measureRef.current;
+      const bannerEl = container.querySelector("[data-banner]");
+      const footerEl = container.querySelector("[data-footer]");
+
+      // Total A4 page height matching preview frame (BASE_H = 1209px for 855px BASE_W)
+      const totalA4Height = 1209;
+      const headerHeight = bannerEl ? bannerEl.getBoundingClientRect().height : 65;
+      const footerHeight = footerEl ? footerEl.getBoundingClientRect().height : 28;
+      const paddingBottom = 20; // pb-[20px] in ProductsPage
+
+      // Usable Content Height = Total A4 Height - Header - Footer - Padding
+      const usableContentHeight = totalA4Height - headerHeight - footerHeight - paddingBottom;
+
+      const divs = container.querySelectorAll("[data-cat-key]");
+      const measuredHeights = {};
+      divs.forEach((div) => {
+        const key = div.getAttribute("data-cat-key");
+        if (key) {
+          measuredHeights[key] = div.getBoundingClientRect().height;
+        }
+      });
+
+      const next = paginateBrandCategories(
+        activeBrandCategories,
+        measuredHeights,
+        usableContentHeight,
+        0,
+        855
+      );
+
+      const nextStr = JSON.stringify(next.map((p) => p.map((c) => c.key)));
+      const prevStr = JSON.stringify(productPages.map((p) => p.map((c) => c.key)));
+      if (nextStr !== prevStr) setProductPages(next);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [activeBrandCategories]);
+
+  // ── PDF Download ──────────────────────────────────────────────
+  const handleDownloadPdf = async () => {
+    setIsPdfGenerating(true);
+
+    try {
+      const html = pdfRef.current ? pdfRef.current.outerHTML : "";
+      const fileName = `${ward.ward_name || "Ward Chart"}.pdf`;
+      const token = localStorage.getItem("token");
+
+      try {
+        const response = await axios.post(
+          `${BASE_URL}/ward-chart/download-pdf`,
+          {
+            fileName,
+            html,
+            format: "A4",
+            orientation: "portrait",
+          },
+          {
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              "Content-Type": "application/json",
+            },
+            responseType: "blob",
+          }
+        );
+
+        if (response?.data) {
+          const blob = new Blob([response.data], { type: "application/pdf" });
+          const url = window.URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", fileName);
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.URL.revokeObjectURL(url);
+          return;
+        }
+      } catch (apiErr) {
+        console.warn("Backend /ward-chart/download-pdf endpoint error, running client fallback:", apiErr);
+      }
+
+      // ── Client-side Fallback via jsPDF & domtoimage ──
+      const pages = document.querySelectorAll(".pdf-capture-page");
+      if (!pages.length) return;
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "px",
+        format: [794, 1123],
+        hotfixes: ["px_scaling"],
+      });
+
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+
+        const prevTransform = page.style.transform;
+        const prevWidth = page.style.width;
+        const prevHeight = page.style.height;
+        const prevMarginBottom = page.style.marginBottom;
+        const prevMarginRight = page.style.marginRight;
+
+        page.style.transform = "none";
+        page.style.width = "794px";
+        page.style.height = "1123px";
+        page.style.marginBottom = "0px";
+        page.style.marginRight = "0px";
+
+        await new Promise((r) => setTimeout(r, 100));
+
+        try {
+          const dataUrl = await domtoimage.toPng(page, {
+            width: 794,
+            height: 1123,
+            bgcolor: "#ffffff",
+            style: {
+              transform: "none",
+              width: "794px",
+              height: "1123px",
+            },
+          });
+
+          if (i > 0) pdf.addPage();
+          pdf.addImage(dataUrl, "PNG", 0, 0, 794, 1123);
+        } finally {
+          page.style.transform = prevTransform;
+          page.style.width = prevWidth;
+          page.style.height = prevHeight;
+          page.style.marginBottom = prevMarginBottom;
+          page.style.marginRight = prevMarginRight;
+        }
+      }
+
+      pdf.save(fileName);
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+    } finally {
+      setIsPdfGenerating(false);
+    }
+  };
 
   // ── Assign handler ────────────────────────────────────────────
   const handleAssign = (data) => {
@@ -271,52 +473,34 @@ export default function WardChartDetail() {
     setModal(null);
 
     const { photoFile: _f, photoUrl: _u, ...restData } = data;
-
-    const payload = buildSingleMemberPayload(ward, user, slotId, {
-      ...restData,
-      photoUrl,
-      slotLabel: modal.label,
-    });
+    const payload = buildSingleMemberPayload(ward, user, slotId, { ...restData, photoUrl, slotLabel: modal.label });
 
     const formData = new FormData();
-    formData.append(
-      "data",
-      JSON.stringify({
-        wardHeadId: payload.wardHeadId,
-        wardId: ward.id,
-        ward: payload.ward,
-        members: payload.members.map(({ profileImage, ...m }) => ({
-          ...m,
-          ...(photoFile ? {} : { profileImage: profileImage || "" }),
-        })),
-      })
-    );
+    formData.append("data", JSON.stringify({
+      wardHeadId: payload.wardHeadId,
+      wardId: ward.id,
+      ward: payload.ward,
+      layoutCount: getLayoutCountString(config),
+      members: payload.members.map(({ profileImage, ...m }) => ({
+        ...m,
+        ...(photoFile ? {} : { profileImage: profileImage || "" }),
+      })),
+    }));
 
-    if (photoFile) {
-      formData.append("profileImages", photoFile);
-    }
-
+    if (photoFile) formData.append("profileImages", photoFile);
     dispatch(createWardChartData(formData));
   };
 
-  // ── Open details modal (shared helper) ───────────────────────
   const openDetails = (id, label) => {
     const a = assignments[id];
     setSelectedPosition({
-      slotId: id,
-      role: label,
-      memberName: a?.name || null,
-      company: a?.company || null,
-      mobileNumber: a?.mobileNumber || null,
-      email: a?.email || null,
-      location: a?.location || null,
-      district: a?.district || null,
-      reportsTo: a?.reportsTo || null,
-      directReports: a?.directReports || null,
-      assignedDate: a?.assignedDate || null,
-      memberId: a?.memberId || null,
-      memberNumber: a?.memberNumber || null,
-      status: a?.status || null,
+      slotId: id, role: label,
+      memberName: a?.name || null, company: a?.company || null,
+      mobileNumber: a?.mobileNumber || null, email: a?.email || null,
+      location: a?.location || null, district: a?.district || null,
+      reportsTo: a?.reportsTo || null, directReports: a?.directReports || null,
+      assignedDate: a?.assignedDate || null, memberId: a?.memberId || null,
+      memberNumber: a?.memberNumber || null, status: a?.status || null,
       profileImage: a?.photoUrl || a?.profileImage || null,
     });
   };
@@ -330,121 +514,47 @@ export default function WardChartDetail() {
     );
   }
 
-  // ── Slot click handler ────────────────────────────────────────
-  // Preview mode → show details only if slot is already assigned
-  // Build mode   → WardChairman opens assign modal; others see details
   const handleSlotClick = (id, label) => {
     const a = assignments[id];
-
-    // ── WardChairman blocked slots → details only ──
     if (isWardChairman && (id === "ward-chairman" || isBlockedForWardChairman(id))) {
       if (a?.name) openDetails(id, label);
       return;
     }
-
     if (isPreviewMode) {
       if (a?.name) openDetails(id, label);
       return;
     }
-
-    // ── Everyone — assigned  details, modal ──
-    if (a?.name) {
-      openDetails(id, label);
-    } else {
-      setModal({ slotId: id, label });
-    }
+    if (a?.name) { openDetails(id, label); }
+    else { setModal({ slotId: id, label }); }
   };
 
-  // Always pass the handler — ChartSlot uses showPlus prop separately
   const slotClickProp = handleSlotClick;
 
   const isDimmed = (slotId, section, name) => {
     if (sectionFilter !== "all" && sectionFilter !== section) return true;
-    if (search.trim() && !(name || "").toLowerCase().includes(search.trim().toLowerCase()))
-      return true;
+    if (search.trim() && !(name || "").toLowerCase().includes(search.trim().toLowerCase())) return true;
     return false;
   };
 
   const activeSectors = config.sectors.filter((s) => s.enabled);
   const activeUms = config.umsRoles.filter((s) => s.enabled);
 
-  const CATEGORY_COUNT_MAP = {
-    "ub-queens": "udyamiQueens",
-    "ub-realty": "ubRealtyConstruction",
-    "ub-finance-it": "ubFinanceIT",
-    "ub-social": "ubSocialBrand",
-  };
 
-  const activeBrandCategories = useMemo(
-    () =>
-      DEFAULT_CONFIG.brandTiles
-        .map((defaultCat) => {
-          // layoutConfig-ல இந்த category-ஓட saved config எடு
-          const savedCat = config.brandTiles.find((c) => c.key === defaultCat.key);
-
-          // Default products-ஐ base-ஆ வச்சு, saved enabled status merge பண்ணு
-          const mergedProducts = defaultCat.products.map((p) => {
-            const savedProduct = savedCat?.products.find((sp) => sp.key === p.key);
-            return {
-              ...p,
-              enabled: savedProduct ? savedProduct.enabled : true,
-            };
-          });
-
-          const enabledProducts = mergedProducts.filter((p) => p.enabled);
-          const countKey = CATEGORY_COUNT_MAP[defaultCat.key];
-          const maxCount = countKey
-            ? (config.slotCounts[countKey] ?? enabledProducts.length)
-            : enabledProducts.length;
-
-          const slots = [...enabledProducts];
-
-          // Placeholder — enabled products-ஐ விட maxCount அதிகமா இருந்தா மட்டும்
-          while (slots.length < maxCount) {
-            const idx = slots.length;
-            slots.push({
-              key: `placeholder-${idx}`,
-              name: `Slot ${idx + 1}`,        // ← name add
-              sub: `Position ${idx + 1}`,     // ← sub add
-              enabled: true,
-              isPlaceholder: true,
-            });
-          }
-
-          return {
-            ...defaultCat,
-            products: slots.slice(0, maxCount),
-          };
-        })
-        .filter((cat) => cat.products.length > 0),
-    [config.brandTiles, config.slotCounts]
-  );
 
   const rows = useMemo(
-    () =>
-      Object.entries(assignments).map(([slotId, a]) => ({
-        name: a.name,
-        company: a.company || "—",
-        position: a.slotLabel || slotId,
-        status: a.status || "registered",
-        slotId,
-        memberId: a.memberId || a.id || null,
-        memberNumber: a.memberNumber || null,
-        mobileNumber: a.mobileNumber || null,
-        email: a.email || null,
-        profileImage: a.photoUrl || a.profileImage || null,
-      })),
+    () => Object.entries(assignments).map(([slotId, a]) => ({
+      name: a.name, company: a.company || "—", position: a.slotLabel || slotId,
+      status: a.status || "registered", slotId,
+      memberId: a.memberId || a.id || null, memberNumber: a.memberNumber || null,
+      mobileNumber: a.mobileNumber || null, email: a.email || null,
+      profileImage: a.photoUrl || a.profileImage || null,
+    })),
     [assignments]
   );
 
   const gCode = ward.g_code || ward.ward_number;
-
   const chairmenP2 = Array.from({ length: config.slotCounts.chairmenPage2 }, (_, i) => i);
-  const chairmenP3 = Array.from(
-    { length: config.slotCounts.chairmenPage3 },
-    (_, i) => i + config.slotCounts.chairmenPage2
-  );
-
+  const chairmenP3 = Array.from({ length: config.slotCounts.chairmenPage3 }, (_, i) => i + config.slotCounts.chairmenPage2);
   const firstRow = chairmenP3.slice(0, 5);
   const secondRow = chairmenP3.slice(5, 10);
   const thirdRow = chairmenP3.slice(10);
@@ -457,29 +567,20 @@ export default function WardChartDetail() {
       {/* ── Admin Header ── */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <button
-            onClick={() => navigate(-1)}
-            className="text-[12.5px] text-gray-500 hover:text-gray-900 mb-1 transition-colors"
-          >
+          <button onClick={() => navigate(-1)} className="text-[12.5px] text-gray-500 hover:text-gray-900 mb-1 transition-colors">
             ← Back to Area Chart Builder
           </button>
-          <h1 className="text-[20px] font-bold text-gray-900 leading-tight tracking-tight">
-            Area Chart Builder
-          </h1>
+          <h1 className="text-[20px] font-bold text-gray-900 leading-tight tracking-tight">Area Chart Builder</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[12.5px] text-gray-500">
           <span className="font-medium text-gray-900">All Constituencies</span>
           <span>·</span>
-          <span className="font-medium text-gray-900">
-            {ward.ward_number} - {ward.ward_name}
-          </span>
+          <span className="font-medium text-gray-900">{ward.ward_number} - {ward.ward_name}</span>
         </div>
       </div>
 
       {/* ── API status feedback ── */}
-      {isWardChairman && isBusy && (
-        <p className="text-[12px] text-blue-600 font-medium">Saving chart…</p>
-      )}
+      {isBusy && <p className="text-[12px] text-blue-600 font-medium">Loading…</p>}
       {isWardChairman && apiStatus === "succeeded" && fetchStatus === "succeeded" && (
         <p className="text-[12px] text-green-600 font-medium">Chart saved successfully.</p>
       )}
@@ -489,7 +590,6 @@ export default function WardChartDetail() {
 
       {/* ── Action Buttons ── */}
       <div className="flex flex-wrap gap-2">
-
         <button
           onClick={() => setModal({ slotId: `extra-${Date.now()}`, label: "Member" })}
           className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-colors w-full sm:w-auto"
@@ -502,17 +602,20 @@ export default function WardChartDetail() {
         >
           <SlidersHorizontal size={14} /> Customize Layout
         </button>
-
         <button className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-[12.5px] font-medium text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto">
           <Printer size={14} /> Print Chart
         </button>
-        <button className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-[12.5px] font-medium text-gray-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto">
-          <Download size={14} /> Download PDF
+        <button
+          onClick={handleDownloadPdf}
+          disabled={isPdfGenerating}
+          className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-[12.5px] font-medium text-gray-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Download size={14} />
+          {isPdfGenerating ? "Generating…" : "Download PDF"}
         </button>
       </div>
 
       {/* ── Build / Preview Tabs ── */}
-
       <div className="flex flex-wrap sm:inline-flex rounded-lg border border-gray-200 bg-white p-1 w-full sm:w-auto">
         {[
           { id: "build", icon: Pencil, label: "Build Chart" },
@@ -521,166 +624,106 @@ export default function WardChartDetail() {
           <button
             key={id}
             onClick={() => setTab(id)}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-md text-[12.5px] font-semibold transition-colors ${tab === id ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-900"
-              }`}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-md text-[12.5px] font-semibold transition-colors ${tab === id ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-900"}`}
           >
             <Icon size={13} /> {label}
           </button>
         ))}
       </div>
 
+      <div ref={pdfRef} className="pdf-container-wrapper space-y-6">
+        {/* ══════ PAGE 1 — COVER ══════ */}
+        <ChartPreviewFrame pageLabel="Cover Page">
+          <CoverPage
+            code={wardInfo?.wardNumber ?? ""}
+            regionName={wardInfo?.wardName ?? ""}
+            wardNumber={ward.ward_number}
+            wardName={ward.ward_name}
+            heroImageUrl={heroImageUrl}
+            onHeroImageSelect={handleHeroImageSelect}
+            showHeroUpload={!isPreviewMode}
+          />
+        </ChartPreviewFrame>
 
-      {/* ══════════════════════════════════════════════
-          PAGE 1 — COVER
-      ══════════════════════════════════════════════ */}
-      <ChartPreviewFrame pageLabel="Cover Page">
-        <CoverPage code={wardInfo?.wardNumber ?? ""}
-          regionName={wardInfo?.wardName ?? ""} wardNumber={ward.ward_number} wardName={ward.ward_name} />
-      </ChartPreviewFrame>
-      {!isWardChairman && (
-        <>
-          {/* ══════════════════════════════════════════════
-          PAGE 2 — MLA + Officials + Patrons + First 10 Chairmen
-      ══════════════════════════════════════════════ */}
-          <ChartPage pageLabel="MLA · Patrons · Chairmen (1–10)" pageNum={2} ward={ward}>
-            <div className="px-[3%] py-[2%] space-y-[2%]">
-              <div className="flex justify-center pt-[1%]">
-                <MlaCard
-                  mlaLabel={`MLA - ${ward.ward_name} Assembly constituency`}
-                  assigned={assignments.mla}
-                  dimmed={isDimmed("mla", "core", assignments.mla?.name)}
-                  onAssignClick={slotClickProp}
-                  showPlus={!isPreviewMode && !isWardChairman}
-                  isSuperAdmin={isSuperAdmin}
-                />
-              </div>
-
-              <div className="relative">
-                <div className="absolute left-1/2 -translate-x-1/2 -top-[2%] w-px h-[2%] bg-ink/40" />
-                <div className="absolute left-[10%] right-[10%] top-0 h-px bg-ink/40" />
-                <div className="grid grid-cols-4 gap-4 pt-2">
-                  {Array.from({ length: 4 }).map((_, i) => {
-                    const slotId = `official-${i + 1}`;
-                    return (
-                      <div key={slotId} className="flex flex-col items-center">
-                        <div className="w-px h-3 bg-ink/40 mb-1" />
-                        <PdfSlot
-                          key={slotId}
-                          slotId={slotId}
-                          topLabel={`Official ${i + 1}`}
-                          tone="navy"
-                          assigned={assignments[slotId]}
-                          dimmed={isDimmed(slotId, "patrons", assignments[slotId]?.name)}
-                          onAssignClick={slotClickProp}
-                          showPlus={!isPreviewMode && !isWardChairman}
-                          isSuperAdmin={isSuperAdmin}
-                        />
-                      </div>
-                    );
-                  })}
+        {!isWardChairman && (
+          <>
+            {/* ══════ PAGE 2 — MLA + Officials + Patrons + Chairmen ══════ */}
+            <ChartPage pageLabel="MLA · Patrons · Chairmen (1–10)" pageNum={2} ward={ward}>
+              <div className="px-[3%] py-[2%] space-y-[2%]">
+                <div className="flex justify-center pt-[1%]">
+                  <MlaCard
+                    mlaLabel={`MLA - ${ward.ward_name} Assembly constituency`}
+                    assigned={assignments.mla}
+                    dimmed={isDimmed("mla", "core", assignments.mla?.name)}
+                    onAssignClick={slotClickProp}
+                    showPlus={!isPreviewMode && !isWardChairman}
+                    isSuperAdmin={isSuperAdmin}
+                  />
                 </div>
-              </div>
 
-              <div className="relative flex justify-center items-center py-2">
-                <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[2px] bg-[#1a2e5e]" />
-                <div className="relative z-10">
-                  <div className="relative bg-[#b5121b] text-white text-[13px] font-bold uppercase px-10 py-[6px] w-[210px] text-center rounded-t-sm rounded-b-xl">
-                    UDYAMI PATRON
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-5 gap-4">
-                {Array.from({ length: config.slotCounts.patrons }).map((_, i) => {
-                  const slotId = `patron-${i + 1}`;
-                  return (
-                    <PdfSlot
-                      key={slotId}
-                      slotId={slotId}
-                      // topLabel="NAME"
-                      tone="navy"
-                      assigned={assignments[slotId]}
-                      dimmed={isDimmed(slotId, "patrons", assignments[slotId]?.name)}
-                      onAssignClick={slotClickProp}
-                      showPlus={!isPreviewMode}
-                      isSuperAdmin={isSuperAdmin}
-                    />
-                  );
-                })}
-              </div>
-
-              <div className="border-t border-ink/20" />
-
-              <div className="grid grid-cols-5 gap-4">
-                {chairmenP2.map((i) => {
-                  const slotId = `chairman-${i + 1}`;
-                  const label = `${gCode}.${i + 1} Chairman`;
-                  return (
-                    <div key={slotId}>
-                      <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">
-                        {label}
-                      </p>
-                      <PdfSlot
-                        slotId={slotId}
-                        // topLabel="NAME"
-                        tone="brick"
-                        assigned={assignments[slotId]}
-                        dimmed={isDimmed(slotId, "chairmen", assignments[slotId]?.name)}
-                        onAssignClick={slotClickProp}
-                        showPlus={!isPreviewMode}
-                        isSuperAdmin={isSuperAdmin}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </ChartPage>
-
-          {/* ══════════════════════════════════════════════
-          PAGE 3 — Chairmen continued (11–23)
-      ══════════════════════════════════════════════ */}
-          <ChartPage pageLabel="Chairmen (11–23)" pageNum={2} ward={ward}>
-            <div className="flex-1 h-full px-[3%] py-[2%]">
-              <div className="space-y-6">
-                {[firstRow, secondRow].map((row, ri) => (
-                  <div key={ri} className="grid grid-cols-5 gap-5">
-                    {row.map((i) => {
-                      const slotId = `chairman-${i + 1}`;
-                      const label = `${gCode}.${i + 1} Chairman`;
+                <div className="relative">
+                  <div className="absolute left-1/2 -translate-x-1/2 -top-[2%] w-px h-[2%] bg-ink/40" />
+                  <div className="absolute left-[10%] right-[10%] top-0 h-px bg-ink/40" />
+                  <div className="grid grid-cols-4 gap-4 pt-2">
+                    {Array.from({ length: 4 }).map((_, i) => {
+                      const slotId = `official-${i + 1}`;
                       return (
-                        <div key={slotId}>
-                          <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">
-                            {label}
-                          </p>
+                        <div key={slotId} className="flex flex-col items-center">
+                          <div className="w-px h-3 bg-ink/40 mb-1" />
                           <PdfSlot
                             slotId={slotId}
-                            // topLabel="NAME"
-                            tone="brick"
+                            topLabel={`Official ${i + 1}`}
+                            tone="navy"
                             assigned={assignments[slotId]}
-                            dimmed={isDimmed(slotId, "chairmen", assignments[slotId]?.name)}
+                            dimmed={isDimmed(slotId, "patrons", assignments[slotId]?.name)}
                             onAssignClick={slotClickProp}
-                            showPlus={!isPreviewMode}
+                            showPlus={!isPreviewMode && !isWardChairman}
                             isSuperAdmin={isSuperAdmin}
                           />
                         </div>
                       );
                     })}
                   </div>
-                ))}
+                </div>
 
-                <div className="flex justify-center gap-5">
-                  {thirdRow.map((i) => {
+                <div className="relative flex justify-center items-center py-2">
+                  <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[2px] bg-[#1a2e5e]" />
+                  <div className="relative z-10">
+                    <div className="relative bg-[#b5121b] text-white text-[13px] font-bold uppercase px-10 py-[6px] w-[210px] text-center rounded-t-sm rounded-b-xl">
+                      UDYAMI PATRON
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-5 gap-4">
+                  {Array.from({ length: config.slotCounts.patrons }).map((_, i) => {
+                    const slotId = `patron-${i + 1}`;
+                    return (
+                      <PdfSlot
+                        key={slotId}
+                        slotId={slotId}
+                        tone="navy"
+                        assigned={assignments[slotId]}
+                        dimmed={isDimmed(slotId, "patrons", assignments[slotId]?.name)}
+                        onAssignClick={slotClickProp}
+                        showPlus={!isPreviewMode}
+                        isSuperAdmin={isSuperAdmin}
+                      />
+                    );
+                  })}
+                </div>
+
+                <div className="border-t border-ink/20" />
+
+                <div className="grid grid-cols-5 gap-4">
+                  {chairmenP2.map((i) => {
                     const slotId = `chairman-${i + 1}`;
                     const label = `${gCode}.${i + 1} Chairman`;
                     return (
                       <div key={slotId}>
-                        <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">
-                          {label}
-                        </p>
+                        <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">{label}</p>
                         <PdfSlot
                           slotId={slotId}
-                          // topLabel="NAME"
                           tone="brick"
                           assigned={assignments[slotId]}
                           dimmed={isDimmed(slotId, "chairmen", assignments[slotId]?.name)}
@@ -693,149 +736,47 @@ export default function WardChartDetail() {
                   })}
                 </div>
               </div>
-            </div>
-          </ChartPage>
-        </>)}
+            </ChartPage>
 
-      {/* ══════════════════════════════════════════════
-          PAGE 4 — Advisory/Mentor + Leadership + Sectors/UMS
-      ══════════════════════════════════════════════ */}
-      <ChartPage pageLabel="Advisory · Leadership · Sectors · UMS" pageNum={2} ward={ward}>
-        <div className="flex flex-col min-h-full">
-
-          <div className="flex items-start justify-center gap-3 px-[2%] py-[1.5%] bg-white border-b border-slate-100">
-            <div className="flex gap-4">
-              {Array.from({ length: config.slotCounts.advisories }).map((_, i) => {
-                const slotId = `advisory-${i + 1}`;
-                return (
-                  <div key={slotId} className="flex flex-col items-center gap-1">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className="w-5 h-5 rounded-full border-2 border-[#c8102e] text-[#c8102e] text-[9px] font-bold flex items-center justify-center shrink-0">
-                        {i + 1}
-                      </span>
-                      <span className="text-[11px] font-bold text-[#c8102e]">Advisory</span>
+            {/* ══════ PAGE 3 — Chairmen continued ══════ */}
+            <ChartPage pageLabel="Chairmen (11–23)" pageNum={3} ward={ward}>
+              <div className="flex-1 h-full px-[3%] py-[2%]">
+                <div className="space-y-6">
+                  {[firstRow, secondRow].map((row, ri) => (
+                    <div key={ri} className="grid grid-cols-5 gap-5">
+                      {row.map((i) => {
+                        const slotId = `chairman-${i + 1}`;
+                        const label = `${gCode}.${i + 1} Chairman`;
+                        return (
+                          <div key={slotId}>
+                            <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">{label}</p>
+                            <PdfSlot
+                              slotId={slotId}
+                              tone="brick"
+                              assigned={assignments[slotId]}
+                              dimmed={isDimmed(slotId, "chairmen", assignments[slotId]?.name)}
+                              onAssignClick={slotClickProp}
+                              showPlus={!isPreviewMode}
+                              isSuperAdmin={isSuperAdmin}
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
-                    <ChartSlot
-                      slotId={slotId}
-                      label={`${i + 1} Advisory`}
-                      tone="navy"
-                      variant="default"
-                      showPlaceholderName={false}
-                      assigned={assignments[slotId]}
-                      dimmed={isDimmed(slotId, "advisories", assignments[slotId]?.name)}
-                      onAssignClick={slotClickProp}
-                      showPlus={!isPreviewMode}
-                      isSuperAdmin={isSuperAdmin}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+                  ))}
 
-            <div className="w-px self-stretch bg-slate-300 mx-1" />
-
-            <div className="flex gap-4">
-              {Array.from({ length: config.slotCounts.mentors }).map((_, i) => {
-                const slotId = `mentor-${i + 1}`;
-                return (
-                  <div key={slotId} className="flex flex-col items-center gap-1">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className="w-5 h-5 rounded-full border-2 border-ink text-ink text-[9px] font-bold flex items-center justify-center shrink-0">
-                        {i + 1}
-                      </span>
-                      <span className="text-[11px] font-bold text-ink">Mentor</span>
-                    </div>
-                    <ChartSlot
-                      slotId={slotId}
-                      label={`${i + 1} Mentor`}
-                      tone="navy"
-                      variant="default"
-                      showPlaceholderName={false}
-                      assigned={assignments[slotId]}
-                      dimmed={isDimmed(slotId, "mentors", assignments[slotId]?.name)}
-                      onAssignClick={slotClickProp}
-                      showPlus={!isPreviewMode}
-                      isSuperAdmin={isSuperAdmin}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex items-stretch bg-[#1a2e5e]">
-            <div className="flex flex-col items-center justify-start shrink-0 w-[180px]">
-              <ChairmanHighlightCard
-                wardNumber={gCode}
-                assigned={assignments["ward-chairman"]}
-                dimmed={isDimmed("ward-chairman", "core", assignments["ward-chairman"]?.name)}
-                onAssignClick={slotClickProp}
-                showPlus={!isPreviewMode}
-                isSuperAdmin={isSuperAdmin}
-              />
-            </div>
-
-            <div className="flex flex-1 justify-evenly items-start">
-              {CORE_ROLES.map((role) => {
-                const slotId = `core-${role.toLowerCase().replace(/\s+/g, "-")}`;
-                return (
-                  <div key={slotId} className="flex flex-col items-center w-[105px]">
-                    <p className="h-[18px] flex items-center justify-center text-[10px] font-bold text-white text-center mb-3">
-                      {role}
-                    </p>
-                    {/* Core role: always clickable; plus overlay only in build mode */}
-                    <div
-                      onClick={() => handleSlotClick(slotId, role)}
-                      className={`relative w-[90px] h-[90px] rounded-lg border-2 border-[#c8102e] bg-[#d32f2f] flex items-center justify-center overflow-hidden ${!isPreviewMode && !isSuperAdmin ? "cursor-pointer group" : "cursor-default"
-                        }`}
-                    >
-                      {assignments[slotId]?.photoUrl ? (
-                        <img
-                          src={assignments[slotId].photoUrl}
-                          alt={assignments[slotId].name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <svg
-                          viewBox="0 0 64 64"
-                          className="w-[85%] h-[85%] text-white"
-                          fill="currentColor"
-                        >
-                          <circle cx="32" cy="22" r="12" />
-                          <path d="M8 56 Q8 40 32 40 Q56 40 56 56 Z" />
-                        </svg>
-                      )}
-                      {!isPreviewMode && !isSuperAdmin && (
-                        <span className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                      )}
-                    </div>
-                    <p className="mt-2 text-[8px] font-bold text-white uppercase text-center leading-none">
-                      {assignments[slotId]?.name || "NAME"}
-                    </p>
-                    <p className="text-[6px] text-white/60 text-center leading-none mt-1">
-                      {assignments[slotId]?.company}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex gap-2.5 px-[2%] py-[3%] bg-[#c8102e] flex-1 mt-4">
-            <div className="flex-1 flex flex-col gap-2.5 mt-9">
-              {Array.from({ length: Math.ceil(activeSectors.length / 3) }).map((_, rowIdx) => {
-                const rowSectors = activeSectors.slice(rowIdx * 3, rowIdx * 3 + 3);
-                return (
-                  <div key={rowIdx} className="flex justify-center gap-6 px-4">
-                    {rowSectors.map((s) => {
-                      const slotId = `sector-${s.key}`;
+                  <div className="flex justify-center gap-5">
+                    {thirdRow.map((i) => {
+                      const slotId = `chairman-${i + 1}`;
+                      const label = `${gCode}.${i + 1} Chairman`;
                       return (
-                        <div key={s.key} className="w-[118px] shrink-0">
-                          <SectorCard
+                        <div key={slotId}>
+                          <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">{label}</p>
+                          <PdfSlot
                             slotId={slotId}
-                            label={s.label}
+                            tone="brick"
                             assigned={assignments[slotId]}
-                            dimmed={isDimmed(slotId, "sectors", assignments[slotId]?.name)}
+                            dimmed={isDimmed(slotId, "chairmen", assignments[slotId]?.name)}
                             onAssignClick={slotClickProp}
                             showPlus={!isPreviewMode}
                             isSuperAdmin={isSuperAdmin}
@@ -843,70 +784,230 @@ export default function WardChartDetail() {
                         </div>
                       );
                     })}
-                    {rowSectors.length < 3 &&
-                      Array.from({ length: 3 - rowSectors.length }).map((_, fi) => (
-                        <div key={`fill-${fi}`} className="flex-1" />
-                      ))}
                   </div>
-                );
-              })}
-            </div>
-
-            {activeUms.length > 0 && (
-              <div className="w-[250px] rounded-sm border border-ink shrink-0 bg-white overflow-hidden">
-                <div className="bg-[#1a2e5e] py-[5px] text-center">
-                  <p className="text-[7px] font-medium text-white">Udyami Management System</p>
-                </div>
-                <div className="grid grid-cols-2 px-3 pt-3 pb-4 gap-y-7 gap-x-5">
-                  {activeUms.map((s) => {
-                    const slotId = `ums-${s.key}`;
-                    return (
-                      <div key={s.key} className="flex flex-col items-center">
-                        <p className="text-[6px] font-medium text-[#b5121b] text-center mb-2 min-h-[14px] leading-tight">
-                          {s.label}
-                        </p>
-                        {/* UMS: always clickable; hover only in build mode */}
-                        <div
-                          onClick={() => handleSlotClick(slotId, s.label)}
-                          className={`relative w-full aspect-[3/2] border border-[#c8102e] rounded-sm bg-[#d0d0d8] overflow-hidden flex items-center justify-center ${!isPreviewMode ? "cursor-pointer group" : "cursor-default"
-                            }`}
-                        >
-                          {assignments[slotId]?.photoUrl && (
-                            <img
-                              src={assignments[slotId].photoUrl}
-                              alt={assignments[slotId].name}
-                              className="w-full h-full object-cover"
-                            />
-                          )}
-                          {!isPreviewMode && !isSuperAdmin && (
-                            <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
-            )}
+            </ChartPage>
+          </>
+        )}
+
+        {/* ══════ PAGE 4 — Advisory/Mentor + Leadership + Sectors/UMS ══════ */}
+        <ChartPage pageLabel="Advisory · Leadership · Sectors · UMS" pageNum={4} ward={ward}>
+          <div className="flex flex-col h-full min-h-full">
+            {/* Advisory / Mentor row */}
+            <div className="flex items-start justify-center gap-3 px-[2%] py-[1.5%] bg-white border-b border-slate-100 shrink-0">
+              <div className="flex gap-4">
+                {Array.from({ length: config.slotCounts.advisories }).map((_, i) => {
+                  const slotId = `advisory-${i + 1}`;
+                  return (
+                    <div key={slotId} className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="w-5 h-5 rounded-full border-2 border-[#c8102e] text-[#c8102e] text-[9px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                        <span className="text-[11px] font-bold text-[#c8102e]">Advisory</span>
+                      </div>
+                      <ChartSlot
+                        slotId={slotId} label={`${i + 1} Advisory`} tone="navy" variant="default"
+                        showPlaceholderName={false} assigned={assignments[slotId]}
+                        dimmed={isDimmed(slotId, "advisories", assignments[slotId]?.name)}
+                        onAssignClick={slotClickProp} showPlus={!isPreviewMode} isSuperAdmin={isSuperAdmin}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="w-px self-stretch bg-slate-300 mx-1" />
+
+              <div className="flex gap-4">
+                {Array.from({ length: config.slotCounts.mentors }).map((_, i) => {
+                  const slotId = `mentor-${i + 1}`;
+                  return (
+                    <div key={slotId} className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="w-5 h-5 rounded-full border-2 border-ink text-ink text-[9px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
+                        <span className="text-[11px] font-bold text-ink">Mentor</span>
+                      </div>
+                      <ChartSlot
+                        slotId={slotId} label={`${i + 1} Mentor`} tone="navy" variant="default"
+                        showPlaceholderName={false} assigned={assignments[slotId]}
+                        dimmed={isDimmed(slotId, "mentors", assignments[slotId]?.name)}
+                        onAssignClick={slotClickProp} showPlus={!isPreviewMode} isSuperAdmin={isSuperAdmin}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Leadership strip */}
+            <div className="flex items-stretch bg-[#1a2e5e] shrink-0">
+              <div className="flex flex-col items-center justify-start shrink-0 w-[180px]">
+                <ChairmanHighlightCard
+                  wardNumber={gCode} assigned={assignments["ward-chairman"]}
+                  dimmed={isDimmed("ward-chairman", "core", assignments["ward-chairman"]?.name)}
+                  onAssignClick={slotClickProp} showPlus={!isPreviewMode} isSuperAdmin={isSuperAdmin}
+                />
+              </div>
+
+              <div className="flex flex-1 justify-evenly items-start">
+                {CORE_ROLES.map((role) => {
+                  const slotId = `core-${role.toLowerCase().replace(/\s+/g, "-")}`;
+                  return (
+                    <div key={slotId} className="flex flex-col items-center w-[105px]">
+                      <p className="h-[18px] flex items-center justify-center text-[10px] font-bold text-white text-center mb-3">{role}</p>
+                      <div
+                        onClick={() => handleSlotClick(slotId, role)}
+                        className={`relative w-[90px] h-[90px] rounded-lg border-2 border-[#c8102e] bg-[#d32f2f] flex items-center justify-center overflow-hidden ${!isPreviewMode && !isSuperAdmin ? "cursor-pointer group" : "cursor-default"}`}
+                      >
+                        {assignments[slotId]?.photoUrl ? (
+                          <img src={assignments[slotId].photoUrl} alt={assignments[slotId].name} className="w-full h-full object-cover" />
+                        ) : (
+                          <svg viewBox="0 0 64 64" className="w-[85%] h-[85%] text-white" fill="currentColor">
+                            <circle cx="32" cy="22" r="12" />
+                            <path d="M8 56 Q8 40 32 40 Q56 40 56 56 Z" />
+                          </svg>
+                        )}
+                        {!isPreviewMode && !isSuperAdmin && (
+                          <span className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                        )}
+                      </div>
+                      <p className="mt-2 text-[8px] font-bold text-white uppercase text-center leading-none">
+                        {assignments[slotId]?.name || "NAME"}
+                      </p>
+                      <p className="text-[6px] text-white/60 text-center leading-none mt-1">
+                        {assignments[slotId]?.company}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Red container: Sectors + UMS (Fills 100% of remaining Page 4 height to footer) */}
+            <div className="flex gap-2.5 px-[2%] py-[2%] bg-[#c8102e] flex-1 min-h-0">
+              {/* Sectors flex column */}
+              <div className="flex-1 flex flex-col justify-evenly py-2 gap-2">
+                {Array.from({ length: Math.ceil(activeSectors.length / 3) }).map((_, rowIdx) => {
+                  const rowSectors = activeSectors.slice(rowIdx * 3, rowIdx * 3 + 3);
+                  return (
+                    <div key={rowIdx} className="flex justify-center gap-6 px-4">
+                      {rowSectors.map((s) => {
+                        const slotId = `sector-${s.key}`;
+                        return (
+                          <div key={s.key} className="w-[118px] shrink-0">
+                            <SectorCard
+                              slotId={slotId} label={s.label} assigned={assignments[slotId]}
+                              dimmed={isDimmed(slotId, "sectors", assignments[slotId]?.name)}
+                              onAssignClick={slotClickProp} showPlus={!isPreviewMode} isSuperAdmin={isSuperAdmin}
+                            />
+                          </div>
+                        );
+                      })}
+                      {rowSectors.length < 3 && Array.from({ length: 3 - rowSectors.length }).map((_, fi) => (
+                        <div key={`fill-${fi}`} className="w-[118px] shrink-0 opacity-0" />
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* UMS panel */}
+              {activeUms.length > 0 && (
+                <div className="w-[250px] rounded-sm border border-ink shrink-0 bg-white overflow-hidden flex flex-col min-h-0 h-full">
+                  <div className="bg-[#1a2e5e] py-[5px] text-center shrink-0">
+                    <p className="text-[7px] font-medium text-white">Udyami Management System</p>
+                  </div>
+                  <div className="grid grid-cols-2 px-3 py-3 gap-x-5 gap-y-3 flex-1 flex flex-col justify-evenly">
+                    {activeUms.map((s) => {
+                      const slotId = `ums-${s.key}`;
+                      return (
+                        <div key={s.key} className="flex flex-col items-center">
+                          <p className="text-[6px] font-medium text-[#b5121b] text-center mb-1 min-h-[12px] leading-tight">{s.label}</p>
+                          <div
+                            onClick={() => handleSlotClick(slotId, s.label)}
+                            className={`relative w-full aspect-[3/2] border border-[#c8102e] rounded-sm bg-[#d0d0d8] overflow-hidden flex items-center justify-center ${!isPreviewMode ? "cursor-pointer group" : "cursor-default"}`}
+                          >
+                            {assignments[slotId]?.photoUrl && (
+                              <img src={assignments[slotId].photoUrl} alt={assignments[slotId].name} className="w-full h-full object-cover" />
+                            )}
+                            {!isPreviewMode && !isSuperAdmin && (
+                              <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </ChartPage>
+
+        {/* ══════ PRODUCT PAGES ══════ */}
+        {/* Hidden measure div */}
+        <div
+          ref={measureRef}
+          style={{
+            position: "fixed", top: "-9999px", left: "-9999px",
+            width: "855px", opacity: 0, pointerEvents: "none", zIndex: -1,
+          }}
+        >
+          <div data-banner="true">
+            <ChartHeaderBanner
+              code={gCode}
+              wardName={ward.ward_name}
+              region={ward.region || ward.district || ward.constituency}
+            />
+          </div>
+          {activeBrandCategories.map((cat) => {
+            const cols = 5;
+
+            return (
+              <div key={cat.key} data-cat-key={cat.key}>
+                <div className="flex" style={{ backgroundColor: `${cat.color}18` }}>
+                  <div className="w-[32px] shrink-0" style={{ backgroundColor: cat.color }} />
+                  <div
+                    className="flex-1 grid gap-[10px] p-[12px]"
+                    style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
+                  >
+                    {cat.products.map((p) => (
+                      <div key={p.key}>
+                        <p className="text-[9px] font-bold mb-[4px] truncate">{p.name}</p>
+                        <div className="w-full aspect-square border-[3px] rounded-xl"
+                          style={{ borderColor: cat.color }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <div data-footer="true">
+            <PageFooter num={1} />
           </div>
         </div>
-      </ChartPage>
 
-      {/* ══════════════════════════════════════════════
-          PAGE 5 — Products
-      ══════════════════════════════════════════════ */}
-      <ChartPreviewFrame pageLabel="Products">
-        <ProductsPage
-          code={gCode}
-          wardName={ward.ward_name}
-          region={ward.region || ward.district || ward.constituency}
-          categories={activeBrandCategories}
-          assignments={assignments}
-          onAssignClick={slotClickProp}
-          showPlus={!isPreviewMode}
-          isSuperAdmin={isSuperAdmin}
-        />
-      </ChartPreviewFrame>
+        {/* ─── FIX: Products page rendering with single label ─── */}
+        {(productPages.length > 0 ? productPages : [activeBrandCategories]).map((pageCats, pageIdx) => (
+          <ChartPreviewFrame
+            key={`products-page-${pageIdx}`}
+            // ─── FIX: Always show "Products" without page number ───
+            pageLabel={pageIdx === 0 ? "Products" : "Products"} // Removed (${pageIdx + 1})
+          >
+            <ProductsPage
+              code={gCode}
+              wardName={ward.ward_name}
+              region={ward.region || ward.district || ward.constituency}
+              categories={pageCats}
+              assignments={assignments}
+              onAssignClick={slotClickProp}
+              showPlus={!isPreviewMode}
+              isSuperAdmin={isSuperAdmin}
+            />
+          </ChartPreviewFrame>
+        ))}
+      </div>
 
       {/* ── All Assignments Table ── */}
       <AllAssignmentsTable rows={rows} onRemove={handleRemove} />
@@ -934,36 +1035,44 @@ export default function WardChartDetail() {
           wardName={ward.ward_name}
           config={config}
           onClose={() => setShowCustomize(false)}
+          isWardChairman={isWardChairman}
           onSave={(next) => {
             const merged = {
               ...DEFAULT_CONFIG,
               ...next,
-              slotCounts: {
-                ...DEFAULT_CONFIG.slotCounts,
-                ...next.slotCounts,
-              },
+              slotCounts: { ...DEFAULT_CONFIG.slotCounts, ...next.slotCounts },
             };
             setConfig(merged);
             setShowCustomize(false);
 
+            const layoutCountStr = getLayoutCountString(merged);
+
             const formData = new FormData();
-            formData.append(
-              "data",
-              JSON.stringify({
-                wardHeadId: user?.userId,
-                wardId: ward.id,
-                ward: ward.ward_name || ward.ward_number || "",
-                members: [],
-                layoutConfig: {
-                  slotCounts: merged.slotCounts,
-                  sectors: merged.sectors,
-                  umsRoles: merged.umsRoles,
-                  brandTiles: merged.brandTiles,
-                },
-              })
-            );
+            formData.append("data", JSON.stringify({
+              wardHeadId: user?.userId,
+              wardId: ward.id,
+              ward: ward.ward_name || ward.ward_number || "",
+              layoutCount: layoutCountStr,
+              members: [],
+              layoutConfig: {
+                layoutCount: layoutCountStr,
+                slotCounts: merged.slotCounts,
+                sectors: merged.sectors,
+                umsRoles: merged.umsRoles,
+                brandTiles: merged.brandTiles,
+              },
+            }));
             dispatch(createWardChartData(formData));
           }}
+        />
+      )}
+
+      {showHeroCrop && heroCropImageUrl && (
+        <ImageCropModal
+          image={heroCropImageUrl}
+          open={showHeroCrop}
+          onClose={() => { setShowHeroCrop(false); setHeroCropFile(null); }}
+          onComplete={handleHeroCropDone}
         />
       )}
     </div>

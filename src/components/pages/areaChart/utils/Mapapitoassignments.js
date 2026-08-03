@@ -168,7 +168,19 @@ export function mapApiToAssignments(apiResponse) {
       }
     });
   }
-  
+
+  // ── HeroImage — cover page hero photo ────────────────────────
+  if (Array.isArray(members.HeroImage)) {
+    members.HeroImage.forEach((m) => {
+      if (m?.profileImage || m?.photoUrl) {
+        assignments["hero-image"] = {
+          ...toAssignment(m),
+          slotLabel: "Cover Hero Image",
+        };
+      }
+    });
+  }
+
   // ── Member — product slots (product-ub-queens-*, etc.) ───────
   if (Array.isArray(members.Member)) {
     members.Member.forEach((m) => {

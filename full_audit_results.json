@@ -1,0 +1,612 @@
+{
+  "caseMismatches": [],
+  "missingImports": [],
+  "duplicateImports": [
+    {
+      "file": "src\\components\\common\\RouteGuard.jsx",
+      "line": 4,
+      "importPath": "react-router-dom"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\WardChartDetail.jsx",
+      "line": 20,
+      "importPath": "../../redux/slices/areaChartSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\channelPartners\\ChannelPartner.jsx",
+      "line": 5,
+      "importPath": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\channelPartners\\CpBanner.jsx",
+      "line": 35,
+      "importPath": "react"
+    },
+    {
+      "file": "src\\components\\pages\\channelPartners\\CpBanner.jsx",
+      "line": 36,
+      "importPath": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\communication\\sendCampaign\\AudienceFilters.jsx",
+      "line": 10,
+      "importPath": "react-redux"
+    },
+    {
+      "file": "src\\components\\pages\\communication\\SendCampaign.jsx",
+      "line": 34,
+      "importPath": "../../redux/slices/sendMessageSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\cp\\LeadsSection.jsx",
+      "line": 3,
+      "importPath": "recharts"
+    },
+    {
+      "file": "src\\components\\pages\\leadManagement\\LeadManagement.jsx",
+      "line": 3,
+      "importPath": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\members\\Udyamidatabaseupdated.jsx",
+      "line": 11,
+      "importPath": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\CreateWard.jsx",
+      "line": 544,
+      "importPath": "react"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\CreateWard.jsx",
+      "line": 545,
+      "importPath": "react-redux"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\CreateWard.jsx",
+      "line": 546,
+      "importPath": "../../redux/slices/wardSlice.js"
+    },
+    {
+      "file": "src\\components\\router\\AppRouter.jsx",
+      "line": 13,
+      "importPath": "../pages/communication/Analytics.jsx"
+    }
+  ],
+  "unusedImports": [
+    {
+      "file": "src\\components\\auth\\Login.jsx",
+      "line": 4,
+      "binding": "axios",
+      "type": "default",
+      "source": "axios"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\AreaChartBuilder.jsx",
+      "line": 5,
+      "binding": "PositionDetailsModal",
+      "type": "default",
+      "source": "./models/PositionDetailsModal"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\components\\Productspage.jsx",
+      "line": 4,
+      "binding": "PRODUCT_LOGOS",
+      "type": "named",
+      "source": "../chartAssets.js"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\models\\AssignPositionModal.jsx",
+      "line": 5,
+      "binding": "selectAreaChartStatus",
+      "type": "named",
+      "source": "../../../redux/slices/areaChartSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\models\\PositionDetailsModal.jsx",
+      "line": 2,
+      "binding": "BadgeCheck",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\models\\PositionDetailsModal.jsx",
+      "line": 2,
+      "binding": "UserCircle2",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\WardChartDetail.jsx",
+      "line": 8,
+      "binding": "UmsCard",
+      "type": "default",
+      "source": "./components/Umscard.jsx"
+    },
+    {
+      "file": "src\\components\\pages\\businessCircle\\admin\\Uctraining.jsx",
+      "line": 1,
+      "binding": "useRef",
+      "type": "named",
+      "source": "react"
+    },
+    {
+      "file": "src\\components\\pages\\businessCircle\\admin\\Uctraining.jsx",
+      "line": 3,
+      "binding": "Upload",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\businessCircle\\BusinessCircleLayout.jsx",
+      "line": 6,
+      "binding": "ModuleSettings",
+      "type": "default",
+      "source": "../businessCircle/admin/ModuleSettings.jsx"
+    },
+    {
+      "file": "src\\components\\pages\\businessCircle\\BusinessCircleLayout.jsx",
+      "line": 9,
+      "binding": "RolesAccess",
+      "type": "default",
+      "source": "../businessCircle/admin/RolesAccess.jsx"
+    },
+    {
+      "file": "src\\components\\pages\\businessCircle\\guests\\Guests.jsx",
+      "line": 1,
+      "binding": "useMemo",
+      "type": "named",
+      "source": "react"
+    },
+    {
+      "file": "src\\components\\pages\\communication\\autoDialer\\IvrCampaignCard.jsx",
+      "line": 2,
+      "binding": "Play",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\communication\\Commservicerequest.jsx",
+      "line": 28,
+      "binding": "selectUser",
+      "type": "named",
+      "source": "../../redux/slices/authSlice"
+    },
+    {
+      "file": "src\\components\\pages\\communication\\CommunicationsLayout.jsx",
+      "line": 4,
+      "binding": "Inbox",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\communication\\sendCampaign\\AudienceFilters.jsx",
+      "line": 2,
+      "binding": "useDispatch",
+      "type": "named",
+      "source": "react-redux"
+    },
+    {
+      "file": "src\\components\\pages\\communication\\SendCampaign.jsx",
+      "line": 3,
+      "binding": "CheckCircle2",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\communication\\Statscards.jsx",
+      "line": 5,
+      "binding": "Users",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\districtHead\\DistrictHeadDashboard.jsx",
+      "line": 14,
+      "binding": "CheckCircle2",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\districtHead\\DistrictHeadDashboard.jsx",
+      "line": 14,
+      "binding": "AlertCircle",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\districtHead\\DistrictHeadDashboard.jsx",
+      "line": 14,
+      "binding": "Circle",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\leadManagement\\AiLead.jsx",
+      "line": 2,
+      "binding": "Plus",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\leadManagement\\LeadManagement.jsx",
+      "line": 2,
+      "binding": "FileText",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\leadManagement\\LeadManagement.jsx",
+      "line": 2,
+      "binding": "Download",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\leadManagement\\LeadManagement.jsx",
+      "line": 2,
+      "binding": "Upload",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\leadManagement\\LeadManagement.jsx",
+      "line": 2,
+      "binding": "Plus",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\leadManagement\\LeadManagement.jsx",
+      "line": 2,
+      "binding": "List",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\leadManagement\\LeadManagement.jsx",
+      "line": 2,
+      "binding": "LayoutGrid",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\MemberMap.jsx",
+      "line": 12,
+      "binding": "Calendar",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\membership\\Membership.jsx",
+      "line": 5,
+      "binding": "UserPlus",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\membership\\RegistrationPage.jsx",
+      "line": 2,
+      "binding": "UserCheck",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\routeTracking\\LiveTrackingPanel.jsx",
+      "line": 3,
+      "binding": "selectTrackingData",
+      "type": "named",
+      "source": "../../redux/slices/Routetrackingslice.js"
+    },
+    {
+      "file": "src\\components\\pages\\stateHead\\StateHeadDashboard.jsx",
+      "line": 15,
+      "binding": "ChevronDown",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\CreateWard.jsx",
+      "line": 3,
+      "binding": "//   fetchDistricts",
+      "type": "named",
+      "source": "../../redux/slices/wardSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\CreateWard.jsx",
+      "line": 3,
+      "binding": "//   fetchTalukasByDistrict",
+      "type": "named",
+      "source": "../../redux/slices/wardSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\CreateWard.jsx",
+      "line": 3,
+      "binding": "//   createWard",
+      "type": "named",
+      "source": "../../redux/slices/wardSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\CreateWard.jsx",
+      "line": 3,
+      "binding": "//   resetWardForm",
+      "type": "named",
+      "source": "../../redux/slices/wardSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\CreateWard.jsx",
+      "line": 3,
+      "binding": "//   selectDistricts",
+      "type": "named",
+      "source": "../../redux/slices/wardSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\CreateWard.jsx",
+      "line": 3,
+      "binding": "//   selectTalukas",
+      "type": "named",
+      "source": "../../redux/slices/wardSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\CreateWard.jsx",
+      "line": 3,
+      "binding": "//   selectLoadingDistricts",
+      "type": "named",
+      "source": "../../redux/slices/wardSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\CreateWard.jsx",
+      "line": 3,
+      "binding": "//   selectLoadingTalukas",
+      "type": "named",
+      "source": "../../redux/slices/wardSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\CreateWard.jsx",
+      "line": 3,
+      "binding": "//   selectCreating",
+      "type": "named",
+      "source": "../../redux/slices/wardSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\CreateWard.jsx",
+      "line": 3,
+      "binding": "//   selectCreateSuccess",
+      "type": "named",
+      "source": "../../redux/slices/wardSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\CreateWard.jsx",
+      "line": 3,
+      "binding": "//   selectCreateError",
+      "type": "named",
+      "source": "../../redux/slices/wardSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\CreateWard.jsx",
+      "line": 3,
+      "binding": "//",
+      "type": "named",
+      "source": "../../redux/slices/wardSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\members\\StateHead.jsx",
+      "line": 2,
+      "binding": "Plus",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\members\\StateHead.jsx",
+      "line": 2,
+      "binding": "Download",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\members\\StateHead.jsx",
+      "line": 2,
+      "binding": "Calendar",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\NewsManagement.jsx",
+      "line": 3,
+      "binding": "selectFeaturedNews",
+      "type": "named",
+      "source": "../../redux/slices/newsSlice.js"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\RevenueOverview.jsx",
+      "line": 1,
+      "binding": "LineChart",
+      "type": "named",
+      "source": "recharts"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\RevenueOverview.jsx",
+      "line": 1,
+      "binding": "Line",
+      "type": "named",
+      "source": "recharts"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\RevenueOverview.jsx",
+      "line": 1,
+      "binding": "XAxis",
+      "type": "named",
+      "source": "recharts"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\RevenueOverview.jsx",
+      "line": 1,
+      "binding": "YAxis",
+      "type": "named",
+      "source": "recharts"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\RevenueOverview.jsx",
+      "line": 1,
+      "binding": "CartesianGrid",
+      "type": "named",
+      "source": "recharts"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\RevenueOverview.jsx",
+      "line": 1,
+      "binding": "Tooltip",
+      "type": "named",
+      "source": "recharts"
+    },
+    {
+      "file": "src\\components\\pages\\superAdmin\\RevenueOverview.jsx",
+      "line": 1,
+      "binding": "ResponsiveContainer",
+      "type": "named",
+      "source": "recharts"
+    },
+    {
+      "file": "src\\components\\pages\\SuperAdmin.jsx",
+      "line": 2,
+      "binding": "AreaChart",
+      "type": "named",
+      "source": "recharts"
+    },
+    {
+      "file": "src\\components\\pages\\SuperAdmin.jsx",
+      "line": 2,
+      "binding": "Area",
+      "type": "named",
+      "source": "recharts"
+    },
+    {
+      "file": "src\\components\\pages\\SuperAdmin.jsx",
+      "line": 2,
+      "binding": "LineChart",
+      "type": "named",
+      "source": "recharts"
+    },
+    {
+      "file": "src\\components\\pages\\SuperAdmin.jsx",
+      "line": 2,
+      "binding": "Line",
+      "type": "named",
+      "source": "recharts"
+    },
+    {
+      "file": "src\\components\\pages\\SuperAdmin.jsx",
+      "line": 2,
+      "binding": "XAxis",
+      "type": "named",
+      "source": "recharts"
+    },
+    {
+      "file": "src\\components\\pages\\SuperAdmin.jsx",
+      "line": 2,
+      "binding": "YAxis",
+      "type": "named",
+      "source": "recharts"
+    },
+    {
+      "file": "src\\components\\pages\\SuperAdmin.jsx",
+      "line": 2,
+      "binding": "CartesianGrid",
+      "type": "named",
+      "source": "recharts"
+    },
+    {
+      "file": "src\\components\\pages\\users\\RoleManagement\\tabs\\LegacyMatrixTab.jsx",
+      "line": 5,
+      "binding": "LegacyMatrixROLES",
+      "type": "named",
+      "source": "../data/roles"
+    },
+    {
+      "file": "src\\components\\pages\\wardChairman\\WardChairmanDashboard.jsx",
+      "line": 16,
+      "binding": "UserPlus",
+      "type": "named",
+      "source": "lucide-react"
+    },
+    {
+      "file": "src\\components\\router\\AppRouter.jsx",
+      "line": 12,
+      "binding": "AnalyticsTab",
+      "type": "default",
+      "source": "../pages/communication/Analytics.jsx"
+    },
+    {
+      "file": "src\\components\\router\\AppRouter.jsx",
+      "line": 29,
+      "binding": "GratitudeWall",
+      "type": "default",
+      "source": "../pages/businessCircle/GratitudeWall.jsx"
+    }
+  ],
+  "exportMismatches": [
+    {
+      "file": "src\\components\\pages\\areaChart\\chartAssets.js",
+      "line": 4,
+      "imported": "../../../assets/pdflog.png.jpg",
+      "issue": "Imports default binding \"logoimg\" but target file has NO default export"
+    }
+  ],
+  "missingAssets": [
+    {
+      "file": "src\\components\\pages\\areaChart\\chartAssets.js",
+      "line": 1,
+      "asset": "/logos/logo.png"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\chartAssets.js",
+      "line": 2,
+      "asset": "/logos/logo.png"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\chartAssets.js",
+      "line": 6,
+      "asset": "/area-chart/img_29.png"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\chartAssets.js",
+      "line": 13,
+      "asset": "/area-chart/img_56.png"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\chartAssets.js",
+      "line": 14,
+      "asset": "/area-chart/img_54.png"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\chartAssets.js",
+      "line": 15,
+      "asset": "/area-chart/img_52.png"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\chartAssets.js",
+      "line": 16,
+      "asset": "/area-chart/img_53.jpeg"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\chartAssets.js",
+      "line": 17,
+      "asset": "/area-chart/img_55.png"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\chartAssets.js",
+      "line": 18,
+      "asset": "/area-chart/img_57.png"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\chartAssets.js",
+      "line": 19,
+      "asset": "/logos/kutumba-logo.png"
+    },
+    {
+      "file": "src\\components\\pages\\areaChart\\chartAssets.js",
+      "line": 23,
+      "asset": "/logos/kutumba-logo.png"
+    }
+  ]
+}

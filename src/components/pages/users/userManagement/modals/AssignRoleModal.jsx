@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, ChevronDown } from "lucide-react";
 
-const AVAILABLE_ROLES = ["Admin", "User", "Member", "Moderator"];
+const AVAILABLE_ROLES = ["Admin", "User", "Member", "Moderator", "Channel Partner"];
 
 /**
  * AssignRoleModal

@@ -22,34 +22,32 @@ function Label({ children, required }) {
 /**
  * FieldEditorModal
  * Props:
- *   mode       – "edit" | "add"
- *   field      – existing field object (mode="edit") or null (mode="add")
- *   onSave     – (fieldData) => void
- *   onCancel   – () => void
+ *   field    – field object { id, label, type, placeholder, required, disabled }
+ *   onSave   – (updatedField) => void
+ *   onClose  – () => void   (Cancel / X / backdrop click)
  */
-export default function FieldEditorModal({ mode, field, onSave, onCancel }) {
-  const isEdit = mode === "edit";
-
+export default function FieldEditorModal({ field, onSave, onClose }) {
+  // ── use field.label (not field.name) ──────────────────────
   const [form, setForm] = useState({
-    name: "",
-    type: "Text",
+    label:       "",
+    type:        "Text",
     placeholder: "",
-    required: false,
-    disabled: false,
+    required:    false,
+    disabled:    false,
   });
 
-  // Pre-fill when editing
+  // Pre-fill form whenever field prop changes
   useEffect(() => {
-    if (isEdit && field) {
+    if (field) {
       setForm({
-        name:        field.name        ?? "",
+        label:       field.label       ?? "",
         type:        field.type        ?? "Text",
         placeholder: field.placeholder ?? "",
         required:    field.required    ?? false,
         disabled:    field.disabled    ?? false,
       });
     }
-  }, [isEdit, field]);
+  }, [field]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -57,30 +55,33 @@ export default function FieldEditorModal({ mode, field, onSave, onCancel }) {
   };
 
   const handleSave = () => {
-    if (!form.name.trim()) return;
-    onSave({ ...(isEdit ? { id: field.id } : {}), ...form });
+    if (!form.label.trim()) return;
+    // Merge back into the original field so id is preserved
+    onSave({ ...field, ...form, label: form.label.trim() });
   };
+
+  const isNew = !field?.label || field.label === "New Field";
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={(e) => e.target === e.currentTarget && onCancel()}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div className="bg-white rounded-xl border border-gray-200 w-[460px] max-w-[92vw] overflow-hidden shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
             <span className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center">
-              {isEdit
-                ? <Pencil size={14} className="text-indigo-600" />
-                : <Plus  size={14} className="text-indigo-600" />}
+              {isNew
+                ? <Plus   size={14} className="text-indigo-600" />
+                : <Pencil size={14} className="text-indigo-600" />}
             </span>
             <h2 className="text-[13.5px] font-bold text-gray-900">
-              {isEdit ? "Edit Field" : "Add New Field"}
+              {isNew ? "Add New Field" : "Edit Field"}
             </h2>
           </div>
           <button
-            onClick={onCancel}
+            onClick={onClose}
             className="w-7 h-7 rounded-md flex items-center justify-center text-gray-400
               hover:bg-gray-100 hover:text-gray-600 transition-colors"
           >
@@ -90,15 +91,16 @@ export default function FieldEditorModal({ mode, field, onSave, onCancel }) {
 
         {/* Body */}
         <div className="px-5 py-5 space-y-4">
-          {/* Field Label */}
+          {/* Field Label — was "name", now "label" */}
           <div>
             <Label required>Field Label</Label>
             <input
-              name="name"
-              value={form.name}
+              name="label"
+              value={form.label}
               onChange={handleChange}
               placeholder="e.g. Company Name"
               className={inputCls}
+              autoFocus
             />
           </div>
 
@@ -161,7 +163,7 @@ export default function FieldEditorModal({ mode, field, onSave, onCancel }) {
             </label>
           </div>
 
-          {/* Info banner */}
+          {/* Info */}
           <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-2.5">
             <p className="text-[11.5px] text-indigo-700 leading-relaxed">
               Field type determines how data is collected. You can change it anytime before publishing.
@@ -172,7 +174,7 @@ export default function FieldEditorModal({ mode, field, onSave, onCancel }) {
         {/* Footer */}
         <div className="flex items-center justify-end gap-2.5 px-5 py-3.5 border-t border-gray-100">
           <button
-            onClick={onCancel}
+            onClick={onClose}
             className="h-8 px-4 text-[12.5px] font-semibold text-gray-700 bg-white border
               border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
           >
@@ -180,14 +182,14 @@ export default function FieldEditorModal({ mode, field, onSave, onCancel }) {
           </button>
           <button
             onClick={handleSave}
-            disabled={!form.name.trim()}
+            disabled={!form.label.trim()}
             className="h-8 px-5 text-[12.5px] font-semibold text-white bg-indigo-600 rounded-lg
               hover:bg-indigo-700 active:scale-[0.98] disabled:opacity-50
               transition-all flex items-center gap-1.5"
           >
-            {isEdit
-              ? <><Pencil size={13} /> Save Changes</>
-              : <><Plus size={13} /> Add Field</>}
+            {isNew
+              ? <><Plus size={13} /> Add Field</>
+              : <><Pencil size={13} /> Save Changes</>}
           </button>
         </div>
       </div>

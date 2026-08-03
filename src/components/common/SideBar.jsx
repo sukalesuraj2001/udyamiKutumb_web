@@ -479,10 +479,22 @@ const NAV = {
         {
             type: "group", key: "WC-cp", name: "Channel Partner", icon: ShieldCheck, children: [
                 { name: "Channel Partner", path: "/wardChairman-head-dashboard/channel-partner" },
-                { name: "Channel Partners Onboard", path: "/wardChairman-head-dashboard/cp-onboarding" },
+                // { name: "Channel Partners Onboard", path: "/wardChairman-head-dashboard/cp-onboarding" },
+                { name: "Route Tracking", path: "/wardChairman-head-dashboard/cp-route-tracking" },
+                { name: "Get Forms", path: "/wardChairman-head-dashboard/get-forms" },
+                { name: "Form Submitions", path: "/wardChairman-head-dashboard/forms" },
+                { name: "Submitions List", path: "/wardChairman-head-dashboard/submitions-list" },
 
                 // { name: "Post Management", path: "/register" },
                 // { name: "News Management", path: "/wardChairman-head-dashboard/users" },
+            ]
+        },
+        {
+            type: "group", key: "sp-admin", name: "Employees", icon: UserCog, children: [
+                // { name: "Add Employee", path: "/taluk-head/user-management" },
+                // { name: "Manage Employee", path: "/taluk-head/manage" },
+                { name: "Manage Roles", path: "/wardChairman-head-dashboard/rolemanagement" },
+                // { name: "Create Ward", path: "/super-admin-dashboard/create-ward" },
             ]
         },
     ],

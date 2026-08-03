@@ -46,8 +46,9 @@ export default function WardCard({ ward }) {
   const navigate = useNavigate();
   const { user } = useSelector((s) => s.auth);   // ← add
 
-  const { ward_name, ward_number, booths_built = 0, booths_total = 93 } = ward;
-  const pct = Math.round((booths_built / booths_total) * 100);
+  const { ward_name, ward_number, booths_built = 0 } = ward;
+  const booths_total = Number(ward.layoutCount || ward.booths_total || 103);
+  const pct = Math.round((booths_built / (booths_total || 103)) * 100);
   const status = booths_built <= 0 ? "empty" : booths_built >= booths_total ? "full" : "progress";
   const t = TONES[status];
 
@@ -72,9 +73,9 @@ export default function WardCard({ ward }) {
 
       <button
         onClick={() => {
-          console.log('ward.id:', ward.id);      // ← இது add பண்ணு
-          console.log('user.role:', user?.role); // ← இது add பண்ணு
-          console.log('basePath:', basePath);    // ← இது add பண்ணு
+          console.log('ward.id:', ward.id);      
+          console.log('user.role:', user?.role); 
+          console.log('basePath:', basePath);    
           navigate(`${basePath}/${ward.id}`, { state: { ward } });
         }}  // ← fix
         className={`w-full flex items-center justify-center gap-1.5 text-[12.5px] font-semibold border rounded-lg py-2 transition-all duration-200 ${t.btnCls}`}

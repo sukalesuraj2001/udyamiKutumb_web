@@ -1,6 +1,5 @@
 import { GripVertical, Pencil, Trash2 } from "lucide-react";
 
-// Field type → color mapping for the type badge
 const TYPE_COLORS = {
   Text:     "bg-gray-100 text-gray-600",
   Email:    "bg-blue-50 text-blue-600",
@@ -17,12 +16,12 @@ const TYPE_COLORS = {
 /**
  * BuilderField
  * Props:
- *   field      – { id, name, type, required, disabled }
- *   sectionId  – parent section id
- *   onEdit     – (sectionId, fieldId) => void
- *   onDelete   – (sectionId, fieldId) => void
+ *   field      – { id, label, type, required, disabled }  ← label (not name)
+ *   id  – parent section id
+ *   onEdit     – (id, fieldId) => void
+ *   onDelete   – (id, fieldId) => void
  */
-export default function BuilderField({ field, sectionId, onEdit, onDelete }) {
+export default function BuilderField({ field, id, onEdit, onDelete }) {
   const typeCls = TYPE_COLORS[field.type] ?? "bg-gray-100 text-gray-600";
 
   return (
@@ -39,8 +38,9 @@ export default function BuilderField({ field, sectionId, onEdit, onDelete }) {
       {/* Field info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
+          {/* ── FIX: field.label instead of field.name ── */}
           <span className="text-[12px] font-semibold text-gray-800 truncate">
-            {field.name}
+            {field.label || "Untitled Field"}
           </span>
           {field.required && (
             <span className="inline-flex items-center text-[9.5px] font-bold bg-amber-100
@@ -60,10 +60,10 @@ export default function BuilderField({ field, sectionId, onEdit, onDelete }) {
         </span>
       </div>
 
-      {/* Action buttons — visible on row hover */}
+      {/* Actions — visible on hover */}
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
         <button
-          onClick={() => onEdit(sectionId, field.id)}
+          onClick={() => onEdit(id, field.id)}
           title="Edit field"
           className="w-6 h-6 flex items-center justify-center rounded-md text-gray-400
             hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
@@ -71,7 +71,7 @@ export default function BuilderField({ field, sectionId, onEdit, onDelete }) {
           <Pencil size={12} />
         </button>
         <button
-          onClick={() => onDelete(sectionId, field.id)}
+          onClick={() => onDelete(id, field.id)}
           title="Delete field"
           className="w-6 h-6 flex items-center justify-center rounded-md text-gray-400
             hover:bg-red-50 hover:text-red-500 transition-colors"

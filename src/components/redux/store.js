@@ -16,6 +16,9 @@ import headReducer from './slices/headSlice.js'
 import membershipPlansReducer from "./slices/membershipPlansSlice.js";
 import jobReducer from "./slices/Jobslice.js";
 import newsReducer from "./slices/newsSlice.js";
+import routeTrackingReducer from "./slices/Routetrackingslice.js";
+import cpOnboardingReducer from "./slices/Cponboardingslice.js";
+
 // import globalLoaderReducer from './slices/globalLoaderSlice.js'
 export const store = configureStore({
     reducer: {
@@ -32,10 +35,12 @@ export const store = configureStore({
         ward: wardReducer,
         scoring: scoringReducer,
         taxonomy: taxonomyReducer,
+        routeTracking: routeTrackingReducer,
         districtHead: districtHeadReducer,
         head: headReducer,
         membershipPlans: membershipPlansReducer,
         jobs: jobReducer,
         news: newsReducer,
+        cpOnboarding: cpOnboardingReducer
     }
 })

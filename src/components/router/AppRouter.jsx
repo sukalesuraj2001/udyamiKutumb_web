@@ -73,6 +73,11 @@ import CreateWard from "../pages/superAdmin/CreateWard.jsx";
 import JobManagement from "../pages/superAdmin/JobManagement.jsx";
 import NewsManagement from "../pages/superAdmin/NewsManagement.jsx";
 import Cp from '../pages/cp/Cp.jsx'
+import WardChartPdfView from "../pages/areaChart/Wardchartpdfview.jsx";
+import RouteTracking from "../pages/routeTracking/RouteTracking";
+import CpSubmissions from "../pages/onbording/cpOnbording/CpSubmissions.jsx";
+import CpFormPreview from "../pages/cp/Cpformpreview.jsx";
+import CpSubmissionsView from "../pages/onbording/cpOnbording/Cpsubmissionsview.jsx";
 // const AppRouter = [
 //   {
 //     element: <RouteGuard guestOnly />,
@@ -1087,6 +1092,10 @@ const AppRouter = [
           { path: "/wardChairman-head-dashboard", element: <WardChairmanDashboard /> },
           { path: "/wardChairman/area-chart", element: <AreaChartBuilder /> },
           { path: "/wardChairman/area-chart/:wardId", element: <WardChartDetail /> },
+          {
+            path: "/ward-chart-pdf/:wardId",
+            element: <WardChartPdfView />,
+          },
           { path: "/wardChairman-head-dashboard/profile", element: <Profile /> },
           {
             path: "/wardChairman-head-dashboard/communications",
@@ -1141,10 +1150,15 @@ const AppRouter = [
           { path: "/wardChairman-head-dashboard/user-management", element: <UserManagement /> },
           { path: "/wardChairman-head-dashboard/membership", element: <Membership /> },
           { path: "/wardChairman-head-dashboard/membership/registration", element: <RegistrationPage /> },
-          { path: "/wardChairman-head-dashboard/membership/role-management", element: <RoleManagement /> },
+          { path: "/wardChairman-head-dashboard/rolemanagement", element: <RoleManagement /> },
           { path: "/wardChairman-head-dashboard/cp-onboarding", element: <ChannelPartnerOnboard /> },
           { path: "/wardChairman-head-dashboard/form-builder/channelPartner", element: <FormBuilder /> },
           { path: "/wardChairman-head-dashboard/channel-partner", element: <Cp /> },
+          { path: "/wardChairman-head-dashboard/cp-route-tracking", element: <RouteTracking /> },
+          { path: "/wardChairman-head-dashboard/forms", element: <CpSubmissions /> },
+          { path: "/wardChairman-head-dashboard/get-forms", element: <CpFormPreview /> },
+          { path: "/wardChairman-head-dashboard/submitions-list", element: <CpSubmissionsView /> },
+
         ],
       },
     ],

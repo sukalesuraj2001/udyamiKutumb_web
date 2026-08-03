@@ -5,17 +5,32 @@ import { showLoader, hideLoader } from "./globalLoaderSlice";
 // const BASE_URL = "http://192.168.0.70:3000";
 const BASE_URL = "https://udyami-circle-db.onrender.com";
 
-const mapToWardShape = (entry) => ({
-  id: entry.ward?.wardId ?? null,
-  ward_name: entry.ward?.wardName ?? "",
-  ward_number: entry.ward?.wardNumber ?? "",
-  constituency: entry.taluka?.talukaName ?? "",
-  district: entry.district?.districtName ?? "",
-  state: entry.district?.state ?? "",
-  totalWardChartMembers: entry.totalWardChartMembers ?? 0,
-  booths_built: entry.totalWardChartMembers ?? 0,
-  is_active: true,
-});
+const mapToWardShape = (entry) => {
+  const rawLayoutCount =
+    entry?.layoutCount ??
+    entry?.taluka?.layoutCount ??
+    entry?.wardDetails?.layoutCount ??
+    entry?.layoutConfig?.layoutCount ??
+    entry?.ward?.layoutCount ??
+    entry?.taluka?.layoutConfig?.layoutCount ??
+    103;
+
+  const totalCards = Number(rawLayoutCount) || 103;
+
+  return {
+    id: entry.ward?.wardId ?? entry.wardId ?? null,
+    ward_name: entry.ward?.wardName ?? entry.ward ?? "",
+    ward_number: entry.ward?.wardNumber ?? "",
+    constituency: entry.taluka?.talukaName ?? "",
+    district: entry.district?.districtName ?? "",
+    state: entry.district?.state ?? "",
+    totalWardChartMembers: entry.totalWardChartMembers ?? 0,
+    booths_built: entry.totalWardChartMembers ?? 0,
+    booths_total: totalCards,
+    layoutCount: String(totalCards),
+    is_active: true,
+  };
+};
 
 // ─── GET wards by talukaId ────────────────────────────────────────
 export const fetchWardsByTalukaId = createAsyncThunk(
@@ -104,12 +119,12 @@ export const getLocationByWardHeadId = createAsyncThunk(
 
       const wardInfo = data.data?.ward
         ? {
-            wardId: data.data.ward.wardId,
-            wardName: data.data.ward.wardName,
-            wardNumber: data.data.ward.wardNumber,
-            totalWardChartMembers: data.data.totalWardChartMembers ?? 0,
-            wardChartMembers: data.data.wardChartMembers ?? [],
-          }
+          wardId: data.data.ward.wardId,
+          wardName: data.data.ward.wardName,
+          wardNumber: data.data.ward.wardNumber,
+          totalWardChartMembers: data.data.totalWardChartMembers ?? 0,
+          wardChartMembers: data.data.wardChartMembers ?? [],
+        }
         : null;
 
       return {
@@ -341,6 +356,12 @@ const areaChartSlice = createSlice({
         state.fetchStatus = "succeeded";
         state.fetchedData = action.payload;
         state.fetchError = null;
+
+        const { wardChartId, wardHeadId, ward } = action.payload.data;
+        localStorage.setItem(
+          "wardChartMeta",
+          JSON.stringify({ wardChartId, wardHeadId, ward })
+        );
       })
       .addCase(getWardChartData.rejected, (state, action) => {
         state.fetchStatus = "failed";

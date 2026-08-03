@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { X, Minus, Plus, ChevronDown } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { X, Plus, ChevronDown } from "lucide-react";
+import { calculateTotalLayoutCards } from "../utils/calculateLayoutCount.js";
 
-// ── Udyami Royal titles — new section ──────────────────────────
 const UDYAMI_TITLES = [
   { key: "king", label: "Udyami King" },
   { key: "queens", label: "Udyami Queens" },
@@ -9,14 +9,47 @@ const UDYAMI_TITLES = [
   { key: "princess", label: "Udyami Princess" },
 ];
 
-export default function CustomizeLayoutModal({ wardName, config, onClose, onSave }) {
+// ── Unique key generator (no duplicate keys in batch) ──────────
+let _uid = 0;
+const uid = () => `${Date.now()}-${++_uid}`;
+
+export default function CustomizeLayoutModal({
+  wardName,
+  config,
+  onClose,
+  onSave,
+  isWardChairman = false,
+}) {
   const [draft, setDraft] = useState(() => ({
     ...config,
-    udyamiTitles: config.udyamiTitles ||
+    udyamiTitles:
+      config.udyamiTitles ||
       UDYAMI_TITLES.map((t) => ({ ...t, enabled: true })),
   }));
 
+  const totalAvailableCards = calculateTotalLayoutCards(draft);
+
   const [animate, setAnimate] = useState(false);
+
+  // ── Custom sector batch inputs (multiples of 3) ───────────────
+  const [customSectors, setCustomSectors] = useState(["", "", ""]);
+  const [sectorError, setSectorError] = useState("");
+
+  // ── Custom UMS batch inputs (multiples of 2) ──────────────────
+  const [customUms, setCustomUms] = useState(["", ""]);
+  const [umsError, setUmsError] = useState("");
+
+  // ── Custom brand product per category ─────────────────────────
+  const [customBrand, setCustomBrand] = useState({});
+
+  // ── Derive staged counts from draft vs original config ────────
+  // FIX: Don't use separate state counters — compute dynamically.
+  // This auto-corrects when user removes/disables newly added items.
+  const originalSectorCount = useRef(config.sectors?.length ?? 0);
+  const originalUmsCount = useRef(config.umsRoles?.length ?? 0);
+
+  const stagedSectors = draft.sectors.length - originalSectorCount.current;
+  const stagedUms = draft.umsRoles.length - originalUmsCount.current;
 
   useEffect(() => {
     const timer = requestAnimationFrame(() => setAnimate(true));
@@ -25,9 +58,7 @@ export default function CustomizeLayoutModal({ wardName, config, onClose, onSave
 
   const handleClose = () => {
     setAnimate(false);
-    setTimeout(() => {
-      onClose();
-    }, 300);
+    setTimeout(onClose, 300);
   };
 
   useEffect(() => {
@@ -47,26 +78,22 @@ export default function CustomizeLayoutModal({ wardName, config, onClose, onSave
 
   const [openSection, setOpenSection] = useState({
     slots: true,
-    udyami: true,
     sectors: true,
     ums: false,
     brandTiles: false,
   });
 
-  const [customSector, setCustomSector] = useState("");
-
   const toggle = (section) =>
     setOpenSection((o) => ({ ...o, [section]: !o[section] }));
 
-  const updateCount = (key, delta) =>
+  // ── Dropdown count update ──────────────────────────────────────
+  const updateCountDirect = (key, value) =>
     setDraft((d) => ({
       ...d,
-      slotCounts: {
-        ...d.slotCounts,
-        [key]: Math.max(0, (d.slotCounts[key] ?? 0) + delta),
-      },
+      slotCounts: { ...d.slotCounts, [key]: Number(value) },
     }));
 
+  // ── Sector toggle ──────────────────────────────────────────────
   const toggleSector = (key) =>
     setDraft((d) => ({
       ...d,
@@ -75,6 +102,7 @@ export default function CustomizeLayoutModal({ wardName, config, onClose, onSave
       ),
     }));
 
+  // ── UMS toggle ────────────────────────────────────────────────
   const toggleUms = (key) =>
     setDraft((d) => ({
       ...d,
@@ -83,44 +111,141 @@ export default function CustomizeLayoutModal({ wardName, config, onClose, onSave
       ),
     }));
 
-  const toggleUdyamiTitle = (key) =>
+  // ── Remove newly added sector (trash icon) ────────────────────
+  const removeSector = (key) => {
     setDraft((d) => ({
       ...d,
-      udyamiTitles: d.udyamiTitles.map((t) =>
-        t.key === key ? { ...t, enabled: !t.enabled } : t
-      ),
+      sectors: d.sectors.filter((s) => s.key !== key),
     }));
+  };
 
+  // ── Remove newly added UMS role (trash icon) ──────────────────
+  const removeUms = (key) => {
+    setDraft((d) => ({
+      ...d,
+      umsRoles: d.umsRoles.filter((s) => s.key !== key),
+    }));
+  };
+
+  // ── Brand tile toggles ────────────────────────────────────────
   const toggleBrandTile = (categoryKey, productName) =>
     setDraft((d) => ({
       ...d,
       brandTiles: d.brandTiles.map((cat) =>
         cat.key === categoryKey
           ? {
-            ...cat,
-            products: cat.products.map((p) =>
-              p.name === productName ? { ...p, enabled: !p.enabled } : p
-            ),
-          }
+              ...cat,
+              products: cat.products.map((p) =>
+                p.name === productName ? { ...p, enabled: !p.enabled } : p
+              ),
+            }
           : cat
       ),
     }));
 
-  const addCustomSector = () => {
-    const name = customSector.trim();
-    if (!name) return;
+  // ── Add custom sectors (any count) ────────────────────────────
+  const addCustomSectors = () => {
+    const filled = customSectors.map((s) => s.trim()).filter(Boolean);
+    if (filled.length === 0) {
+      setSectorError("Please enter at least one sector name.");
+      return;
+    }
+    setSectorError("");
     setDraft((d) => ({
       ...d,
       sectors: [
         ...d.sectors,
-        { key: name.toLowerCase().replace(/\s+/g, "-"), label: name, enabled: true },
+        ...filled.map((name) => ({
+          key: `sector-custom-${uid()}`,
+          label: name,
+          enabled: true,
+        })),
       ],
     }));
-    setCustomSector("");
+    setCustomSectors(["", "", ""]);
   };
 
+  const updateCustomSector = (idx, val) => {
+    setSectorError("");
+    setCustomSectors((prev) => prev.map((v, i) => (i === idx ? val : v)));
+  };
+
+  const addSectorField = () =>
+    setCustomSectors((prev) => [...prev, "", "", ""]);
+
+  // ── Add custom UMS roles (any count) ──────────────────────────
+  const addCustomUms = () => {
+    const filled = customUms.map((s) => s.trim()).filter(Boolean);
+    if (filled.length === 0) {
+      setUmsError("Please enter at least one UMS role name.");
+      return;
+    }
+    setUmsError("");
+    setDraft((d) => ({
+      ...d,
+      umsRoles: [
+        ...d.umsRoles,
+        ...filled.map((name) => ({
+          key: `ums-custom-${uid()}`,
+          label: name,
+          enabled: true,
+        })),
+      ],
+    }));
+    setCustomUms(["", ""]);
+  };
+
+  const updateCustomUms = (idx, val) => {
+    setUmsError("");
+    setCustomUms((prev) => prev.map((v, i) => (i === idx ? val : v)));
+  };
+
+  const addUmsField = () => setCustomUms((prev) => [...prev, "", ""]);
+
+  // ── Add custom brand product ───────────────────────────────────
+  const addCustomBrandProduct = (categoryKey) => {
+    const name = (customBrand[categoryKey] || "").trim();
+    if (!name) return;
+    setDraft((d) => ({
+      ...d,
+      brandTiles: d.brandTiles.map((cat) =>
+        cat.key === categoryKey
+          ? {
+              ...cat,
+              products: [
+                ...cat.products,
+                {
+                  key: `brand-custom-${uid()}`,
+                  name,
+                  enabled: true,
+                },
+              ],
+            }
+          : cat
+      ),
+    }));
+    setCustomBrand((p) => ({ ...p, [categoryKey]: "" }));
+  };
+
+  // ── Ratio validation removed — user can save any combination ──
+  const hasCustomAdditions = stagedSectors > 0 || stagedUms > 0;
+  const ratioValid = true;
+  const ratioMessage = null;
+
+  // ── Original sector keys (to show remove only on new items) ───
+  const originalSectorKeys = useRef(
+    new Set(config.sectors?.map((s) => s.key) ?? [])
+  );
+  const originalUmsKeys = useRef(
+    new Set(config.umsRoles?.map((s) => s.key) ?? [])
+  );
+
   return (
-    <div className={`fixed inset-0 z-50 flex justify-end transition-opacity duration-300 ${animate ? "opacity-100" : "opacity-0"}`}>
+    <div
+      className={`fixed inset-0 z-50 flex justify-end transition-opacity duration-300 ${
+        animate ? "opacity-100" : "opacity-0"
+      }`}
+    >
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
@@ -128,8 +253,13 @@ export default function CustomizeLayoutModal({ wardName, config, onClose, onSave
       />
 
       {/* Panel */}
-      <div className={`relative w-full max-w-[420px] bg-white h-full shadow-2xl flex flex-col transform transition-all duration-300 ${animate ? "translate-x-0 opacity-100 ease-out" : "translate-x-full opacity-0 ease-in"}`}>
-
+      <div
+        className={`relative w-full max-w-[420px] bg-white h-full shadow-2xl flex flex-col transform transition-all duration-300 ${
+          animate
+            ? "translate-x-0 opacity-100 ease-out"
+            : "translate-x-full opacity-0 ease-in"
+        }`}
+      >
         {/* ── Header ── */}
         <div className="px-6 py-5 border-b border-gray-100 bg-white">
           <div className="flex items-center justify-between">
@@ -153,59 +283,93 @@ export default function CustomizeLayoutModal({ wardName, config, onClose, onSave
         {/* ── Scrollable body ── */}
         <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
 
-          {/* Slot counts */}
+          {/* ── Slot Counts ── */}
           <Section
             title="Slot Counts"
             badge={null}
             open={openSection.slots}
             onToggle={() => toggle("slots")}
           >
-            {[
-              { key: "patrons", label: "Patrons" },
-              { key: "chairmenPage2", label: "Chairmen (Page 2)" },
-              { key: "advisories", label: "Advisories" },
-              { key: "mentors", label: "Mentors" },
-              { key: "udyamiQueens", label: "UB Queen's" },
-              { key: "ubRealtyConstruction", label: "UB Realty Construction" }, 
-              { key: "ubFinanceIT", label: "UB Finance & IT" },         
-              { key: "ubSocialBrand", label: "UB Social & Brand" },      
-            ].map((s) => (
-              <CountRow
-                key={s.key}
-                label={s.label}
-                value={draft.slotCounts[s.key] ?? 0}
-                onDecrement={() => updateCount(s.key, -1)}
-                onIncrement={() => updateCount(s.key, 1)}
-              />
-            ))}
+            {!isWardChairman && (
+              <>
+                <DropdownRow
+                  label="Patrons"
+                  value={draft.slotCounts.patrons ?? 3}
+                  options={[3, 6]}
+                  onChange={(v) => updateCountDirect("patrons", v)}
+                />
+                <DropdownRow
+                  label="Advisories"
+                  value={draft.slotCounts.advisories ?? 3}
+                  options={[3, 6]}
+                  onChange={(v) => updateCountDirect("advisories", v)}
+                />
+                <DropdownRow
+                  label="Mentors"
+                  value={draft.slotCounts.mentors ?? 3}
+                  options={[3, 6]}
+                  onChange={(v) => updateCountDirect("mentors", v)}
+                />
+                <div className="my-2 border-t border-gray-100" />
+              </>
+            )}
+            <DropdownRow
+              label="UB Queen's"
+              value={draft.slotCounts.udyamiQueens ?? 5}
+              options={[5, 10, 15, 20]}
+              onChange={(v) => updateCountDirect("udyamiQueens", v)}
+            />
+            <DropdownRow
+              label="UB Realty Construction"
+              value={draft.slotCounts.ubRealtyConstruction ?? 5}
+              options={[5, 10, 15, 20]}
+              onChange={(v) => updateCountDirect("ubRealtyConstruction", v)}
+            />
+            <DropdownRow
+              label="Yuva Udyami"
+              value={draft.slotCounts.yuvaUdyami ?? 5}
+              options={[5, 10, 15, 20]}
+              onChange={(v) => updateCountDirect("yuvaUdyami", v)}
+            />
+            <DropdownRow
+              label="EC"
+              value={draft.slotCounts.ec ?? 5}
+              options={[5, 10, 15, 20]}
+              onChange={(v) => updateCountDirect("ec", v)}
+            />
+            <DropdownRow
+              label="UB Finance & IT"
+              value={draft.slotCounts.ubFinanceIT ?? 5}
+              options={[5, 10, 15, 20]}
+              onChange={(v) => updateCountDirect("ubFinanceIT", v)}
+            />
+            <DropdownRow
+              label="UB Social & Brand"
+              value={draft.slotCounts.ubSocialBrand ?? 5}
+              options={[5, 10, 15, 20]}
+              onChange={(v) => updateCountDirect("ubSocialBrand", v)}
+            />
           </Section>
 
-          {/* Udyami Titles — NEW */}
-          {/* <Section
-            title="Udyami Titles"
-            badge="NEW"
-            open={openSection.udyami}
-            onToggle={() => toggle("udyami")}
-          >
-            <div className="grid grid-cols-2 gap-2">
-              {draft.udyamiTitles.map((t) => (
-                <TileToggle
-                  key={t.key}
-                  label={t.label}
-                  enabled={t.enabled}
-                  onToggle={() => toggleUdyamiTitle(t.key)}
-                />
-              ))}
-            </div>
-          </Section> */}
-
-          {/* Sectors */}
+          {/* ── Sectors ── */}
           <Section
             title="Sectors"
             badge={`${draft.sectors.filter((s) => s.enabled).length} active`}
             open={openSection.sectors}
             onToggle={() => toggle("sectors")}
           >
+            {/* Ratio live status */}
+            {stagedSectors > 0 && (
+              <div className="mb-3 flex items-center gap-2 bg-blue-50 rounded-xl px-3 py-2">
+                <span className="text-[11px] text-blue-600 font-semibold">
+                  +{stagedSectors} new sectors staged
+                </span>
+                <span className="text-[10px] text-blue-400">
+                  → {(stagedSectors / 3) * 2} UMS roles needed
+                </span>
+              </div>
+            )}
+
             <div className="space-y-1">
               {draft.sectors.map((s) => (
                 <ToggleRow
@@ -213,34 +377,103 @@ export default function CustomizeLayoutModal({ wardName, config, onClose, onSave
                   label={s.label}
                   enabled={s.enabled}
                   onToggle={() => toggleSector(s.key)}
+                  // Show remove (×) only for newly added items
+                  isNew={!originalSectorKeys.current.has(s.key)}
+                  onRemove={() => removeSector(s.key)}
                 />
               ))}
             </div>
-            {/* Add custom */}
-            <div className="flex gap-2 mt-3">
-              <input
-                value={customSector}
-                onChange={(e) => setCustomSector(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addCustomSector()}
-                placeholder="Add custom sector…"
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-[12.5px] text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-              />
-              <button
-                onClick={addCustomSector}
-                className="w-9 h-9 shrink-0 rounded-lg bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition-colors"
-              >
-                <Plus size={15} />
-              </button>
+
+            {/* Batch add — multiples of 3 */}
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                  Custom Sectors (multiples of 3)
+                </p>
+                <span className="text-[10px] font-bold bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">
+                  {customSectors.length} fields
+                </span>
+              </div>
+
+              {Array.from(
+                { length: Math.ceil(customSectors.length / 3) },
+                (_, groupIdx) => (
+                  <div
+                    key={groupIdx}
+                    className="border border-dashed border-gray-200 rounded-xl p-3 space-y-2 bg-gray-50/60"
+                  >
+                    <p className="text-[10px] text-gray-400 font-medium">
+                      Batch {groupIdx + 1}
+                    </p>
+                    {customSectors
+                      .slice(groupIdx * 3, groupIdx * 3 + 3)
+                      .map((val, relIdx) => {
+                        const absIdx = groupIdx * 3 + relIdx;
+                        return (
+                          <div key={absIdx} className="flex gap-2 items-center">
+                            <span className="text-[11px] text-gray-400 w-4 text-right shrink-0">
+                              {absIdx + 1}.
+                            </span>
+                            <input
+                              value={val}
+                              onChange={(e) =>
+                                updateCustomSector(absIdx, e.target.value)
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") addCustomSectors();
+                              }}
+                              placeholder={`Sector ${absIdx + 1} name…`}
+                              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-[12.5px] text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+                            />
+                          </div>
+                        );
+                      })}
+                  </div>
+                )
+              )}
+
+              {sectorError && (
+                <p className="text-[11px] text-red-500 font-medium">
+                  ⚠ {sectorError}
+                </p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={addSectorField}
+                  className="flex items-center gap-1 text-[12px] text-blue-500 hover:text-blue-700 font-medium transition-colors"
+                >
+                  <Plus size={12} /> +3 fields
+                </button>
+                <div className="flex-1" />
+                <button
+                  onClick={addCustomSectors}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-semibold px-4 py-2 rounded-lg transition-colors"
+                >
+                  Add Sectors
+                </button>
+              </div>
             </div>
           </Section>
 
-          {/* UMS Roles */}
+          {/* ── UMS Roles ── */}
           <Section
             title="UMS Roles"
             badge={`${draft.umsRoles.filter((s) => s.enabled).length} active`}
             open={openSection.ums}
             onToggle={() => toggle("ums")}
           >
+            {/* Ratio live status */}
+            {stagedUms > 0 && (
+              <div className="mb-3 flex items-center gap-2 bg-blue-50 rounded-xl px-3 py-2">
+                <span className="text-[11px] text-blue-600 font-semibold">
+                  +{stagedUms} new UMS staged
+                </span>
+                <span className="text-[10px] text-blue-400">
+                  → {(stagedUms / 2) * 3} sectors needed
+                </span>
+              </div>
+            )}
+
             <div className="space-y-1">
               {draft.umsRoles.map((s) => (
                 <ToggleRow
@@ -248,19 +481,91 @@ export default function CustomizeLayoutModal({ wardName, config, onClose, onSave
                   label={s.label}
                   enabled={s.enabled}
                   onToggle={() => toggleUms(s.key)}
+                  isNew={!originalUmsKeys.current.has(s.key)}
+                  onRemove={() => removeUms(s.key)}
                 />
               ))}
             </div>
+
+            {/* Batch add — multiples of 2 */}
+            <div className="mt-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                  Add UMS Roles (multiples of 2)
+                </p>
+                <span className="text-[10px] font-bold bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">
+                  {customUms.length} fields
+                </span>
+              </div>
+
+              {Array.from(
+                { length: Math.ceil(customUms.length / 2) },
+                (_, groupIdx) => (
+                  <div
+                    key={groupIdx}
+                    className="border border-dashed border-gray-200 rounded-xl p-3 space-y-2 bg-gray-50/60"
+                  >
+                    <p className="text-[10px] text-gray-400 font-medium">
+                      Pair {groupIdx + 1}
+                    </p>
+                    {customUms
+                      .slice(groupIdx * 2, groupIdx * 2 + 2)
+                      .map((val, relIdx) => {
+                        const absIdx = groupIdx * 2 + relIdx;
+                        return (
+                          <div key={absIdx} className="flex gap-2 items-center">
+                            <span className="text-[11px] text-gray-400 w-4 text-right shrink-0">
+                              {absIdx + 1}.
+                            </span>
+                            <input
+                              value={val}
+                              onChange={(e) =>
+                                updateCustomUms(absIdx, e.target.value)
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") addCustomUms();
+                              }}
+                              placeholder={`UMS Role ${absIdx + 1} name…`}
+                              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-[12.5px] text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+                            />
+                          </div>
+                        );
+                      })}
+                  </div>
+                )
+              )}
+
+              {umsError && (
+                <p className="text-[11px] text-red-500 font-medium">
+                  ⚠ {umsError}
+                </p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={addUmsField}
+                  className="flex items-center gap-1 text-[12px] text-blue-500 hover:text-blue-700 font-medium transition-colors"
+                >
+                  <Plus size={12} /> +2 fields
+                </button>
+                <div className="flex-1" />
+                <button
+                  onClick={addCustomUms}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-semibold px-4 py-2 rounded-lg transition-colors"
+                >
+                  Add UMS Roles
+                </button>
+              </div>
+            </div>
           </Section>
 
-          {/* Brand tiles */}
+          {/* ── Brand Tiles ── */}
           <Section
             title="Brand Tiles (Products page)"
             badge={null}
             open={openSection.brandTiles}
             onToggle={() => toggle("brandTiles")}
           >
-            <div className="space-y-5">
+            <div className="space-y-6">
               {draft.brandTiles.map((cat) => (
                 <div key={cat.key}>
                   <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2">
@@ -269,12 +574,34 @@ export default function CustomizeLayoutModal({ wardName, config, onClose, onSave
                   <div className="space-y-1">
                     {cat.products.map((p) => (
                       <ToggleRow
-                        key={p.name}
+                        key={p.key || p.name}
                         label={p.name}
                         enabled={p.enabled}
                         onToggle={() => toggleBrandTile(cat.key, p.name)}
                       />
                     ))}
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <input
+                      value={customBrand[cat.key] || ""}
+                      onChange={(e) =>
+                        setCustomBrand((prev) => ({
+                          ...prev,
+                          [cat.key]: e.target.value,
+                        }))
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") addCustomBrandProduct(cat.key);
+                      }}
+                      placeholder="New product add pannanum…"
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-[12.5px] text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                    />
+                    <button
+                      onClick={() => addCustomBrandProduct(cat.key)}
+                      className="w-9 h-9 shrink-0 rounded-lg bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition-colors"
+                    >
+                      <Plus size={15} />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -283,32 +610,57 @@ export default function CustomizeLayoutModal({ wardName, config, onClose, onSave
         </div>
 
         {/* ── Footer ── */}
-        <div className="px-4 sm:px-6 py-4 border-t border-gray-100 bg-gray-50 flex flex-wrap sm:flex-nowrap gap-2">
-          <button
-            onClick={() => setDraft(config)}
-            className="flex-1 min-w-[70px] border border-gray-200 bg-white text-gray-600 text-[13px] font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
-          >
-            Reset
-          </button>
-          <button
-            onClick={handleClose}
-            className="flex-1 min-w-[70px] border border-gray-200 bg-white text-gray-600 text-[13px] font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => onSave(draft)}
-            className="flex-1 min-w-[100px] bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold py-2.5 rounded-xl transition-colors"
-          >
-            Save layout
-          </button>
+        <div className="px-4 sm:px-6 py-4 border-t border-gray-100 bg-gray-50 flex flex-col gap-2">
+          {ratioMessage && (
+            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5">
+              <span className="text-red-500 text-[13px] shrink-0">⚠</span>
+              <p className="text-[11.5px] text-red-600 font-medium leading-snug">
+                {ratioMessage}
+                <span className="block text-[10.5px] text-red-400 mt-0.5">
+                  Rule: Every 3 sectors → 2 UMS roles (3:2 ratio mandatory)
+                </span>
+              </p>
+            </div>
+          )}
+          <div className="flex items-center justify-between mb-3 text-[12px]">
+            <span className="text-gray-500 font-medium">Total Available Cards:</span>
+            <span className="font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-full">
+              {totalAvailableCards} cards
+            </span>
+          </div>
+          <div className="flex flex-wrap sm:flex-nowrap gap-2">
+            <button
+              onClick={() => {
+                setDraft(config);
+                setCustomSectors(["", "", ""]);
+                setCustomUms(["", ""]);
+                setSectorError("");
+                setUmsError("");
+              }}
+              className="flex-1 min-w-[70px] border border-gray-200 bg-white text-gray-600 text-[13px] font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              Reset
+            </button>
+            <button
+              onClick={handleClose}
+              className="flex-1 min-w-[70px] border border-gray-200 bg-white text-gray-600 text-[13px] font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => onSave(draft)}
+              className="flex-1 min-w-[100px] text-[13px] font-semibold py-2.5 rounded-xl transition-colors bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+            >
+              Save layout
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-/* ── Sub-components ──────────────────────────────────────────── */
+/* ── Sub-components ──────────────────────────────────────────────── */
 
 function Section({ title, badge, open, onToggle, children }) {
   return (
@@ -318,7 +670,9 @@ function Section({ title, badge, open, onToggle, children }) {
         className="w-full flex items-center justify-between mb-3"
       >
         <div className="flex items-center gap-2">
-          <span className="text-[13.5px] font-semibold text-gray-800">{title}</span>
+          <span className="text-[13.5px] font-semibold text-gray-800">
+            {title}
+          </span>
           {badge && (
             <span className="text-[10px] font-semibold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
               {badge}
@@ -327,7 +681,9 @@ function Section({ title, badge, open, onToggle, children }) {
         </div>
         <ChevronDown
           size={15}
-          className={`text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`text-gray-400 transition-transform duration-200 ${
+            open ? "rotate-180" : ""
+          }`}
         />
       </button>
       {open && <div>{children}</div>}
@@ -335,69 +691,70 @@ function Section({ title, badge, open, onToggle, children }) {
   );
 }
 
-function CountRow({ label, value, onDecrement, onIncrement }) {
+function DropdownRow({ label, value, options, onChange }) {
   return (
     <div className="flex items-center justify-between py-2">
       <span className="text-[13px] text-gray-700">{label}</span>
-      <div className="flex items-center gap-3">
-        <button
-          onClick={onDecrement}
-          className="w-7 h-7 rounded-lg border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50 text-gray-600 transition-colors"
-        >
-          <Minus size={12} />
-        </button>
-        <span className="w-6 text-center text-[14px] font-bold text-gray-900 tabular-nums">
-          {value}
-        </span>
-        <button
-          onClick={onIncrement}
-          className="w-7 h-7 rounded-lg border border-gray-200 bg-white flex items-center justify-center hover:bg-gray-50 text-gray-600 transition-colors"
-        >
-          <Plus size={12} />
-        </button>
-      </div>
+      <select
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="border border-gray-200 rounded-lg px-3 py-1.5 text-[13px] font-semibold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 cursor-pointer"
+      >
+        {options.map((opt) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
 
-function ToggleRow({ label, enabled, onToggle }) {
+// ── ToggleRow — now supports isNew + onRemove ─────────────────────
+function ToggleRow({ label, enabled, onToggle, isNew = false, onRemove }) {
   return (
-    <div
-      onClick={onToggle}
-      className="flex items-center gap-3 py-1.5 cursor-pointer group"
-    >
-      {/* Toggle switch */}
+    <div className="flex items-center gap-3 py-1.5 group">
       <div
-        className={`relative w-9 h-5 rounded-full transition-colors duration-200 shrink-0 ${enabled ? "bg-blue-600" : "bg-gray-200"
-          }`}
+        onClick={onToggle}
+        className={`relative w-9 h-5 rounded-full transition-colors duration-200 shrink-0 cursor-pointer ${
+          enabled ? "bg-blue-600" : "bg-gray-200"
+        }`}
       >
         <span
-          className={`absolute top-[3px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform duration-200 ${enabled ? "translate-x-[18px]" : "translate-x-[3px]"
-            }`}
+          className={`absolute top-[3px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform duration-200 ${
+            enabled ? "translate-x-[18px]" : "translate-x-[3px]"
+          }`}
         />
       </div>
       <span
-        className={`text-[13px] transition-colors ${enabled
-          ? "text-gray-800 group-hover:text-gray-900"
-          : "text-gray-400 line-through"
-          }`}
+        onClick={onToggle}
+        className={`flex-1 text-[13px] transition-colors cursor-pointer ${
+          enabled
+            ? "text-gray-800 group-hover:text-gray-900"
+            : "text-gray-400 line-through"
+        }`}
       >
         {label}
       </span>
+      {/* Remove button — only for newly added items */}
+      {isNew && onRemove && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded-full bg-red-100 hover:bg-red-200 text-red-500 flex items-center justify-center transition-all text-[10px] font-bold shrink-0"
+          title="Remove"
+        >
+          ×
+        </button>
+      )}
+      {/* "New" badge */}
+      {isNew && (
+        <span className="text-[9px] font-bold bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full shrink-0">
+          NEW
+        </span>
+      )}
     </div>
-  );
-}
-
-function TileToggle({ label, enabled, onToggle }) {
-  return (
-    <button
-      onClick={onToggle}
-      className={`w-full py-2.5 px-3 rounded-xl border-2 text-[12.5px] font-semibold transition-all ${enabled
-        ? "border-blue-600 bg-blue-50 text-blue-700"
-        : "border-gray-200 bg-white text-gray-400"
-        }`}
-    >
-      {label}
-    </button>
   );
 }
