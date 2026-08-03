@@ -77,6 +77,8 @@ export const SAMPLE_PRODUCT_CATEGORIES = [
       { key: "yuvaudyami", name: "UB Yuva Udyami", sub: "YUVA UDYAMI", enabled: true },
       { key: "aiml", name: "UB AI/ML", sub: "UB AI / ML ROBOTIC", enabled: true },
       { key: "rownify", name: "UB R Ownify", sub: "OWNIFY", enabled: true },
+      { key: "rownify", name: "UB R Ownify", sub: "OWNIFY", enabled: true },
+      { key: "rownify", name: "UB R Ownify", sub: "OWNIFY", enabled: true },
     ],
   },
   {

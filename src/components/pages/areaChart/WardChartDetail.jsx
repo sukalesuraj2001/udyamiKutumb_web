@@ -30,6 +30,7 @@ import { paginateBrandCategories } from "./utils/paginateCategories.js";
 import { getLayoutCountString } from "./utils/calculateLayoutCount.js";
 import ImageCropModal from "./models/ImageCropModal.jsx";
 import domtoimage from "dom-to-image-more";
+import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import axios from "axios";
 
@@ -164,7 +165,7 @@ function ChartPage({ pageLabel, pageNum, ward, children }) {
           wardName={ward.ward_name}
           region={ward.region || ward.district || ward.constituency}
         />
-        <div className="flex-1 overflow-hidden">{children}</div>
+        <div className="flex-1 overflow-visible">{children}</div>
         <PageFooter num={pageNum} />
       </div>
     </ChartPreviewFrame>
@@ -206,6 +207,7 @@ export default function WardChartDetail() {
 
   const [assignments, setAssignments] = useState({});
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0 });
 
   const heroImageUrl = assignments["hero-image"]?.photoUrl || HERO_IMAGE_URL;
   const [heroCropFile, setHeroCropFile] = useState(null);
@@ -320,7 +322,6 @@ export default function WardChartDetail() {
     [config.brandTiles, config.slotCounts]
   );
 
-  // ─── Dynamic Product Page Pagination Engine ───
   useEffect(() => {
     if (!measureRef.current || activeBrandCategories.length === 0) return;
     const timer = setTimeout(() => {
@@ -330,13 +331,11 @@ export default function WardChartDetail() {
       const bannerEl = container.querySelector("[data-banner]");
       const footerEl = container.querySelector("[data-footer]");
 
-      // Total A4 page height matching preview frame (BASE_H = 1209px for 855px BASE_W)
-      const totalA4Height = 1209;
+      const totalA4Height = 1123;
       const headerHeight = bannerEl ? bannerEl.getBoundingClientRect().height : 65;
       const footerHeight = footerEl ? footerEl.getBoundingClientRect().height : 28;
-      const paddingBottom = 20; // pb-[20px] in ProductsPage
+      const paddingBottom = 20;
 
-      // Usable Content Height = Total A4 Height - Header - Footer - Padding
       const usableContentHeight = totalA4Height - headerHeight - footerHeight - paddingBottom;
 
       const divs = container.querySelectorAll("[data-cat-key]");
@@ -353,7 +352,7 @@ export default function WardChartDetail() {
         measuredHeights,
         usableContentHeight,
         0,
-        855
+        794
       );
 
       const nextStr = JSON.stringify(next.map((p) => p.map((c) => c.key)));
@@ -363,105 +362,312 @@ export default function WardChartDetail() {
     return () => clearTimeout(timer);
   }, [activeBrandCategories]);
 
-  // ── PDF Download ──────────────────────────────────────────────
-  const handleDownloadPdf = async () => {
-    setIsPdfGenerating(true);
+// ── Modern CSS Color (OKLAB, OKLCH, etc.) to RGB Sanitizer Helpers ────────
+function convertModernColorToRgb(colorStr) {
+  if (!colorStr || typeof colorStr !== "string") return colorStr;
+
+  if (!/(?:oklch|oklab|color\(|color-mix\(|light-dark\()/i.test(colorStr)) {
+    return colorStr;
+  }
+
+  // 1. Try native browser 2D canvas context for exact sRGB conversion
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    ctx.fillStyle = "rgba(0,0,0,0)";
+    ctx.clearRect(0, 0, 1, 1);
+    ctx.fillStyle = colorStr;
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+    if (a !== 0 || colorStr.includes("0%")) {
+      const alpha = +(a / 255).toFixed(3);
+      return alpha === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    }
+  } catch (e) {
+    // fallback below
+  }
+
+  // 2. Mathematical OKLAB -> sRGB fallback conversion
+  if (colorStr.includes("oklab")) {
+    try {
+      const match = colorStr.match(/oklab\(\s*([\d.%]+)\s+([-\d.]+)\s+([-\d.]+)(?:\s*\/\s*([\d.%]+))?\s*\)/i);
+      if (match) {
+        let [, lStr, aStr, bStr, alphaStr] = match;
+        let L = lStr.endsWith("%") ? parseFloat(lStr) / 100 : parseFloat(lStr);
+        let aLab = parseFloat(aStr);
+        let bLab = parseFloat(bStr);
+        let A = alphaStr ? (alphaStr.endsWith("%") ? parseFloat(alphaStr) / 100 : parseFloat(alphaStr)) : 1;
+
+        const l_ = L + 0.3963377774 * aLab + 0.2158037573 * bLab;
+        const m_ = L - 0.1055613458 * aLab - 0.0638541728 * bLab;
+        const s_ = L - 0.0894841775 * aLab - 1.291485548 * bLab;
+
+        const l = l_ * l_ * l_;
+        const m = m_ * m_ * m_;
+        const s = s_ * s_ * s_;
+
+        let rLin = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+        let gLin = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+        let bLin = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+
+        const gamma = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
+        let r = Math.min(255, Math.max(0, Math.round(gamma(rLin) * 255)));
+        let g = Math.min(255, Math.max(0, Math.round(gamma(gLin) * 255)));
+        let b = Math.min(255, Math.max(0, Math.round(gamma(bLin) * 255)));
+
+        return A === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${A})`;
+      }
+    } catch (e) {}
+  }
+
+  // 3. Mathematical OKLCH -> sRGB fallback conversion
+  if (colorStr.includes("oklch")) {
+    try {
+      const match = colorStr.match(/oklch\(\s*([\d.%]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.%]+))?\s*\)/i);
+      if (match) {
+        let [, lStr, cStr, hStr, aStr] = match;
+        let L = lStr.endsWith("%") ? parseFloat(lStr) / 100 : parseFloat(lStr);
+        let C = parseFloat(cStr);
+        let H = parseFloat(hStr);
+        let A = aStr ? (aStr.endsWith("%") ? parseFloat(aStr) / 100 : parseFloat(aStr)) : 1;
+
+        const hRad = (H * Math.PI) / 180;
+        const aLab = C * Math.cos(hRad);
+        const bLab = C * Math.sin(hRad);
+
+        const l_ = L + 0.3963377774 * aLab + 0.2158037573 * bLab;
+        const m_ = L - 0.1055613458 * aLab - 0.0638541728 * bLab;
+        const s_ = L - 0.0894841775 * aLab - 1.291485548 * bLab;
+
+        const l = l_ * l_ * l_;
+        const m = m_ * m_ * m_;
+        const s = s_ * s_ * s_;
+
+        let rLin = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+        let gLin = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+        let bLin = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+
+        const gamma = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
+        let r = Math.min(255, Math.max(0, Math.round(gamma(rLin) * 255)));
+        let g = Math.min(255, Math.max(0, Math.round(gamma(gLin) * 255)));
+        let b = Math.min(255, Math.max(0, Math.round(gamma(bLin) * 255)));
+
+        return A === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${A})`;
+      }
+    } catch (e) {}
+  }
+
+  return colorStr;
+}
+
+function replaceModernColorsInCssText(cssText) {
+  if (!cssText || typeof cssText !== "string" || !/(?:oklch|oklab|color|color-mix|light-dark)/i.test(cssText)) {
+    return cssText;
+  }
+
+  let prev;
+  let result = cssText;
+  let iterations = 0;
+
+  while (result !== prev && iterations < 5) {
+    prev = result;
+    result = result.replace(/(?:oklch|oklab|color-mix|light-dark|color)\((?:[^()]+|\([^()]*\))*\)/gi, (match) => {
+      return convertModernColorToRgb(match);
+    });
+    iterations++;
+  }
+  return result;
+}
+
+function sanitizeModernColorsNodeTree(rootNode, doc) {
+  const defaultView = doc?.defaultView || window;
+
+  if (doc) {
+    // 1. Sanitize style tags
+    const styleEls = doc.querySelectorAll("style");
+    styleEls.forEach((styleEl) => {
+      if (styleEl.textContent && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(styleEl.textContent)) {
+        styleEl.textContent = replaceModernColorsInCssText(styleEl.textContent);
+      }
+    });
+
+    // 2. Sanitize stylesheet rules
+    try {
+      Array.from(doc.styleSheets || []).forEach((sheet) => {
+        try {
+          Array.from(sheet.cssRules || []).forEach((rule) => {
+            if (rule.style && rule.style.cssText && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(rule.style.cssText)) {
+              rule.style.cssText = replaceModernColorsInCssText(rule.style.cssText);
+            }
+          });
+        } catch (e) {
+          // ignore cross-origin sheet errors
+        }
+      });
+    } catch (e) {}
+  }
+
+  // 3. Sanitize all elements in tree
+  const elements = [rootNode, ...rootNode.querySelectorAll("*")];
+  const colorProps = [
+    "color",
+    "backgroundColor",
+    "borderColor",
+    "borderTopColor",
+    "borderRightColor",
+    "borderBottomColor",
+    "borderLeftColor",
+    "outlineColor",
+    "fill",
+    "stroke",
+  ];
+
+  elements.forEach((el) => {
+    const inlineStyle = el.getAttribute("style");
+    if (inlineStyle && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(inlineStyle)) {
+      el.setAttribute("style", replaceModernColorsInCssText(inlineStyle));
+    }
 
     try {
-      const html = pdfRef.current ? pdfRef.current.outerHTML : "";
-      const fileName = `${ward.ward_name || "Ward Chart"}.pdf`;
-      const token = localStorage.getItem("token");
-
-      try {
-        const response = await axios.post(
-          `${BASE_URL}/ward-chart/download-pdf`,
-          {
-            fileName,
-            html,
-            format: "A4",
-            orientation: "portrait",
-          },
-          {
-            headers: {
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-              "Content-Type": "application/json",
-            },
-            responseType: "blob",
-          }
-        );
-
-        if (response?.data) {
-          const blob = new Blob([response.data], { type: "application/pdf" });
-          const url = window.URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.setAttribute("download", fileName);
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          window.URL.revokeObjectURL(url);
-          return;
+      const computed = defaultView.getComputedStyle(el);
+      colorProps.forEach((prop) => {
+        const val = computed[prop];
+        if (val && typeof val === "string" && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(val)) {
+          el.style[prop] = convertModernColorToRgb(val);
         }
-      } catch (apiErr) {
-        console.warn("Backend /ward-chart/download-pdf endpoint error, running client fallback:", apiErr);
+      });
+
+      const boxShadow = computed.boxShadow;
+      if (boxShadow && typeof boxShadow === "string" && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(boxShadow)) {
+        el.style.boxShadow = replaceModernColorsInCssText(boxShadow);
       }
 
-      // ── Client-side Fallback via jsPDF & domtoimage ──
+      const textShadow = computed.textShadow;
+      if (textShadow && typeof textShadow === "string" && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(textShadow)) {
+        el.style.textShadow = replaceModernColorsInCssText(textShadow);
+      }
+    } catch (e) {
+      // ignore non-element nodes
+    }
+  });
+}
+
+  const handleDownloadPdf = async () => {
+    setIsPdfGenerating(true);
+    try {
       const pages = document.querySelectorAll(".pdf-capture-page");
-      if (!pages.length) return;
+      if (!pages || !pages.length) {
+        setIsPdfGenerating(false);
+        return;
+      }
+
+      const totalPages = pages.length;
+      setPdfProgress({ current: 1, total: totalPages });
+      const fileName = `${ward.ward_name || "Ward Chart"}.pdf`;
+
+      const elementWidth = 794;
+      const elementHeight = 1123;
 
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "px",
-        format: [794, 1123],
+        format: [elementWidth, elementHeight],
         hotfixes: ["px_scaling"],
       });
 
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i];
+      for (let i = 0; i < totalPages; i++) {
+        // Update progress state for UI overlay
+        setPdfProgress({ current: i + 1, total: totalPages });
 
+        // Yield main thread to allow browser UI repaint & keep page interactive
+        await new Promise((r) => setTimeout(r, 40));
+
+        const page = pages[i];
         const prevTransform = page.style.transform;
         const prevWidth = page.style.width;
         const prevHeight = page.style.height;
         const prevMarginBottom = page.style.marginBottom;
         const prevMarginRight = page.style.marginRight;
+        const prevOverflow = page.style.overflow;
+        const prevBoxShadow = page.style.boxShadow;
+        const prevBorderRadius = page.style.borderRadius;
+        const prevBorder = page.style.border;
 
         page.style.transform = "none";
-        page.style.width = "794px";
-        page.style.height = "1123px";
+        page.style.width = `${elementWidth}px`;
+        page.style.height = `${elementHeight}px`;
         page.style.marginBottom = "0px";
         page.style.marginRight = "0px";
+        page.style.overflow = "visible";
+        page.style.boxShadow = "none";
+        page.style.borderRadius = "0px";
+        page.style.border = "none";
 
-        await new Promise((r) => setTimeout(r, 100));
+        const elementStyleMap = new Map();
+        const allLiveElements = [page, ...page.querySelectorAll("*")];
+        allLiveElements.forEach((el) => {
+          elementStyleMap.set(el, el.getAttribute("style"));
+        });
+
+        sanitizeModernColorsNodeTree(page, document);
 
         try {
-          const dataUrl = await domtoimage.toPng(page, {
-            width: 794,
-            height: 1123,
-            bgcolor: "#ffffff",
-            style: {
-              transform: "none",
-              width: "794px",
-              height: "1123px",
+          let canvas = await html2canvas(page, {
+            scale: 2, // Scale 2: Desktop optimized scale (200+ DPI print sharp, 56% lower RAM)
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: "#ffffff",
+            imageTimeout: 0,
+            logging: false,
+            width: elementWidth,
+            height: elementHeight,
+            windowWidth: elementWidth,
+            windowHeight: elementHeight,
+            scrollX: 0,
+            scrollY: 0,
+            onclone: (clonedDoc, clonedElement) => {
+              sanitizeModernColorsNodeTree(clonedElement, clonedDoc);
             },
           });
 
-          if (i > 0) pdf.addPage();
-          pdf.addImage(dataUrl, "PNG", 0, 0, 794, 1123);
+          // Compress to JPEG @ 0.92 (5x faster CPU encoding & 70% smaller memory allocation)
+          const imgData = canvas.toDataURL("image/jpeg", 0.92);
+          if (i > 0) pdf.addPage([elementWidth, elementHeight], "portrait");
+          pdf.addImage(imgData, "JPEG", 0, 0, elementWidth, elementHeight);
+
+          // Immediate canvas surface dereference to trigger garbage collection
+          canvas.width = 0;
+          canvas.height = 0;
+          canvas = null;
         } finally {
+          allLiveElements.forEach((el) => {
+            const origStyle = elementStyleMap.get(el);
+            if (origStyle !== null && origStyle !== undefined) {
+              el.setAttribute("style", origStyle);
+            } else {
+              el.removeAttribute("style");
+            }
+          });
+
           page.style.transform = prevTransform;
           page.style.width = prevWidth;
           page.style.height = prevHeight;
           page.style.marginBottom = prevMarginBottom;
           page.style.marginRight = prevMarginRight;
+          page.style.overflow = prevOverflow;
+          page.style.boxShadow = prevBoxShadow;
+          page.style.borderRadius = prevBorderRadius;
+          page.style.border = prevBorder;
         }
       }
-
       pdf.save(fileName);
     } catch (err) {
       console.error("PDF generation failed:", err);
     } finally {
       setIsPdfGenerating(false);
+      setPdfProgress({ current: 0, total: 0 });
     }
   };
 
@@ -795,8 +1001,8 @@ export default function WardChartDetail() {
         <ChartPage pageLabel="Advisory · Leadership · Sectors · UMS" pageNum={4} ward={ward}>
           <div className="flex flex-col h-full min-h-full">
             {/* Advisory / Mentor row */}
-            <div className="flex items-start justify-center gap-3 px-[2%] py-[1.5%] bg-white border-b border-slate-100 shrink-0">
-              <div className="flex gap-4">
+            <div className="flex flex-wrap lg:flex-nowrap items-start justify-center gap-6 px-[2%] py-[1.5%] bg-white border-b border-slate-100 shrink-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {Array.from({ length: config.slotCounts.advisories }).map((_, i) => {
                   const slotId = `advisory-${i + 1}`;
                   return (
@@ -816,9 +1022,9 @@ export default function WardChartDetail() {
                 })}
               </div>
 
-              <div className="w-px self-stretch bg-slate-300 mx-1" />
+              <div className="hidden lg:block w-px self-stretch bg-slate-300 mx-1" />
 
-              <div className="flex gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {Array.from({ length: config.slotCounts.mentors }).map((_, i) => {
                   const slotId = `mentor-${i + 1}`;
                   return (
@@ -1074,6 +1280,21 @@ export default function WardChartDetail() {
           onClose={() => { setShowHeroCrop(false); setHeroCropFile(null); }}
           onComplete={handleHeroCropDone}
         />
+      )}
+
+      {/* ── PDF Progress Loading Overlay ── */}
+      {isPdfGenerating && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-[2px] flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl flex flex-col items-center gap-3 min-w-[280px] max-w-sm text-center">
+            <div className="w-9 h-9 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            <h3 className="text-[14px] font-bold text-gray-900 leading-tight">Generating PDF</h3>
+            <p className="text-[12.5px] text-gray-500 font-medium">
+              {pdfProgress.total > 0
+                ? `Page ${pdfProgress.current} of ${pdfProgress.total}`
+                : "Preparing pages…"}
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );

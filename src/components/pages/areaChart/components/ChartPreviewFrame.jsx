@@ -1,8 +1,8 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { FileText } from "lucide-react";
 
-const BASE_W = 855;
-const BASE_H = Math.round(BASE_W * 1.4142); // 1075px — true A4 ratio
+const BASE_W = 794;
+const BASE_H = 1123; // true A4 ratio (794 * 1.41436 = 1123)
 
 export default function ChartPreviewFrame({ pageLabel, pageNumber, children }) {
   const containerRef = useRef(null);
@@ -82,9 +82,9 @@ export default function ChartPreviewFrame({ pageLabel, pageNumber, children }) {
       </div>
 
       {/* Responsive outer shell */}
-      <div ref={containerRef} className="w-full max-w-[760px] mx-auto">
+      <div ref={containerRef} className="w-full max-w-[794px] mx-auto">
 
-        {/* A4 page — fixed 760 × BASE_H, outer-scaled on narrow screens */}
+        {/* A4 page — fixed 794 × BASE_H, outer-scaled on narrow screens */}
         <div
           style={{
             width:          `${BASE_W}px`,
@@ -94,7 +94,7 @@ export default function ChartPreviewFrame({ pageLabel, pageNumber, children }) {
             // Collapse layout space taken by the scaled-down element
             marginBottom:   outerScale < 1 ? `-${(1 - outerScale) * BASE_H}px` : "0",
             marginRight:    outerScale < 1 ? `-${(1 - outerScale) * BASE_W}px` : "0",
-            overflow:       "hidden",
+            overflow:       "visible",
             position:       "relative",
           }}
           className="pdf-capture-page bg-white rounded-lg border border-slate-200 shadow-sm"
