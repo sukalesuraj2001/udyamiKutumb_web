@@ -5,11 +5,10 @@ import { EyeIcon } from "../common/Icons.jsx";
 import { registerUser, clearAuthError } from "../redux/slices/authSlice.js";
 import LocationPickerModal from "./LocationPickerModal.jsx"; // ← adjust path
 
-const MAPS_API_KEY = "YOUR_GOOGLE_MAPS_API_KEY"; // ← replace with your key
+const MAPS_API_KEY = "AIzaSyAuHjZ0wFws1RiblLuMtk9MLgQ4oGGjziI"; // ← replace with your key
 
 const inputClass = (hasError) =>
-  `w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition focus:ring-4 focus:ring-[#1B2430]/10 focus:border-[#1B2430] ${
-    hasError ? "border-red-400" : "border-[#E2DDD1]"
+  `w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none transition focus:ring-4 focus:ring-[#1B2430]/10 focus:border-[#1B2430] ${hasError ? "border-red-400" : "border-[#E2DDD1]"
   }`;
 
 function Field({ label, error, children }) {
@@ -72,7 +71,7 @@ export default function Register() {
           longitude: pos.coords.longitude,
         }));
       },
-      () => {}
+      () => { }
     );
   }, []);
 
@@ -283,7 +282,6 @@ export default function Register() {
         isOpen={mapModal !== null}
         onClose={() => setMapModal(null)}
         onSelect={handleLocationSelect}
-        apiKey={MAPS_API_KEY}
         title={
           mapModal === "businessLocation"
             ? "Select Business Location"
