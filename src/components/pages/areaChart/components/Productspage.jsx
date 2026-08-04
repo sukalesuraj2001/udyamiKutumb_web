@@ -101,7 +101,8 @@ export default function ProductsPage({
   region, 
   categories = SAMPLE_PRODUCT_CATEGORIES, 
   assignments = {}, 
-  onAssignClick, 
+  onAssignClick,
+  showPlus = true,
   isSuperAdmin = false 
 }) {
   return (
@@ -133,14 +134,13 @@ export default function ProductsPage({
                   gridTemplateRows: `repeat(${rows}, 1fr)`,
                 }}
               >
-                {cat.products.map((p) => {
-                  const slotId = `product-${cat.key}-${p.key}`;
+                {cat.products.map((p, pIdx) => {
+                  const slotId = p.isPlaceholder
+                    ? `product-${cat.key}-slot-${pIdx + 1}`
+                    : `product-${cat.key}-${p.key}`;
                   const assigned = assignments[slotId];
 
                   if (p.isPlaceholder) {
-                    const placeholderIndex = cat.products.indexOf(p);
-                    const slotId = `product-${cat.key}-slot-${placeholderIndex + 1}`;
-
                     return (
                       <div key={p.key} className="flex flex-col">
                         <p className="text-[9px] font-bold mb-[4px] truncate leading-tight"
@@ -149,7 +149,7 @@ export default function ProductsPage({
                         </p>
                         <button
                           onClick={() => onAssignClick?.(slotId, p.name)}
-                          className="group relative w-full aspect-square bg-white/40 border-[3px] border-dashed rounded-xl flex items-center justify-center overflow-hidden"
+                          className="group relative w-full aspect-square bg-white/40 border-[3px] border-dashed rounded-xl flex items-center justify-center overflow-hidden cursor-pointer"
                           style={{ borderColor: cat.color }}
                         >
                           {assigned?.photoUrl ? (
@@ -159,14 +159,20 @@ export default function ProductsPage({
                               className="absolute inset-0 w-full h-full object-cover rounded-[9px]"
                             />
                           ) : (
-                            !isSuperAdmin && (
-                              <Plus size={16} className="opacity-30 group-hover:opacity-100 transition-opacity"
+                            showPlus && (
+                              <Plus size={16} className="opacity-40 group-hover:opacity-100 transition-opacity"
                                 style={{ color: cat.color }} />
                             )
                           )}
+                          {assigned?.photoUrl && showPlus && (
+                            <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center transition-colors rounded-[9px]">
+                              <Plus size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </span>
+                          )}
                         </button>
                         {assigned?.name && (
-                          <p className="text-[8px] font-medium text-ink mt-[2px] truncate text-center">
+                          <p className="text-[8px] font-medium text-ink mt-[2px] truncate text-center cursor-pointer"
+                            onClick={() => onAssignClick?.(slotId, p.name)}>
                             {assigned.name}
                           </p>
                         )}
@@ -182,7 +188,7 @@ export default function ProductsPage({
                       </p>
                       <button
                         onClick={() => onAssignClick?.(slotId, p.name)}
-                        className="group relative w-full aspect-square bg-white border-[3px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden"
+                        className="group relative w-full aspect-square bg-white border-[3px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden cursor-pointer"
                         style={{ borderColor: cat.color }}
                       >
                         {/* ── Assigned image ── */}
@@ -198,8 +204,8 @@ export default function ProductsPage({
                           </span>
                         )}
 
-                        {/* ── Hover overlay — assigned ── */}
-                        {!isSuperAdmin && (
+                        {/* ── Hover overlay ── */}
+                        {showPlus && (
                           <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center transition-colors rounded-[9px]">
                             <Plus size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                           </span>
@@ -208,7 +214,8 @@ export default function ProductsPage({
 
                       {/* ── Name below card ── */}
                       {assigned?.name && (
-                        <p className="text-[8px] font-medium text-ink mt-[2px] truncate text-center">
+                        <p className="text-[8px] font-medium text-ink mt-[2px] truncate text-center cursor-pointer"
+                          onClick={() => onAssignClick?.(slotId, p.name)}>
                           {assigned.name}
                         </p>
                       )}

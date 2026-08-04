@@ -257,7 +257,7 @@ export default function WardChartDetail() {
         slotId: "hero-image",
         name: "Hero Image",
         mobileNumber: "",
-        email: "",
+        // email: "",
         companyName: "",
         profileImage: "",
         status: "active",
@@ -292,11 +292,16 @@ export default function WardChartDetail() {
     if (fetchStatus === "succeeded" && fetchedData) {
       const mapped = mapApiToAssignments(fetchedData);
       setAssignments(mapped);
-      if (layoutConfig) {
+
+      const apiData = fetchedData?.data || {};
+      const apiLayoutConfig = apiData.layoutConfig;
+      const apiLayoutCount = apiData.layoutCount || apiLayoutConfig?.layoutCount;
+
+      if (apiLayoutConfig && typeof apiLayoutConfig === "object") {
         setConfig({
           ...DEFAULT_CONFIG,
-          ...layoutConfig,
-          slotCounts: { ...DEFAULT_CONFIG.slotCounts, ...layoutConfig.slotCounts },
+          ...apiLayoutConfig,
+          slotCounts: { ...DEFAULT_CONFIG.slotCounts, ...(apiLayoutConfig.slotCounts || {}) },
         });
       }
     }
@@ -315,8 +320,14 @@ export default function WardChartDetail() {
     () =>
       DEFAULT_CONFIG.brandTiles
         .map((defaultCat) => {
-          const savedCat = config.brandTiles.find((c) => c.key === defaultCat.key);
-          const mergedProducts = defaultCat.products.map((p) => {
+          const savedCat = config.brandTiles?.find((c) => c.key === defaultCat.key);
+          const defaultProducts = defaultCat.products;
+          const customProducts = (savedCat?.products || []).filter(
+            (sp) => !defaultProducts.some((dp) => dp.key === sp.key)
+          );
+          const allCatProducts = [...defaultProducts, ...customProducts];
+
+          const mergedProducts = allCatProducts.map((p) => {
             const savedProduct = savedCat?.products.find((sp) => sp.key === p.key);
             return { ...p, enabled: savedProduct ? savedProduct.enabled : true };
           });
@@ -693,6 +704,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
     const photoUrl = data.photoUrl;
     setModal(null);
 
+    const isCommon = isBlockedForWardChairman(slotId);
     const { photoFile: _f, photoUrl: _u, ...restData } = data;
     const payload = buildSingleMemberPayload(ward, user, slotId, { ...restData, photoUrl, slotLabel: modal.label });
 
@@ -702,6 +714,8 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
       wardId: ward.id,
       ward: payload.ward,
       layoutCount: getLayoutCountString(config),
+      applyToAllWards: isCommon,
+      isCommonPage: isCommon,
       members: payload.members.map(({ profileImage, ...m }) => ({
         ...m,
         ...(photoFile ? {} : { profileImage: profileImage || "" }),
@@ -1416,6 +1430,8 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
               wardId: ward.id,
               ward: ward.ward_name || ward.ward_number || "",
               layoutCount: layoutCountStr,
+              applyToAllWards: true,
+              isCommonPage: true,
               members: [],
               layoutConfig: {
                 layoutCount: layoutCountStr,

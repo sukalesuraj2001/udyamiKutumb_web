@@ -253,8 +253,14 @@ export default function WardChartPdfView() {
     const activeBrandCategories = useMemo(() =>
         DEFAULT_CONFIG.brandTiles
             .map((defaultCat) => {
-                const savedCat = config.brandTiles.find((c) => c.key === defaultCat.key);
-                const mergedProducts = defaultCat.products.map((p) => {
+                const savedCat = config.brandTiles?.find((c) => c.key === defaultCat.key);
+                const defaultProducts = defaultCat.products;
+                const customProducts = (savedCat?.products || []).filter(
+                    (sp) => !defaultProducts.some((dp) => dp.key === sp.key)
+                );
+                const allCatProducts = [...defaultProducts, ...customProducts];
+
+                const mergedProducts = allCatProducts.map((p) => {
                     const savedProduct = savedCat?.products.find((sp) => sp.key === p.key);
                     return { ...p, enabled: savedProduct ? savedProduct.enabled : true };
                 });

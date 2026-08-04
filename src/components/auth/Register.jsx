@@ -224,7 +224,7 @@ export default function Register() {
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Business location" error={fieldErrors.businessLocation}>
+            <Field label="Home location" error={fieldErrors.businessLocation}>
               <div className="relative">
                 <input
                   className={inputClass(fieldErrors.businessLocation) + " pr-9 cursor-pointer"}

@@ -13,8 +13,8 @@ export default function SectorCard({
   const displayLabel = label?.toUpperCase?.() || label;
 
   const handleClick = () => {
-    if (!isSuperAdmin && onAssignClick) {
-      onAssignClick(slotId, label);   // ← id + label  pass
+    if (onAssignClick) {
+      onAssignClick(slotId, label);
     }
   };
 
@@ -26,7 +26,7 @@ export default function SectorCard({
         </p>
         <button
           onClick={handleClick}
-          className="group relative w-full max-w-[110px] h-[110px] mx-auto bg-white flex items-center justify-center overflow-hidden p-1"
+          className="group relative w-full max-w-[110px] h-[110px] mx-auto bg-white flex items-center justify-center overflow-hidden p-1 cursor-pointer"
         >
           {assigned?.photoUrl ? (
             <img
@@ -40,11 +40,10 @@ export default function SectorCard({
             </span>
           )}
 
-          {/* showPlus prop respect  — preview mode hide */}
-          {showPlus && !isSuperAdmin && (
+          {showPlus && (
             <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center transition-colors">
               <Plus
-                size={8}
+                size={12}
                 className="text-white opacity-0 group-hover:opacity-100 transition-opacity"
               />
             </span>
@@ -53,7 +52,7 @@ export default function SectorCard({
       </div>
 
       {assigned?.name && (
-        <div className="text-center mt-0.5">
+        <div className="text-center mt-0.5 cursor-pointer" onClick={handleClick}>
           <p className="text-[7px] font-bold text-white leading-tight truncate">
             {assigned.name}
           </p>

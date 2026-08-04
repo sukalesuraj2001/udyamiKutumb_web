@@ -482,7 +482,7 @@ const NAV = {
                 // { name: "Channel Partners Onboard", path: "/wardChairman-head-dashboard/cp-onboarding" },
                 { name: "Route Tracking", path: "/wardChairman-head-dashboard/cp-route-tracking" },
                 { name: "Get Forms", path: "/wardChairman-head-dashboard/get-forms" },
-                { name: "Form Submitions", path: "/wardChairman-head-dashboard/forms" },
+                // { name: "Form Submitions", path: "/wardChairman-head-dashboard/forms" },
                 { name: "Submitions List", path: "/wardChairman-head-dashboard/submitions-list" },
 
                 // { name: "Post Management", path: "/register" },
