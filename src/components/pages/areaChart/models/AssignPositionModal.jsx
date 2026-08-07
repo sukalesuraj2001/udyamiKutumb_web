@@ -145,6 +145,7 @@ function MemberCard({ member, selected, onSelect }) {
 // ── Main Modal ────────────────────────────────────────────────────
 export default function AssignPositionModal({
   wardName,
+  constituency,
   slotId,
   position = "Position",
   isSaving = false,
@@ -213,11 +214,11 @@ export default function AssignPositionModal({
     if (search.trim().length < 2) return;
 
     debounceRef.current = setTimeout(() => {
-      dispatch(searchMembers(search.trim()));
+      dispatch(searchMembers({ query: search.trim(), wardName }));
     }, 400);
 
     return () => clearTimeout(debounceRef.current);
-  }, [search, dispatch]);
+  }, [search, wardName, dispatch]);
 
   // Cleanup blob URL
   useEffect(() => {

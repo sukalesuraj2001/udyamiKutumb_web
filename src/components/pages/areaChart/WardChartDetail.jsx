@@ -1372,6 +1372,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
         <AssignPositionModal
           position={modal.label}
           wardName={ward.ward_name}
+          constituency={ward.constituency}
           onClose={() => setModal(null)}
           onAssign={(data) => handleAssign({ ...data, slotLabel: modal.label })}
         />

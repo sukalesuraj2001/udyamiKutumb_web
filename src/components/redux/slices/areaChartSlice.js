@@ -215,15 +215,24 @@ export const createWardChartData = createAsyncThunk(
 // ─── SEARCH MEMBERS thunk ─────────────────────────────────────────
 export const searchMembers = createAsyncThunk(
   "areaChart/searchMembers",
-  async (query, { getState, dispatch, rejectWithValue }) => {
+  async (payload, { getState, dispatch, rejectWithValue }) => {
     dispatch(showLoader());
     try {
       const token = getState().auth.token;
-      const wardName = getWardName();
+
+      let query = "";
+      let wardName = "";
+
+      if (typeof payload === "string") {
+        query = payload;
+      } else if (payload && typeof payload === "object") {
+        query = payload.query || payload.name || "";
+        wardName = payload.wardName || payload.ward || payload.ward_name || "";
+      }
 
       const { data } = await axios.post(
         `${BASE_URL}/userprofile/search-users`,
-        { name: query || "", ward: wardName },
+        { name: query || "", ward: wardName || "" },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
