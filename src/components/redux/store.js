@@ -19,7 +19,8 @@ import newsReducer from "./slices/newsSlice.js";
 import routeTrackingReducer from "./slices/Routetrackingslice.js";
 import cpOnboardingReducer from "./slices/Cponboardingslice.js";
 import cpFormReducer from "./slices/cpFormSlice";
-// import globalLoaderReducer from './slices/globalLoaderSlice.js'
+import { injectStore } from "../service/api.js";
+
 export const store = configureStore({
     reducer: {
         globalLoader: globalLoaderReducer,
@@ -28,7 +29,6 @@ export const store = configureStore({
         profile: profileReducer,
         dashboard: dashboardReducer,
         areaChart: areaChartReducer,
-        // globalLoader: globalLoaderReducer,
         sendMessage: sendMessageReducer,
         roles: rolesReducer,
         ucTraining: ucTrainingReducer,
@@ -44,4 +44,6 @@ export const store = configureStore({
         cpOnboarding: cpOnboardingReducer,
         cpForm: cpFormReducer,
     }
-})
+});
+
+injectStore(store);

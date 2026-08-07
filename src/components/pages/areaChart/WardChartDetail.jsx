@@ -34,9 +34,6 @@ import ImageCropModal from "./models/ImageCropModal.jsx";
 import domtoimage from "dom-to-image-more";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import axios from "axios";
-
-const BASE_URL = "https://udyami-circle-db.onrender.com";
 
 // ─── PDF Structure ────────────────────────────────────────────────
 // Page 1  : Cover (CoverPage component)

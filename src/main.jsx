@@ -5,15 +5,16 @@ import App from './App.jsx'
 import { BrowserRouter } from 'react-router-dom'
 import { Provider } from 'react-redux'
 import { store } from './components/redux/store.js'
+import GlobalLoader from './components/common/GlobalLoader.jsx'
 import "leaflet/dist/leaflet.css";
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <Provider store={store}>
+        <GlobalLoader />
         <App />
       </Provider>
     </BrowserRouter>
   </StrictMode>,
 )
-

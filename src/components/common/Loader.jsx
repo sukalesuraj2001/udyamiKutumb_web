@@ -5,14 +5,16 @@ import { Loader2 } from "lucide-react";
  * Shared loading indicator, built on the ink/amber design tokens.
  *
  * Variants:
- * - "inline": small spinner + optional label, for use INSIDE a button (e.g. "Buy Now" while processing)
- * - "card": centered spinner + label filling a card/section, for loading a whole panel
- * - "overlay": spinner over a semi-transparent backdrop, for blocking an entire modal/section during an async action
+ * - "inline"  : small spinner + optional label, for use INSIDE a button
+ * - "card"    : centered spinner + label filling a card/section
+ * - "overlay" : spinner over a semi-transparent backdrop, for blocking a modal/section
+ * - "splash"  : (alias) rendered by <GlobalLoader> at root — do not use directly;
+ *               dispatch showLoader() / hideLoader() from globalLoaderSlice instead.
  *
  * @param {"inline"|"card"|"overlay"} [variant="inline"]
- * @param {string} [label] - optional text next to/under the spinner
- * @param {"light"|"dark"} [tone="dark"] - "light" for use on dark/colored backgrounds (e.g. inside an amber button)
- * @param {number} [size] - spinner pixel size, defaults per variant
+ * @param {string}  [label]      - optional text next to/under the spinner
+ * @param {"light"|"dark"} [tone="dark"]
+ * @param {number}  [size]       - spinner pixel size, defaults per variant
  */
 export default function Loader({ variant = "inline", label, tone = "dark", size }) {
   const spinnerColor = tone === "light" ? "text-white" : "text-amber";
