@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import { UserPlus, SlidersHorizontal, Printer, Download, Pencil, FileCheck2 } from "lucide-react";
+import { User, UserPlus, SlidersHorizontal, Printer, Download, Pencil, FileCheck2 } from "lucide-react";
 import ChartSlot from "./components/ChartSlot.jsx";
 import MlaCard from "./components/Mlacard.jsx";
 import ChairmanHighlightCard from "./components/Chairmanhighlightcard.jsx";
@@ -20,6 +20,8 @@ import { HERO_IMAGE_URL } from "./chartAssets.js";
 import {
   createWardChartData,
   getWardChartData,
+  getLocationByWardHeadId,
+  selectWards,
   selectAreaChartStatus,
   selectAreaChartError,
   selectFetchStatus,
@@ -50,11 +52,11 @@ const BASE_URL = "https://udyami-circle-db.onrender.com";
 
 const DEFAULT_CONFIG = {
   slotCounts: {
-    patrons: 3,
+    patrons: 10,
     chairmenPage2: 4,
     chairmenPage3: 13,
     advisories: 3,
-    mentors: 3,
+    mentors: 2,
     udyamiQueens: 20,
     ubRealtyConstruction: 5,
     yuvaUdyami: 5,   // ← ADD
@@ -75,6 +77,9 @@ const DEFAULT_CONFIG = {
     { key: "news", label: "News & Media", enabled: true },
     { key: "agro", label: "Agro Tech", enabled: true },
     { key: "women", label: "Empower - Women", enabled: true },
+    { key: "datascience", label: "Data Science", enabled: true },
+    { key: "aiml", label: "AI ML", enabled: true },
+    { key: "web3", label: "WEB 3", enabled: true },
   ],
   umsRoles: [
     { key: "ai", label: "AI Lead Generation", enabled: true },
@@ -163,7 +168,7 @@ function buildSingleMemberPayload(ward, user, slotId, assignmentData) {
 
 function PageFooter({ num }) {
   return (
-    <div className="bg-ink h-[28px] flex items-center px-3 shrink-0">
+    <div className="bg-ink h-[25px] flex items-center px-3 shrink-0">
       <span className="w-[22px] h-[22px] rounded-full border-2 border-white text-white text-[8px] font-bold flex items-center justify-center tabular-nums">
         {String(num).padStart(2, "0")}
       </span>
@@ -228,7 +233,6 @@ export default function WardChartDetail() {
   const [heroCropFile, setHeroCropFile] = useState(null);
   const [showHeroCrop, setShowHeroCrop] = useState(false);
   const heroCropImageUrl = heroCropFile ? URL.createObjectURL(heroCropFile) : null;
-  const [productPages, setProductPages] = useState([]);
   const measureRef = useRef(null);
 
   const handleRemove = (row) => {
@@ -285,6 +289,7 @@ export default function WardChartDetail() {
   useEffect(() => {
     if (user?.userId && ward.id) {
       dispatch(getWardChartData({ userId: user.userId, wardId: ward.id }));
+      dispatch(getLocationByWardHeadId(user.userId));
     }
   }, []);
 
@@ -316,77 +321,6 @@ export default function WardChartDetail() {
     "ub-social": "ubSocialBrand",
   };
 
-  const activeBrandCategories = useMemo(
-    () =>
-      DEFAULT_CONFIG.brandTiles
-        .map((defaultCat) => {
-          const savedCat = config.brandTiles?.find((c) => c.key === defaultCat.key);
-          const defaultProducts = defaultCat.products;
-          const customProducts = (savedCat?.products || []).filter(
-            (sp) => !defaultProducts.some((dp) => dp.key === sp.key)
-          );
-          const allCatProducts = [...defaultProducts, ...customProducts];
-
-          const mergedProducts = allCatProducts.map((p) => {
-            const savedProduct = savedCat?.products.find((sp) => sp.key === p.key);
-            return { ...p, enabled: savedProduct ? savedProduct.enabled : true };
-          });
-
-          const enabledProducts = mergedProducts.filter((p) => p.enabled);
-          const countKey = CATEGORY_COUNT_MAP[defaultCat.key];
-          const maxCount = countKey ? (config.slotCounts[countKey] ?? enabledProducts.length) : enabledProducts.length;
-
-          const slots = [...enabledProducts];
-          while (slots.length < maxCount) {
-            const idx = slots.length;
-            slots.push({ key: `placeholder-${idx}`, name: `Slot ${idx + 1}`, sub: `Position ${idx + 1}`, enabled: true, isPlaceholder: true });
-          }
-
-          return { ...defaultCat, products: slots.slice(0, maxCount) };
-        })
-        .filter((cat) => cat.products.length > 0),
-    [config.brandTiles, config.slotCounts]
-  );
-
-  useEffect(() => {
-    if (!measureRef.current || activeBrandCategories.length === 0) return;
-    const timer = setTimeout(() => {
-      if (!measureRef.current) return;
-
-      const container = measureRef.current;
-      const bannerEl = container.querySelector("[data-banner]");
-      const footerEl = container.querySelector("[data-footer]");
-
-      const totalA4Height = 1123;
-      const headerHeight = bannerEl ? bannerEl.getBoundingClientRect().height : 65;
-      const footerHeight = footerEl ? footerEl.getBoundingClientRect().height : 28;
-      const paddingBottom = 20;
-
-      const usableContentHeight = totalA4Height - headerHeight - footerHeight - paddingBottom;
-
-      const divs = container.querySelectorAll("[data-cat-key]");
-      const measuredHeights = {};
-      divs.forEach((div) => {
-        const key = div.getAttribute("data-cat-key");
-        if (key) {
-          measuredHeights[key] = div.getBoundingClientRect().height;
-        }
-      });
-
-      const next = paginateBrandCategories(
-        activeBrandCategories,
-        measuredHeights,
-        usableContentHeight,
-        0,
-        794
-      );
-
-      const nextStr = JSON.stringify(next.map((p) => p.map((c) => c.key)));
-      const prevStr = JSON.stringify(productPages.map((p) => p.map((c) => c.key)));
-      if (nextStr !== prevStr) setProductPages(next);
-    }, 150);
-    return () => clearTimeout(timer);
-  }, [activeBrandCategories]);
 
 // ── Modern CSS Color (OKLAB, OKLCH, etc.) to RGB Sanitizer Helpers ────────
 function convertModernColorToRgb(colorStr) {
@@ -775,30 +709,12 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
   const activeUms = useMemo(() => config.umsRoles.filter((s) => s.enabled), [config.umsRoles]);
 
   const sectorsAndUmsPagination = useMemo(() => {
-    const totalSectors = activeSectors.length;
-    const totalUms = activeUms.length;
-
     const advisoriesCount = config?.slotCounts?.advisories ?? 3;
-    const mentorsCount = config?.slotCounts?.mentors ?? 3;
 
-    // Rule 1: Both Advisory and Mentor <= 3
-    const isRule1AdvisoryMentor = advisoriesCount <= 3 && mentorsCount <= 3;
-
-    if (isRule1AdvisoryMentor) {
-      // Under Rule 1: if sectors <= 12 and UMS <= 10, EVERYTHING stays on Page 4!
-      if (totalSectors <= 12 && totalUms <= 10) {
-        return {
-          firstPageSectors: activeSectors,
-          firstPageUms: activeUms,
-          continuationPages: [],
-        };
-      }
-    }
-
-    // When Advisory & Mentor <= 3, Page 1 takes MORE sectors (9 sectors) + 10 UMS roles!
-    // When Advisory or Mentor > 3, Page 1 takes 6 sectors + 8 UMS roles!
-    const p1SecCount = isRule1AdvisoryMentor ? 9 : 6;
-    const p1UmsCount = isRule1AdvisoryMentor ? 10 : 8;
+    // When Advisories > 3 (2 rows of Advisory/Mentor), Page 4 fits 12 sectors & 8 UMS.
+    // When Advisories <= 3 (1 row of Advisory/Mentor), Page 4 fits 15 sectors & 10 UMS.
+    const p1SecCount = advisoriesCount > 3 ? 12 : 15;
+    const p1UmsCount = advisoriesCount > 3 ? 8 : 10;
 
     const firstSecs = activeSectors.slice(0, p1SecCount);
     const firstUms = activeUms.slice(0, p1UmsCount);
@@ -806,29 +722,108 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
     const remSecs = activeSectors.slice(p1SecCount);
     const remUms = activeUms.slice(p1UmsCount);
 
-    const continuations = [];
-    let secIdx = 0;
-    let umsIdx = 0;
-
-    while (secIdx < remSecs.length || umsIdx < remUms.length) {
-      const pageSecs = remSecs.slice(secIdx, secIdx + 12);
-      const pageUms = remUms.slice(umsIdx, umsIdx + 12);
-      continuations.push({
-        sectors: pageSecs,
-        ums: pageUms,
-      });
-      secIdx += 12;
-      umsIdx += 12;
-    }
-
     return {
       firstPageSectors: firstSecs,
       firstPageUms: firstUms,
-      continuationPages: continuations,
+      remSectors: remSecs,
+      remUms: remUms,
+      continuationPages: [],
     };
   }, [activeSectors, activeUms, config?.slotCounts?.advisories, config?.slotCounts?.mentors]);
 
-  const { firstPageSectors, firstPageUms, continuationPages } = sectorsAndUmsPagination;
+  const { firstPageSectors, firstPageUms, remSectors = [], remUms = [] } = sectorsAndUmsPagination;
+
+  const activeBrandCategories = useMemo(() => {
+    const baseCats = DEFAULT_CONFIG.brandTiles
+      .map((defaultCat) => {
+        const savedCat = config.brandTiles?.find((c) => c.key === defaultCat.key);
+        const defaultProducts = defaultCat.products;
+        const customProducts = (savedCat?.products || []).filter(
+          (sp) => !defaultProducts.some((dp) => dp.key === sp.key)
+        );
+        const allCatProducts = [...defaultProducts, ...customProducts];
+
+        const mergedProducts = allCatProducts.map((p) => {
+          const savedProduct = savedCat?.products.find((sp) => sp.key === p.key);
+          return {
+            ...p,
+            name: savedProduct?.name || p.name,
+            enabled: savedProduct ? savedProduct.enabled : true,
+          };
+        });
+
+        const enabledProducts = mergedProducts.filter((p) => p.enabled);
+        const countKey = CATEGORY_COUNT_MAP[defaultCat.key];
+        const maxCount = countKey ? (config.slotCounts[countKey] ?? enabledProducts.length) : enabledProducts.length;
+
+        const slots = [...enabledProducts];
+        while (slots.length < maxCount) {
+          const idx = slots.length;
+          slots.push({ key: `placeholder-${idx}`, name: `${defaultCat.label} ${idx + 1}`, sub: `Position ${idx + 1}`, enabled: true, isPlaceholder: true });
+        }
+
+        return { ...defaultCat, products: slots.slice(0, maxCount) };
+      })
+      .filter((cat) => cat.products.length > 0);
+
+    if (remSectors.length > 0 || remUms.length > 0) {
+      const sectorItems = remSectors.map((s) => ({
+        key: `sector-${s.key}`,
+        name: s.label,
+        sub: "SECTOR",
+        enabled: true,
+        itemType: "sector",
+      }));
+      const umsItems = remUms.map((u) => ({
+        key: `ums-${u.key}`,
+        name: u.label,
+        sub: "UMS",
+        enabled: true,
+        itemType: "ums",
+      }));
+
+      const numRows = Math.max(
+        Math.ceil(sectorItems.length / 3),
+        Math.ceil(umsItems.length / 2),
+        1
+      );
+
+      const products = [];
+      for (let r = 0; r < numRows; r++) {
+        for (let i = 0; i < 3; i++) {
+          const sIdx = r * 3 + i;
+          if (sIdx < sectorItems.length) {
+            products.push(sectorItems[sIdx]);
+          } else {
+            products.push(null);
+          }
+        }
+        for (let i = 0; i < 2; i++) {
+          const uIdx = r * 2 + i;
+          if (uIdx < umsItems.length) {
+            products.push(umsItems[uIdx]);
+          } else {
+            products.push(null);
+          }
+        }
+      }
+
+      const extraCat = {
+        key: "extra-sectors-ums",
+        label: "SECTORS & UMS",
+        color: "#c8102e",
+        products: products,
+      };
+      return [extraCat, ...baseCats];
+    }
+
+    return baseCats;
+  }, [config.brandTiles, config.slotCounts, remSectors, remUms]);
+
+  const productPages = useMemo(
+    () => paginateBrandCategories(activeBrandCategories),
+    [activeBrandCategories]
+  );
 
 
 
@@ -843,12 +838,46 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
     [assignments]
   );
 
-  const gCode = ward.g_code || ward.ward_number;
-  const chairmenP2 = Array.from({ length: config.slotCounts.chairmenPage2 }, (_, i) => i);
-  const chairmenP3 = Array.from({ length: config.slotCounts.chairmenPage3 }, (_, i) => i + config.slotCounts.chairmenPage2);
-  const firstRow = chairmenP3.slice(0, 5);
-  const secondRow = chairmenP3.slice(5, 10);
-  const thirdRow = chairmenP3.slice(10);
+  const gCode = ward.g_code || ward.ward_number || ward.wardNumber || "G5.48";
+
+  const reduxWards = useSelector(selectWards) || [];
+  const constituencyWards = useMemo(() => {
+    if (!ward.constituency) return reduxWards;
+    return reduxWards.filter((w) => w.constituency === ward.constituency);
+  }, [reduxWards, ward.constituency]);
+
+  const reduxWardCount = constituencyWards.length > 0 ? constituencyWards.length : (reduxWards.length > 0 ? reduxWards.length : null);
+  const apiWardCount = fetchedData?.data?.constituencyWardCount || fetchedData?.data?.wardsCount || fetchedData?.data?.totalWards || fetchedData?.data?.wardLength || (Array.isArray(fetchedData?.data?.wards) ? fetchedData.data.wards.length : null);
+
+  const totalChairmenCount = Number(
+    ward.constituencyWardCount ||
+    ward.wardsCount ||
+    ward.wardLength ||
+    ward.totalWards ||
+    reduxWardCount ||
+    apiWardCount ||
+    9
+  );
+
+  const totalPatrons = Number(config.slotCounts?.patrons ?? 10);
+  const patronRows = Math.ceil(totalPatrons / 5);
+
+  const patronRowsP2 = Math.min(patronRows, 3);
+  const maxChairmanRowsP2 = Math.max(1, 4 - patronRowsP2);
+  const maxChairmenP2 = maxChairmanRowsP2 * 5;
+
+  const p2Count = Math.min(totalChairmenCount, maxChairmenP2);
+  const chairmenP2 = Array.from({ length: p2Count }, (_, i) => i);
+  const p3Count = Math.max(0, totalChairmenCount - p2Count);
+  const chairmenP3 = Array.from({ length: p3Count }, (_, i) => i + p2Count);
+
+  const chairmenRowsP3 = useMemo(() => {
+    const rows = [];
+    for (let i = 0; i < chairmenP3.length; i += 5) {
+      rows.push(chairmenP3.slice(i, i + 5));
+    }
+    return rows;
+  }, [chairmenP3]);
 
   const isBusy = apiStatus === "loading" || fetchStatus === "loading";
 
@@ -939,9 +968,9 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
         {!isWardChairman && (
           <>
             {/* ══════ PAGE 2 — MLA + Officials + Patrons + Chairmen ══════ */}
-            <ChartPage pageLabel="MLA · Patrons · Chairmen (1–10)" pageNum={2} ward={ward}>
-              <div className="px-[3%] py-[2%] space-y-[2%]">
-                <div className="flex justify-center pt-[1%]">
+            <ChartPage pageLabel={`MLA · Patrons · Chairmen (1–${p2Count})`} pageNum={2} ward={ward}>
+              <div className="px-6 py-2 space-y-1.5">
+                <div className="flex justify-center pt-0.5">
                   <MlaCard
                     mlaLabel={`MLA - ${ward.ward_name} Assembly constituency`}
                     assigned={assignments.mla}
@@ -953,14 +982,14 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                 </div>
 
                 <div className="relative">
-                  <div className="absolute left-1/2 -translate-x-1/2 -top-[2%] w-px h-[2%] bg-ink/40" />
+                  <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-px h-2 bg-ink/40" />
                   <div className="absolute left-[10%] right-[10%] top-0 h-px bg-ink/40" />
-                  <div className="grid grid-cols-4 gap-4 pt-2">
+                  <div className="grid grid-cols-4 gap-3 pt-1">
                     {Array.from({ length: 4 }).map((_, i) => {
                       const slotId = `official-${i + 1}`;
                       return (
                         <div key={slotId} className="flex flex-col items-center">
-                          <div className="w-px h-3 bg-ink/40 mb-1" />
+                          <div className="w-px h-2 bg-ink/40 mb-0.5" />
                           <PdfSlot
                             slotId={slotId}
                             topLabel={`Official ${i + 1}`}
@@ -977,16 +1006,16 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                   </div>
                 </div>
 
-                <div className="relative flex justify-center items-center py-2">
+                <div className="relative flex justify-center items-center py-1">
                   <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[2px] bg-[#1a2e5e]" />
                   <div className="relative z-10">
-                    <div className="relative bg-[#b5121b] text-white text-[13px] font-bold uppercase px-10 py-[6px] w-[210px] text-center rounded-t-sm rounded-b-xl">
+                    <div className="relative bg-[#b5121b] text-white text-[12px] font-bold uppercase px-8 py-[4px] w-[200px] text-center rounded-t-sm rounded-b-xl">
                       UDYAMI PATRON
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-5 gap-4">
+                <div className="grid grid-cols-5 gap-x-3 gap-y-1.5">
                   {Array.from({ length: config.slotCounts.patrons }).map((_, i) => {
                     const slotId = `patron-${i + 1}`;
                     return (
@@ -1004,15 +1033,15 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                   })}
                 </div>
 
-                <div className="border-t border-ink/20" />
+                <div className="border-t border-ink/20 my-0.5" />
 
-                <div className="grid grid-cols-5 gap-4">
+                <div className="grid grid-cols-5 gap-x-3 gap-y-1.5">
                   {chairmenP2.map((i) => {
                     const slotId = `chairman-${i + 1}`;
                     const label = `${gCode}.${i + 1} Chairman`;
                     return (
                       <div key={slotId}>
-                        <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">{label}</p>
+                        <p className="text-[8.5px] font-bold text-brick text-center mb-0.5 uppercase truncate">{label}</p>
                         <PdfSlot
                           slotId={slotId}
                           tone="brick"
@@ -1030,22 +1059,84 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
             </ChartPage>
 
             {/* ══════ PAGE 3 — Chairmen continued ══════ */}
-            <ChartPage pageLabel="Chairmen (11–23)" pageNum={3} ward={ward}>
-              <div className="flex-1 h-full px-[3%] py-[2%]">
-                <div className="space-y-6">
-                  {[firstRow, secondRow].map((row, ri) => (
-                    <div key={ri} className="grid grid-cols-5 gap-5">
-                      {row.map((i) => {
-                        const slotId = `chairman-${i + 1}`;
-                        const label = `${gCode}.${i + 1} Chairman`;
+            {chairmenP3.length > 0 && (
+              <ChartPage pageLabel={`Chairmen (${p2Count + 1}–${totalChairmenCount})`} pageNum={3} ward={ward}>
+                <div className="flex-1 h-full px-[3%] py-[2%]">
+                  <div className="space-y-6">
+                    {chairmenRowsP3.map((row, ri) => (
+                      <div key={ri} className={row.length === 5 ? "grid grid-cols-5 gap-5" : "flex justify-center gap-5"}>
+                        {row.map((i) => {
+                          const slotId = `chairman-${i + 1}`;
+                          const label = `${gCode}.${i + 1} Chairman`;
+                          return (
+                            <div key={slotId} className={row.length < 5 ? "w-[110px]" : ""}>
+                              <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">{label}</p>
+                              <PdfSlot
+                                slotId={slotId}
+                                tone="brick"
+                                assigned={assignments[slotId]}
+                                dimmed={isDimmed(slotId, "chairmen", assignments[slotId]?.name)}
+                                onAssignClick={slotClickProp}
+                                showPlus={!isPreviewMode}
+                                isSuperAdmin={isSuperAdmin}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </ChartPage>
+            )}
+          </>
+        )}
+
+        {/* ══════ PAGE 4 — Advisory/Mentor + Leadership + Sectors/UMS ══════ */}
+        <ChartPage pageLabel="Advisory · Leadership · Sectors · UMS" pageNum={chairmenP3.length > 0 ? 4 : 3} ward={ward}>
+          <div className="flex flex-col h-full min-h-full">
+            {/* Advisory / Mentor row */}
+            <div className="flex flex-col items-center justify-center gap-3 px-4 py-3.5 bg-white border-b border-slate-100 shrink-0">
+              {Array.from({
+                length: Math.max(
+                  Math.ceil((config.slotCounts.advisories || 3) / 3),
+                  Math.ceil((config.slotCounts.mentors || 2) / 2)
+                ),
+              }).map((_, r) => {
+                const totalAdv = config.slotCounts.advisories || 3;
+                const totalMen = config.slotCounts.mentors || 2;
+                const rowAdvisories = Array.from({ length: totalAdv }).slice(r * 3, (r + 1) * 3);
+                const rowMentors = Array.from({ length: totalMen }).slice(r * 2, (r + 1) * 2);
+
+                return (
+                  <div key={r} className="flex items-start justify-center">
+                    {/* Advisories slice */}
+                    <div className="flex gap-12">
+                      {rowAdvisories.map((_, idx) => {
+                        const i = r * 3 + idx;
+                        const slotId = `advisory-${i + 1}`;
                         return (
-                          <div key={slotId}>
-                            <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">{label}</p>
-                            <PdfSlot
+                          <div key={slotId} className="flex flex-col items-center gap-1">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span className="w-5 h-5 rounded-full border-2 border-[#c8102e] text-[#c8102e] text-[9px] font-bold flex items-center justify-center shrink-0">
+                                {i + 1}
+                              </span>
+                              <span className="text-[11px] font-bold text-[#c8102e]">
+                                Advisory
+                              </span>
+                            </div>
+                            <ChartSlot
                               slotId={slotId}
-                              tone="brick"
+                              label={`${i + 1} Advisory`}
+                              tone="navy"
+                              variant="default"
+                              showPlaceholderName={false}
                               assigned={assignments[slotId]}
-                              dimmed={isDimmed(slotId, "chairmen", assignments[slotId]?.name)}
+                              dimmed={isDimmed(
+                                slotId,
+                                "advisories",
+                                assignments[slotId]?.name
+                              )}
                               onAssignClick={slotClickProp}
                               showPlus={!isPreviewMode}
                               isSuperAdmin={isSuperAdmin}
@@ -1054,85 +1145,52 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                         );
                       })}
                     </div>
-                  ))}
 
-                  <div className="flex justify-center gap-5">
-                    {thirdRow.map((i) => {
-                      const slotId = `chairman-${i + 1}`;
-                      const label = `${gCode}.${i + 1} Chairman`;
-                      return (
-                        <div key={slotId}>
-                          <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">{label}</p>
-                          <PdfSlot
-                            slotId={slotId}
-                            tone="brick"
-                            assigned={assignments[slotId]}
-                            dimmed={isDimmed(slotId, "chairmen", assignments[slotId]?.name)}
-                            onAssignClick={slotClickProp}
-                            showPlus={!isPreviewMode}
-                            isSuperAdmin={isSuperAdmin}
-                          />
-                        </div>
-                      );
-                    })}
+                    <div className="w-px self-stretch bg-slate-300 mx-8" />
+
+                    {/* Mentors slice */}
+                    <div className="flex gap-14">
+                      {rowMentors.map((_, idx) => {
+                        const i = r * 2 + idx;
+                        const slotId = `mentor-${i + 1}`;
+                        return (
+                          <div key={slotId} className="flex flex-col items-center gap-1">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span className="w-5 h-5 rounded-full border-2 border-ink text-ink text-[9px] font-bold flex items-center justify-center shrink-0">
+                                {i + 1}
+                              </span>
+                              <span className="text-[11px] font-bold text-ink">
+                                Mentor
+                              </span>
+                            </div>
+                            <ChartSlot
+                              slotId={slotId}
+                              label={`${i + 1} Mentor`}
+                              tone="navy"
+                              variant="default"
+                              showPlaceholderName={false}
+                              assigned={assignments[slotId]}
+                              dimmed={isDimmed(
+                                slotId,
+                                "mentors",
+                                assignments[slotId]?.name
+                              )}
+                              onAssignClick={slotClickProp}
+                              showPlus={!isPreviewMode}
+                              isSuperAdmin={isSuperAdmin}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              </div>
-            </ChartPage>
-          </>
-        )}
-
-        {/* ══════ PAGE 4 — Advisory/Mentor + Leadership + Sectors/UMS ══════ */}
-        <ChartPage pageLabel="Advisory · Leadership · Sectors · UMS" pageNum={4} ward={ward}>
-          <div className="flex flex-col h-full min-h-full">
-            {/* Advisory / Mentor row */}
-            <div className="flex flex-wrap lg:flex-nowrap items-start justify-center gap-6 px-[2%] py-[1.5%] bg-white border-b border-slate-100 shrink-0">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Array.from({ length: config.slotCounts.advisories }).map((_, i) => {
-                  const slotId = `advisory-${i + 1}`;
-                  return (
-                    <div key={slotId} className="flex flex-col items-center gap-1">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <span className="w-5 h-5 rounded-full border-2 border-[#c8102e] text-[#c8102e] text-[9px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
-                        <span className="text-[11px] font-bold text-[#c8102e]">Advisory</span>
-                      </div>
-                      <ChartSlot
-                        slotId={slotId} label={`${i + 1} Advisory`} tone="navy" variant="default"
-                        showPlaceholderName={false} assigned={assignments[slotId]}
-                        dimmed={isDimmed(slotId, "advisories", assignments[slotId]?.name)}
-                        onAssignClick={slotClickProp} showPlus={!isPreviewMode} isSuperAdmin={isSuperAdmin}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-
-              <div className="hidden lg:block w-px self-stretch bg-slate-300 mx-1" />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Array.from({ length: config.slotCounts.mentors }).map((_, i) => {
-                  const slotId = `mentor-${i + 1}`;
-                  return (
-                    <div key={slotId} className="flex flex-col items-center gap-1">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <span className="w-5 h-5 rounded-full border-2 border-ink text-ink text-[9px] font-bold flex items-center justify-center shrink-0">{i + 1}</span>
-                        <span className="text-[11px] font-bold text-ink">Mentor</span>
-                      </div>
-                      <ChartSlot
-                        slotId={slotId} label={`${i + 1} Mentor`} tone="navy" variant="default"
-                        showPlaceholderName={false} assigned={assignments[slotId]}
-                        dimmed={isDimmed(slotId, "mentors", assignments[slotId]?.name)}
-                        onAssignClick={slotClickProp} showPlus={!isPreviewMode} isSuperAdmin={isSuperAdmin}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+                );
+              })}
             </div>
 
             {/* Leadership strip */}
-            <div className="flex items-stretch bg-[#1a2e5e] shrink-0">
-              <div className="flex flex-col items-center justify-start shrink-0 w-[180px]">
+            <div className="flex items-center bg-[#1a2e5e] shrink-0 py-3.5 px-4 gap-4">
+              <div className="flex flex-col items-center justify-center shrink-0 w-[140px]">
                 <ChairmanHighlightCard
                   wardNumber={gCode} assigned={assignments["ward-chairman"]}
                   dimmed={isDimmed("ward-chairman", "core", assignments["ward-chairman"]?.name)}
@@ -1140,15 +1198,15 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                 />
               </div>
 
-              <div className="flex flex-1 justify-evenly items-start">
+              <div className="flex flex-1 justify-evenly items-center">
                 {CORE_ROLES.map((role) => {
                   const slotId = `core-${role.toLowerCase().replace(/\s+/g, "-")}`;
                   return (
-                    <div key={slotId} className="flex flex-col items-center w-[105px]">
-                      <p className="h-[18px] flex items-center justify-center text-[10px] font-bold text-white text-center mb-3">{role}</p>
+                    <div key={slotId} className="flex flex-col items-center w-[105px] gap-1">
+                      <p className="text-[11px] font-bold text-white text-center mb-1">{role}</p>
                       <div
                         onClick={() => handleSlotClick(slotId, role)}
-                        className={`relative w-[90px] h-[90px] rounded-lg border-2 border-[#c8102e] bg-[#d32f2f] flex items-center justify-center overflow-hidden ${!isPreviewMode && !isSuperAdmin ? "cursor-pointer group" : "cursor-default"}`}
+                        className={`relative w-[95px] h-[95px] rounded-lg border-2 border-[#c8102e] bg-[#d32f2f] flex items-center justify-center overflow-hidden shrink-0 shadow-sm ${!isPreviewMode && !isSuperAdmin ? "cursor-pointer group" : "cursor-default"}`}
                       >
                         {assignments[slotId]?.photoUrl ? (
                           <img src={assignments[slotId].photoUrl} alt={assignments[slotId].name} className="w-full h-full object-cover" />
@@ -1162,10 +1220,10 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                           <span className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
                         )}
                       </div>
-                      <p className="mt-2 text-[8px] font-bold text-white uppercase text-center leading-none">
+                      <p className="mt-1.5 text-[9.5px] font-bold text-white uppercase text-center leading-tight truncate max-w-[100px]">
                         {assignments[slotId]?.name || "NAME"}
                       </p>
-                      <p className="text-[6px] text-white/60 text-center leading-none mt-1">
+                      <p className="text-[7.5px] text-white/70 text-center leading-tight truncate max-w-[100px]">
                         {assignments[slotId]?.company}
                       </p>
                     </div>
@@ -1177,7 +1235,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
             {/* Red container: Sectors + UMS (Fills remaining Page 4 height to footer) */}
             <div className="flex gap-2.5 px-[2%] py-[2%] bg-[#c8102e] flex-1 min-h-0">
               {/* Sectors flex column */}
-              <div className="flex-1 flex flex-col justify-evenly py-2 gap-2">
+              <div className="flex-1 flex flex-col justify-evenly gap-1.5">
                 {Array.from({ length: Math.ceil(firstPageSectors.length / 3) }).map((_, rowIdx) => {
                   const rowSectors = firstPageSectors.slice(rowIdx * 3, rowIdx * 3 + 3);
                   return (
@@ -1204,27 +1262,33 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
 
               {/* UMS panel */}
               {firstPageUms.length > 0 && (
-                <div className="w-[250px] rounded-sm border border-ink shrink-0 bg-white overflow-hidden flex flex-col h-fit self-start">
+                <div className="w-[250px] rounded-sm border border-ink shrink-0 bg-white overflow-hidden flex flex-col h-full self-stretch">
                   <div className="bg-[#1a2e5e] py-[5px] text-center shrink-0">
-                    <p className="text-[7px] font-medium text-white">Udyami Management System</p>
+                    <p className="text-[7.5px] font-bold text-white uppercase tracking-wider">Udyami Management System</p>
                   </div>
-                  <div className="grid grid-cols-2 px-3 py-3 gap-x-4 gap-y-3 content-start">
+                  <div className="flex-1 grid grid-cols-2 px-3 py-2 gap-x-3 gap-y-1.5 content-evenly">
                     {firstPageUms.map((s) => {
                       const slotId = `ums-${s.key}`;
+                      const assigned = assignments[slotId];
                       return (
-                        <div key={s.key} className="flex flex-col items-center">
-                          <p className="text-[6px] font-medium text-[#b5121b] text-center mb-1 min-h-[12px] leading-tight">{s.label}</p>
+                        <div key={s.key} className="flex flex-col items-center min-w-0">
+                          <p className="text-[6px] font-medium text-[#b5121b] text-center mb-0.5 min-h-[10px] leading-tight truncate w-full">{s.label}</p>
                           <div
                             onClick={() => handleSlotClick(slotId, s.label)}
                             className={`relative w-full aspect-[3/2] border border-[#c8102e] rounded-sm bg-[#d0d0d8] overflow-hidden flex items-center justify-center ${!isPreviewMode ? "cursor-pointer group" : "cursor-default"}`}
                           >
-                            {assignments[slotId]?.photoUrl && (
-                              <img src={assignments[slotId].photoUrl} alt={assignments[slotId].name} className="w-full h-full object-cover" />
-                            )}
+                            {assigned?.photoUrl ? (
+                              <img src={assigned.photoUrl} alt={assigned.name} className="w-full h-full object-cover" />
+                            ) : assigned?.name ? (
+                              <User size={18} className="text-slate-600" />
+                            ) : null}
                             {!isPreviewMode && !isSuperAdmin && (
                               <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                             )}
                           </div>
+                          <p className="text-[7.5px] font-bold text-slate-800 text-center mt-0.5 truncate w-full leading-tight min-h-[10px]">
+                            {assigned?.name || ""}
+                          </p>
                         </div>
                       );
                     })}
@@ -1234,92 +1298,6 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
             </div>
           </div>
         </ChartPage>
-
-        {/* ══════ PAGE 4 CONTINUATION — Sectors / UMS Overflow ══════ */}
-        {continuationPages.map((contPage, idx) => {
-          const pageNum = 5 + idx;
-          return (
-            <ChartPage
-              key={`page4-cont-${idx}`}
-              pageLabel="Sectors · UMS (Continued)"
-              pageNum={pageNum}
-              ward={ward}
-            >
-              <div className="flex flex-col h-full min-h-full">
-                <div className="flex gap-2.5 px-[2%] py-[2%] bg-[#c8102e] flex-1 min-h-0">
-                  {/* Sectors flex column */}
-                  <div className="flex-1 flex flex-col justify-start py-3 gap-4">
-                    {Array.from({ length: Math.ceil(contPage.sectors.length / 3) }).map((_, rowIdx) => {
-                      const rowSectors = contPage.sectors.slice(rowIdx * 3, rowIdx * 3 + 3);
-                      return (
-                        <div key={rowIdx} className="flex justify-center gap-6 px-4">
-                          {rowSectors.map((s) => {
-                            const slotId = `sector-${s.key}`;
-                            return (
-                              <div key={s.key} className="w-[118px] shrink-0">
-                                <SectorCard
-                                  slotId={slotId}
-                                  label={s.label}
-                                  assigned={assignments[slotId]}
-                                  dimmed={isDimmed(slotId, "sectors", assignments[slotId]?.name)}
-                                  onAssignClick={slotClickProp}
-                                  showPlus={!isPreviewMode}
-                                  isSuperAdmin={isSuperAdmin}
-                                />
-                              </div>
-                            );
-                          })}
-                          {rowSectors.length < 3 &&
-                            Array.from({ length: 3 - rowSectors.length }).map((_, fi) => (
-                              <div key={`fill-${fi}`} className="w-[118px] shrink-0 opacity-0" />
-                            ))}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* UMS panel */}
-                  {contPage.ums.length > 0 && (
-                    <div className="w-[250px] rounded-sm border border-ink shrink-0 bg-white overflow-hidden flex flex-col h-fit self-start">
-                      <div className="bg-[#1a2e5e] py-[5px] text-center shrink-0">
-                        <p className="text-[7px] font-medium text-white">Udyami Management System (Continued)</p>
-                      </div>
-                      <div className="grid grid-cols-2 px-3 py-3 gap-x-4 gap-y-3 content-start">
-                        {contPage.ums.map((s) => {
-                          const slotId = `ums-${s.key}`;
-                          return (
-                            <div key={s.key} className="flex flex-col items-center">
-                              <p className="text-[6px] font-medium text-[#b5121b] text-center mb-1 min-h-[12px] leading-tight">
-                                {s.label}
-                              </p>
-                              <div
-                                onClick={() => handleSlotClick(slotId, s.label)}
-                                className={`relative w-full aspect-[3/2] border border-[#c8102e] rounded-sm bg-[#d0d0d8] overflow-hidden flex items-center justify-center ${
-                                  !isPreviewMode ? "cursor-pointer group" : "cursor-default"
-                                }`}
-                              >
-                                {assignments[slotId]?.photoUrl && (
-                                  <img
-                                    src={assignments[slotId].photoUrl}
-                                    alt={assignments[slotId].name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                )}
-                                {!isPreviewMode && !isSuperAdmin && (
-                                  <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </ChartPage>
-          );
-        })}
 
         {/* ══════ PRODUCT PAGES ══════ */}
         {/* Hidden measure div */}

@@ -1,10 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { ArrowRight } from "lucide-react";
-import axios from "axios";
-
-const BASE_URL = "https://udyami-circle-db.onrender.com";
 
 const TONES = {
   full: {
@@ -45,51 +42,15 @@ const AREA_CHART_BASE = {
   WardChairman: "/wardChairman/area-chart",
 };
 
-export default function WardCard({ ward }) {
+export default function WardCard({ ward, constituencyWardCount }) {
   const navigate = useNavigate();
-  const { user, token: reduxToken } = useSelector((s) => s.auth || {});
-  const token = reduxToken || localStorage.getItem("token") || "";
+  const { user } = useSelector((s) => s.auth || {});
 
-  const [apiLayoutCount, setApiLayoutCount] = useState(null);
-  const [apiTotalMembers, setApiTotalMembers] = useState(null);
+  const { ward_name, ward_number } = ward;
 
-  useEffect(() => {
-    const getEffectiveUserId = () => {
-      if (user?.role === "WardChairman") return user?.userId || "";
-      try {
-        const meta = JSON.parse(localStorage.getItem("wardChartMeta") || "{}");
-        if (meta && meta.wardHeadId) return meta.wardHeadId;
-      } catch (e) {}
-      return user?.userId || "";
-    };
-
-    const userIdToUse = getEffectiveUserId();
-    if (userIdToUse && ward?.id) {
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      axios
-        .get(`${BASE_URL}/ward-chart/getWardChartData/${userIdToUse}/${ward.id}`, { headers })
-        .then((res) => {
-          if (res.data?.success && res.data?.data) {
-            const data = res.data.data;
-            const count = data.layoutCount || data.layoutConfig?.layoutCount;
-            if (count) {
-              setApiLayoutCount(Number(count));
-            }
-            if (typeof data.totalMembers === "number") {
-              setApiTotalMembers(data.totalMembers);
-            }
-          }
-        })
-        .catch((err) => {
-          // fallback silently if API fails
-        });
-    }
-  }, [user, token, ward?.id]);
-
-  const { ward_name, ward_number, booths_built = 0 } = ward;
-
-  const actualBuilt = apiTotalMembers !== null ? apiTotalMembers : booths_built;
-  const booths_total = apiLayoutCount !== null ? apiLayoutCount : Number(ward.layoutCount || ward.booths_total || 103);
+  const actualBuilt = Number(ward.totalMembers ?? ward.totalWardChartMembers ?? ward.booths_built ?? 0);
+  const wardLength = constituencyWardCount || ward.constituencyWardCount || ward.wardsCount;
+  const booths_total = Number(ward.layoutCount ?? ward.booths_total ?? 103);
 
   const pct = booths_total > 0 ? Math.round((actualBuilt / booths_total) * 100) : 0;
   const status = actualBuilt <= 0 ? "empty" : actualBuilt >= booths_total ? "full" : "progress";
@@ -116,7 +77,17 @@ export default function WardCard({ ward }) {
 
       <button
         onClick={() => {
-          navigate(`${basePath}/${ward.id}`, { state: { ward } });
+          navigate(`${basePath}/${ward.id}`, {
+            state: {
+              ward: {
+                ...ward,
+                constituencyWardCount: wardLength,
+                layoutCount: booths_total,
+                booths_total: booths_total,
+                g_code: ward.g_code || ward.ward_number || ward.wardNumber || "",
+              },
+            },
+          });
         }}
         className={`w-full flex items-center justify-center gap-1.5 text-[12.5px] font-semibold border rounded-lg py-2 transition-all duration-200 ${t.btnCls}`}
       >

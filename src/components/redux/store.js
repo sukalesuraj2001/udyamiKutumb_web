@@ -18,7 +18,7 @@ import jobReducer from "./slices/Jobslice.js";
 import newsReducer from "./slices/newsSlice.js";
 import routeTrackingReducer from "./slices/Routetrackingslice.js";
 import cpOnboardingReducer from "./slices/Cponboardingslice.js";
-
+import cpFormReducer from "./slices/cpFormSlice";
 // import globalLoaderReducer from './slices/globalLoaderSlice.js'
 export const store = configureStore({
     reducer: {
@@ -41,6 +41,7 @@ export const store = configureStore({
         membershipPlans: membershipPlansReducer,
         jobs: jobReducer,
         news: newsReducer,
-        cpOnboarding: cpOnboardingReducer
+        cpOnboarding: cpOnboardingReducer,
+        cpForm: cpFormReducer,
     }
 })

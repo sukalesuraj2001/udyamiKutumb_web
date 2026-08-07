@@ -5,17 +5,15 @@ export default function ChairmanHighlightCard({ wardNumber, assigned, dimmed, on
   return (
     <button
       onClick={() => onAssignClick("ward-chairman", "Chairman")}
-      className={`flex flex-col items-center justify-start gap-2 bg-brick px-3 py-3 w-full h-full min-h-[180px] transition-opacity ${isSuperAdmin ? "" : "group"} ${dimmed ? "opacity-25" : "opacity-100"}`}
+      className={`flex flex-col items-center justify-center gap-1 bg-brick p-2 rounded-lg w-full transition-opacity ${isSuperAdmin ? "" : "group"} ${dimmed ? "opacity-25" : "opacity-100"}`}
     >
-      <p className="text-white text-[11px] font-bold text-center leading-tight">Chairman</p>
+      <p className="text-white text-[11px] font-bold text-center leading-tight mb-1">Chairman</p>
 
-      {/* ✅ bg-[#1a2e5e] instead of bg-ink, bigger box */}
-      <div className="relative w-[110px] h-[110px] rounded-lg bg-[#1a2e5e] border-2 border-white flex items-center justify-center overflow-hidden shrink-0">
+      <div className="relative w-[95px] h-[95px] rounded-lg bg-[#1a2e5e] border-2 border-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
         {assigned?.photoUrl ? (
           <img src={assigned.photoUrl} alt={assigned.name} className="w-full h-full object-cover" />
         ) : (
-          // ✅ size 56 instead of 32
-          <User size={56} className="text-white/90" strokeWidth={1.5} fill="white" />
+          <User size={52} className="text-white/90" strokeWidth={1.5} fill="white" />
         )}
         {!isSuperAdmin && (
           <span className="absolute inset-0 bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-colors">
@@ -24,9 +22,12 @@ export default function ChairmanHighlightCard({ wardNumber, assigned, dimmed, on
         )}
       </div>
 
-      {assigned?.name && (
-        <p className="text-white text-[10px] font-semibold text-center leading-tight truncate w-full max-w-full px-1">{assigned.name}</p>
-      )}
+      <p className="mt-1.5 text-[9.5px] font-bold text-white uppercase text-center leading-tight truncate max-w-[100px]">
+        {assigned?.name || "NAME"}
+      </p>
+      <p className="text-[7.5px] text-white/70 text-center leading-tight truncate max-w-[100px]">
+        {assigned?.company || ""}
+      </p>
     </button>
   );
 }

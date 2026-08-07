@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus } from "lucide-react";
+import { User, Plus } from "lucide-react";
 
 export default function UmsCard({ slotId, label, assigned, dimmed, onAssignClick, iconUrl, isSuperAdmin = false }) {
   return (
@@ -11,6 +11,8 @@ export default function UmsCard({ slotId, label, assigned, dimmed, onAssignClick
       >
         {assigned?.photoUrl ? (
           <img src={assigned.photoUrl} alt={assigned.name} className="w-full h-full object-cover" />
+        ) : assigned?.name ? (
+          <User size={24} className="text-slate-600" />
         ) : iconUrl ? (
           <img src={iconUrl} alt={label} className="w-3/4 h-3/4 object-contain" />
         ) : null}

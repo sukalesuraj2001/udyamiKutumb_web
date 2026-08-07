@@ -5,28 +5,42 @@ import { showLoader, hideLoader } from "./globalLoaderSlice";
 // const BASE_URL = "http://192.168.0.70:3000";
 const BASE_URL = "https://udyami-circle-db.onrender.com";
 
-const mapToWardShape = (entry) => {
+const mapToWardShape = (entry, constituencyWardCount = 9) => {
+  const rawTotalMembers =
+    entry?.wardChart?.totalMembers ??
+    entry?.totalMembers ??
+    entry?.totalWardChartMembers ??
+    entry?.wardDetails?.totalMembers ??
+    0;
+
   const rawLayoutCount =
+    entry?.wardChart?.layoutConfig?.layoutCount ??
+    entry?.wardChart?.layoutCount ??
     entry?.layoutCount ??
+    entry?.layoutConfig?.layoutCount ??
     entry?.taluka?.layoutCount ??
     entry?.wardDetails?.layoutCount ??
-    entry?.layoutConfig?.layoutCount ??
     entry?.ward?.layoutCount ??
     entry?.taluka?.layoutConfig?.layoutCount ??
     103;
 
   const totalCards = Number(rawLayoutCount) || 103;
+  const totalMembersCount = Number(rawTotalMembers) || 0;
 
   return {
     id: entry.ward?.wardId ?? entry.wardId ?? null,
     ward_name: entry.ward?.wardName ?? entry.ward ?? "",
     ward_number: entry.ward?.wardNumber ?? "",
+    g_code: entry.ward?.g_code || entry.ward?.wardNumber || "",
     constituency: entry.taluka?.talukaName ?? "",
     district: entry.district?.districtName ?? "",
     state: entry.district?.state ?? "",
-    totalWardChartMembers: entry.totalWardChartMembers ?? 0,
-    booths_built: entry.totalWardChartMembers ?? 0,
+    totalMembers: totalMembersCount,
+    totalWardChartMembers: totalMembersCount,
+    booths_built: totalMembersCount,
     booths_total: totalCards,
+    constituencyWardCount: constituencyWardCount,
+    wardsCount: constituencyWardCount,
     layoutCount: String(totalCards),
     is_active: true,
   };
@@ -117,6 +131,12 @@ export const getLocationByWardHeadId = createAsyncThunk(
         entries = [data.data];
       }
 
+      const constituencyCounts = {};
+      entries.forEach((e) => {
+        const cName = e?.taluka?.talukaName || "default";
+        constituencyCounts[cName] = (constituencyCounts[cName] || 0) + 1;
+      });
+
       const wardInfo = data.data?.ward
         ? {
           wardId: data.data.ward.wardId,
@@ -128,7 +148,7 @@ export const getLocationByWardHeadId = createAsyncThunk(
         : null;
 
       return {
-        wards: entries.map(mapToWardShape),
+        wards: entries.map((e) => mapToWardShape(e, constituencyCounts[e?.taluka?.talukaName || "default"] || entries.length)),
         wardInfo,
       };
     } catch (err) {

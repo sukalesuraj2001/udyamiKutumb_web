@@ -48,23 +48,23 @@ export const SAMPLE_PRODUCT_CATEGORIES = [
     label: "Yuva Udyami",
     color: "#dbc118",
     products: [
-      { key: "slot1", name: "Slot 1", sub: "Slot 1", enabled: true },
-      { key: "slot2", name: "Slot 2", sub: "Slot 2", enabled: true },
-      { key: "slot3", name: "Slot 3", sub: "Slot 3", enabled: true },
-      { key: "slot4", name: "Slot 4", sub: "Slot 4", enabled: true },
-      { key: "slot5", name: "Slot 5", sub: "Slot 5", enabled: true },
+      { key: "slot1", name: "Yuva Udyami 1", sub: "Yuva Udyami", enabled: true },
+      { key: "slot2", name: "Yuva Udyami 2", sub: "Yuva Udyami", enabled: true },
+      { key: "slot3", name: "Yuva Udyami 3", sub: "Yuva Udyami", enabled: true },
+      { key: "slot4", name: "Yuva Udyami 4", sub: "Yuva Udyami", enabled: true },
+      { key: "slot5", name: "Yuva Udyami 5", sub: "Yuva Udyami", enabled: true },
     ],
   },
   {
     key: "ec",
-    label: "EC",
+    label: "E3",
     color: "#b7492b",
     products: [
-      { key: "slot1", name: "Slot 1", sub: "Slot 1", enabled: true },
-      { key: "slot2", name: "Slot 2", sub: "Slot 2", enabled: true },
-      { key: "slot3", name: "Slot 3", sub: "Slot 3", enabled: true },
-      { key: "slot4", name: "Slot 4", sub: "Slot 4", enabled: true },
-      { key: "slot5", name: "Slot 5", sub: "Slot 5", enabled: true },
+      { key: "slot1", name: "E3 1", sub: "E3", enabled: true },
+      { key: "slot2", name: "E3 2", sub: "E3", enabled: true },
+      { key: "slot3", name: "E3 3", sub: "E3", enabled: true },
+      { key: "slot4", name: "E3 4", sub: "E3", enabled: true },
+      { key: "slot5", name: "E3 5", sub: "E3", enabled: true },
     ],
   },
   {
@@ -77,8 +77,8 @@ export const SAMPLE_PRODUCT_CATEGORIES = [
       { key: "yuvaudyami", name: "UB Yuva Udyami", sub: "YUVA UDYAMI", enabled: true },
       { key: "aiml", name: "UB AI/ML", sub: "UB AI / ML ROBOTIC", enabled: true },
       { key: "rownify", name: "UB R Ownify", sub: "OWNIFY", enabled: true },
-      { key: "rownify", name: "UB R Ownify", sub: "OWNIFY", enabled: true },
-      { key: "rownify", name: "UB R Ownify", sub: "OWNIFY", enabled: true },
+      // { key: "rownify", name: "UB R Ownify", sub: "OWNIFY", enabled: true },
+      // { key: "rownify", name: "UB R Ownify", sub: "OWNIFY", enabled: true },
     ],
   },
   {
@@ -105,20 +105,60 @@ export default function ProductsPage({
   showPlus = true,
   isSuperAdmin = false 
 }) {
+  const TOTAL_PAGE_ROWS = 7;
+  const COLS = 5;
+
+  let totalRowsUsed = 0;
+  const processedCats = [];
+
+  categories.forEach((cat) => {
+    if (totalRowsUsed >= TOTAL_PAGE_ROWS) return;
+
+    const availableRows = TOTAL_PAGE_ROWS - totalRowsUsed;
+    const catProducts = cat.products || [];
+    const neededRows = Math.max(1, Math.ceil(catProducts.length / COLS));
+    const rowsToRender = Math.min(neededRows, availableRows);
+
+    if (rowsToRender > 0) {
+      const maxSlots = rowsToRender * COLS;
+      const productsForCat = catProducts.slice(0, maxSlots);
+      
+      const paddedProducts = [...productsForCat];
+      while (paddedProducts.length < maxSlots) {
+        paddedProducts.push(null);
+      }
+
+      processedCats.push({
+        ...cat,
+        rows: rowsToRender,
+        products: paddedProducts,
+      });
+
+      totalRowsUsed += rowsToRender;
+    }
+  });
+
+  const emptyRowsNeeded = Math.max(0, TOTAL_PAGE_ROWS - totalRowsUsed);
+
   return (
-    <div className="bg-white overflow-hidden min-h-full pb-[20px] flex flex-col">
+    <div className="bg-white overflow-hidden flex flex-col min-h-[1123px] max-h-[1123px] w-[794px] mx-auto">
       <ChartHeaderBanner code={code} wardName={wardName} region={region} />
 
-      <div className="flex-1 flex flex-col justify-between divide-y divide-transparent space-y-0">
-        {categories.map((cat) => {
-          // Fixed 5 columns layout so card dimensions never change regardless of product count
-          const productCount = cat.products.length;
-          const cols = 5;
-          const rows = Math.ceil(productCount / cols);
+      <div className="flex-1 p-[8px] flex flex-col justify-start gap-[6px]">
+        {processedCats.map((cat, catIdx) => {
+          const isSectorsUms = cat.key === "extra-sectors-ums";
 
           return (
-            <div key={cat.key} className="flex flex-1" style={{ backgroundColor: `${cat.color}18` }}>
-              <div className="w-[32px] shrink-0 flex items-center justify-center" style={{ backgroundColor: cat.color }}>
+            <div
+              key={cat.key || `cat-${catIdx}`}
+              className="flex items-stretch rounded-sm overflow-hidden shrink-0"
+              style={{ backgroundColor: isSectorsUms ? "#c8102e" : `${cat.color}15` }}
+            >
+              {/* ── Left Category Strip ── */}
+              <div
+                className="w-[32px] shrink-0 flex items-center justify-center"
+                style={{ backgroundColor: isSectorsUms ? "#1a2e5e" : cat.color }}
+              >
                 <span
                   className="text-white text-[9px] font-bold tracking-widest whitespace-nowrap uppercase"
                   style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
@@ -127,71 +167,159 @@ export default function ProductsPage({
                 </span>
               </div>
 
+              {/* ── Fixed 5-Column Grid ── */}
               <div
-                className="flex-1 grid gap-[8px] p-[8px]"
+                className="flex-1 grid gap-x-[8px] gap-y-[6px] p-[6px]"
                 style={{
-                  gridTemplateColumns: `repeat(${cols}, 1fr)`,
-                  gridTemplateRows: `repeat(${rows}, 1fr)`,
+                  gridTemplateColumns: `repeat(${COLS}, 138px)`,
+                  gridTemplateRows: `repeat(${cat.rows}, 134px)`,
                 }}
               >
                 {cat.products.map((p, pIdx) => {
-                  const slotId = p.isPlaceholder
-                    ? `product-${cat.key}-slot-${pIdx + 1}`
-                    : `product-${cat.key}-${p.key}`;
-                  const assigned = assignments[slotId];
-
-                  if (p.isPlaceholder) {
+                  if (!p) {
                     return (
-                      <div key={p.key} className="flex flex-col">
-                        <p className="text-[9px] font-bold mb-[4px] truncate leading-tight"
-                          style={{ color: cat.color }}>
-                          {p.name}
-                        </p>
-                        <button
-                          onClick={() => onAssignClick?.(slotId, p.name)}
-                          className="group relative w-full aspect-square bg-white/40 border-[3px] border-dashed rounded-xl flex items-center justify-center overflow-hidden cursor-pointer"
-                          style={{ borderColor: cat.color }}
-                        >
-                          {assigned?.photoUrl ? (
-                            <img
-                              src={assigned.photoUrl}
-                              alt={assigned.name}
-                              className="absolute inset-0 w-full h-full object-cover rounded-[9px]"
-                            />
-                          ) : (
-                            showPlus && (
-                              <Plus size={16} className="opacity-40 group-hover:opacity-100 transition-opacity"
-                                style={{ color: cat.color }} />
-                            )
-                          )}
-                          {assigned?.photoUrl && showPlus && (
-                            <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center transition-colors rounded-[9px]">
-                              <Plus size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </span>
-                          )}
-                        </button>
-                        {assigned?.name && (
-                          <p className="text-[8px] font-medium text-ink mt-[2px] truncate text-center cursor-pointer"
-                            onClick={() => onAssignClick?.(slotId, p.name)}>
-                            {assigned.name}
-                          </p>
-                        )}
+                      <div key={`empty-slot-${pIdx}`} className="w-[138px] h-[134px] flex flex-col items-center justify-between p-1">
+                        <div className="h-[14px] w-full" />
+                        <div className={`w-[104px] h-[104px] rounded-xl border-[2px] border-dashed ${isSectorsUms ? "border-white/30 bg-white/10" : "border-gray-200/60 bg-white/20"}`} />
+                        <div className="h-[12px] w-full" />
                       </div>
                     );
                   }
 
-                  // ── Normal product slot ──
+                  const slotId = p.isPlaceholder
+                    ? `product-${cat.key}-slot-${pIdx + 1}`
+                    : (p.key && (p.key.startsWith("sector-") || p.key.startsWith("ums-")))
+                    ? p.key
+                    : `product-${cat.key}-${p.key}`;
+                  const assigned = assignments[slotId];
+
+                  // Sector / UMS styling override inside extra-sectors-ums category
+                  if (isSectorsUms) {
+                    const isUmsType = p.itemType === "ums" || p.key?.startsWith("ums-");
+
+                    if (isUmsType) {
+                      return (
+                        <div key={p.key || `p-${pIdx}`} className="w-[138px] h-[134px] flex flex-col items-center justify-between p-1">
+                          {/* White panel container matching Page 4 UMS panel */}
+                          <div className="w-[104px] bg-white rounded-sm border border-[#1a2e5e]/30 overflow-hidden p-1 flex flex-col items-center shrink-0">
+                            {/* Dark Red Header text */}
+                            <p className="text-[6.5px] font-bold text-[#b5121b] text-center truncate leading-tight w-full mb-1 uppercase">
+                              {p.name}
+                            </p>
+
+                            {/* Card button matching Page 4 UMS card */}
+                            <button
+                              onClick={() => onAssignClick?.(slotId, p.name)}
+                              className="group relative w-full h-[68px] bg-[#d0d0d8] border border-[#c8102e] rounded-sm flex items-center justify-center overflow-hidden cursor-pointer shrink-0"
+                            >
+                              {assigned?.photoUrl ? (
+                                <img
+                                  src={assigned.photoUrl}
+                                  alt={assigned.name}
+                                  className="absolute inset-0 w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-[6.5px] font-bold uppercase text-[#b5121b] text-center px-1 leading-tight">
+                                  {p.sub || p.name}
+                                </span>
+                              )}
+
+                              {showPlus && (
+                                <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center transition-colors">
+                                  <Plus
+                                    size={14}
+                                    className={
+                                      assigned?.photoUrl
+                                        ? "text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                        : "text-[#b5121b] opacity-50 group-hover:opacity-100 transition-opacity"
+                                    }
+                                  />
+                                </span>
+                              )}
+                            </button>
+                          </div>
+
+                          {/* Assigned name */}
+                          <p
+                            className="text-[7.5px] font-bold text-white h-[12px] w-full truncate text-center cursor-pointer mt-0.5"
+                            onClick={() => onAssignClick?.(slotId, p.name)}
+                          >
+                            {assigned?.name || ""}
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    // Sector Card matching Page 4 Sector Card exactly
+                    return (
+                      <div key={p.key || `p-${pIdx}`} className="w-[138px] h-[134px] flex flex-col items-center justify-between p-1">
+                        {/* Outer card frame with dark header strip */}
+                        <div className="w-[104px] bg-white rounded-sm overflow-hidden border border-white/10 shrink-0 flex flex-col">
+                          {/* Dark Header Strip */}
+                          <div className="bg-[#1B2430] text-white text-[6.5px] font-bold uppercase tracking-wide text-center py-[2.5px] px-1 leading-tight truncate shrink-0">
+                            {p.name}
+                          </div>
+
+                          {/* Card Button / Image Area */}
+                          <button
+                            onClick={() => onAssignClick?.(slotId, p.name)}
+                            className="group relative w-full h-[80px] bg-white flex items-center justify-center overflow-hidden p-1 cursor-pointer"
+                          >
+                            {assigned?.photoUrl ? (
+                              <img
+                                src={assigned.photoUrl}
+                                alt={assigned.name}
+                                className="absolute inset-0 w-full h-full object-cover"
+                              />
+                            ) : (
+                              <span className="text-[6px] font-semibold uppercase text-slate-400 text-center px-1 leading-tight">
+                                {p.sub || p.name}
+                              </span>
+                            )}
+
+                            {showPlus && (
+                              <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center transition-colors">
+                                <Plus
+                                  size={14}
+                                  className={
+                                    assigned?.photoUrl
+                                      ? "text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                      : "text-[#1a2e5e] opacity-40 group-hover:opacity-100 transition-opacity"
+                                  }
+                                />
+                              </span>
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Assigned name */}
+                        <p
+                          className="text-[7.5px] font-bold text-white h-[12px] w-full truncate text-center cursor-pointer mt-0.5"
+                          onClick={() => onAssignClick?.(slotId, p.name)}
+                        >
+                          {assigned?.name || ""}
+                        </p>
+                      </div>
+                    );
+                  }
+
                   return (
-                    <div key={p.key} className="flex flex-col">
-                      <p className="text-[9px] font-bold mb-[4px] truncate leading-tight" style={{ color: cat.color }}>
+                    <div key={p.key || `p-${pIdx}`} className="w-[138px] h-[134px] flex flex-col items-center justify-between p-1">
+                      <p
+                        className="text-[9px] font-bold h-[14px] w-full truncate leading-tight text-center"
+                        style={{ color: cat.color }}
+                      >
                         {p.name}
                       </p>
+
                       <button
                         onClick={() => onAssignClick?.(slotId, p.name)}
-                        className="group relative w-full aspect-square bg-white border-[3px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden cursor-pointer"
-                        style={{ borderColor: cat.color }}
+                        className="group relative w-[104px] h-[104px] bg-white border-[3px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden cursor-pointer shrink-0"
+                        style={{
+                          borderColor: cat.color,
+                          borderStyle: p.isPlaceholder ? "dashed" : "solid",
+                        }}
                       >
-                        {/* ── Assigned image ── */}
                         {assigned?.photoUrl ? (
                           <img
                             src={assigned.photoUrl}
@@ -199,26 +327,34 @@ export default function ProductsPage({
                             className="absolute inset-0 w-full h-full object-cover rounded-[9px]"
                           />
                         ) : (
-                          <span className="text-[8px] font-bold uppercase text-muted text-center leading-tight px-0.5 max-w-full truncate block">
-                            {p.sub}
-                          </span>
+                          !p.isPlaceholder && (
+                            <span className="text-[8px] font-bold uppercase text-muted text-center leading-tight px-0.5 max-w-full truncate block">
+                              {p.sub}
+                            </span>
+                          )
                         )}
 
-                        {/* ── Hover overlay ── */}
                         {showPlus && (
                           <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 flex items-center justify-center transition-colors rounded-[9px]">
-                            <Plus size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <Plus
+                              size={16}
+                              className={
+                                assigned?.photoUrl
+                                  ? "text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                  : "opacity-40 group-hover:opacity-100 transition-opacity"
+                              }
+                              style={!assigned?.photoUrl ? { color: cat.color } : {}}
+                            />
                           </span>
                         )}
                       </button>
 
-                      {/* ── Name below card ── */}
-                      {assigned?.name && (
-                        <p className="text-[8px] font-medium text-ink mt-[2px] truncate text-center cursor-pointer"
-                          onClick={() => onAssignClick?.(slotId, p.name)}>
-                          {assigned.name}
-                        </p>
-                      )}
+                      <p
+                        className="text-[8px] font-medium text-ink h-[12px] w-full truncate text-center cursor-pointer"
+                        onClick={() => onAssignClick?.(slotId, p.name)}
+                      >
+                        {assigned?.name || ""}
+                      </p>
                     </div>
                   );
                 })}
@@ -226,6 +362,28 @@ export default function ProductsPage({
             </div>
           );
         })}
+
+        {/* ── Empty Rows to complete 7 Rows on Page ── */}
+        {emptyRowsNeeded > 0 && (
+          <div className="flex items-stretch rounded-sm overflow-hidden bg-slate-50/50 border border-dashed border-gray-200 shrink-0">
+            <div className="w-[32px] shrink-0 bg-slate-200/50 flex items-center justify-center" />
+            <div
+              className="flex-1 grid gap-x-[8px] gap-y-[6px] p-[6px]"
+              style={{
+                gridTemplateColumns: `repeat(${COLS}, 138px)`,
+                gridTemplateRows: `repeat(${emptyRowsNeeded}, 134px)`,
+              }}
+            >
+              {Array.from({ length: emptyRowsNeeded * COLS }).map((_, idx) => (
+                <div key={`empty-page-cell-${idx}`} className="w-[138px] h-[134px] flex flex-col items-center justify-between p-1">
+                  <div className="h-[14px] w-full" />
+                  <div className="w-[104px] h-[104px] rounded-xl border-[2px] border-dashed border-gray-200/40 bg-white/20" />
+                  <div className="h-[12px] w-full" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

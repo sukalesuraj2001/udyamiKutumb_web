@@ -11,12 +11,21 @@ import useBreakpoint from "../utils/useBreakpoint.js";
 
 const profilePath = {
     SuperAdmin: "/super-admin-dashboard/profile",
+    superAdmin: "/super-admin-dashboard/profile",
     StateHead: "/state-head-dashboard/profile",
+    stateHead: "/state-head-dashboard/profile",
     DistrictHead: "/district-head-dashboard/profile",
+    districtHead: "/district-head-dashboard/profile",
     TalukHead: "/taluk-head-dashboard/profile",
+    talukHead: "/taluk-head-dashboard/profile",
     WardChairman: "/wardChairman-head-dashboard/profile",
+    wardChairman: "/wardChairman-head-dashboard/profile",
     ChannelPartner: "/channelPartner-dashboard/profile",
+    channelPartner: "/channelPartner-dashboard/profile",
+    Admin: "/admin-dashboard/profile",
     admin: "/admin-dashboard/profile",
+    Member: "/member/profile",
+    member: "/member/profile",
 };
 
 
@@ -586,7 +595,7 @@ function Sidebar({ isOpen, onToggle }) {
     const isMobile = bp === "mobile";
 
     const role = user?.role;
-    const items = NAV[role] || [];
+    const items = NAV[role] || NAV[role?.charAt(0).toUpperCase() + role?.slice(1)] || NAV[role?.toLowerCase()] || [];
 
     const initials = (user?.userName || "A")
         .trim()
@@ -682,12 +691,17 @@ function Sidebar({ isOpen, onToggle }) {
                 </div>
                 <div
                     onClick={() => {
-                        navigate(profilePath[role] || "/profile");
+                        const targetPath = profilePath[role] || profilePath[role?.toLowerCase()] || "/member/profile";
+                        navigate(targetPath);
                     }}
-                    className="w-9 h-9 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-xs font-bold shadow-xs cursor-pointer active:scale-95 transition-transform shrink-0"
+                    className="w-9 h-9 rounded-full bg-[#2563EB] flex items-center justify-center text-white text-xs font-bold shadow-xs cursor-pointer active:scale-95 transition-transform shrink-0 overflow-hidden"
                     title="View Profile"
                 >
-                    {initials}
+                    {user?.profileImage || user?.photo || user?.avatar || user?.photoUrl ? (
+                        <img src={user?.profileImage || user?.photo || user?.avatar || user?.photoUrl} alt={user?.userName || "Profile"} className="w-full h-full object-cover" />
+                    ) : (
+                        initials
+                    )}
                 </div>
             </header>
 
@@ -861,14 +875,19 @@ function Sidebar({ isOpen, onToggle }) {
                 <div className="border-t border-[#E5E7EB]/70 p-3 shrink-0 bg-slate-50/70">
                     <div
                         onClick={() => {
-                            navigate(profilePath[role] || "/profile");
+                            const targetPath = profilePath[role] || profilePath[role?.toLowerCase()] || "/member/profile";
+                            navigate(targetPath);
                             if (isMobile) onToggle();
                         }}
                         className={`flex items-center gap-3 rounded-xl px-2.5 py-3 mb-1.5 transition-all duration-200 cursor-pointer min-h-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] hover:bg-white hover:border hover:border-[#E5E7EB] hover:shadow-xs ${sidebarOpen ? "bg-white border border-[#E5E7EB] shadow-xs" : "justify-center"}`}
                         title={!sidebarOpen ? user?.userName || "Profile" : undefined}
                     >
-                        <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center shrink-0 shadow-[0_2px_6px_rgba(37,99,235,0.30)]">
-                            <span className="text-white text-[11px] font-bold tracking-wide">{initials}</span>
+                        <div className="w-8 h-8 rounded-full bg-[#2563EB] flex items-center justify-center shrink-0 shadow-[0_2px_6px_rgba(37,99,235,0.30)] overflow-hidden">
+                            {user?.profileImage || user?.photo || user?.avatar || user?.photoUrl ? (
+                                <img src={user?.profileImage || user?.photo || user?.avatar || user?.photoUrl} alt={user?.userName || "Profile"} className="w-full h-full object-cover" />
+                            ) : (
+                                <span className="text-white text-[11px] font-bold tracking-wide">{initials}</span>
+                            )}
                         </div>
                         <div className={`min-w-0 flex-1 transition-all duration-200 ${sidebarOpen ? "opacity-100 w-auto" : "opacity-0 w-0 overflow-hidden"}`}>
                             <p className="text-[13px] font-semibold text-slate-800 truncate leading-tight">{user?.userName || "Account"}</p>

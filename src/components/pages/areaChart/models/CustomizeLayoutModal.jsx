@@ -88,6 +88,73 @@ export default function CustomizeLayoutModal({
   const toggle = (section) =>
     setOpenSection((o) => ({ ...o, [section]: !o[section] }));
 
+  // ── Brand category expanded input list state ───────────────────
+  const [openCategoryInputs, setOpenCategoryInputs] = useState({
+    "ub-queens": false,
+    "ub-realty": false,
+    "yuva-udyami": false,
+    "ec": false,
+    "ub-finance-it": false,
+    "ub-social": false,
+  });
+
+  const toggleCategoryInputs = (catKey) => {
+    setOpenCategoryInputs((prev) => ({ ...prev, [catKey]: !prev[catKey] }));
+  };
+
+  const ensureCategoryProductsCount = (catKey, catLabel, targetCount) => {
+    setDraft((d) => {
+      const brandTiles = [...(d.brandTiles || [])];
+      const catIdx = brandTiles.findIndex((c) => c.key === catKey);
+      if (catIdx === -1) return d;
+
+      const cat = brandTiles[catIdx];
+      const products = [...(cat.products || [])];
+
+      while (products.length < targetCount) {
+        const idx = products.length;
+        products.push({
+          key: `${catKey}-item-${uid()}`,
+          name: `${catLabel} ${idx + 1}`,
+          sub: catLabel,
+          enabled: true,
+        });
+      }
+
+      brandTiles[catIdx] = { ...cat, products };
+      return { ...d, brandTiles };
+    });
+  };
+
+  const updateBrandTileProductName = (catKey, productIdx, newName, catLabel) => {
+    setDraft((d) => {
+      const brandTiles = [...(d.brandTiles || [])];
+      const catIdx = brandTiles.findIndex((c) => c.key === catKey);
+      if (catIdx === -1) return d;
+
+      const cat = brandTiles[catIdx];
+      const products = [...(cat.products || [])];
+
+      while (products.length <= productIdx) {
+        const idx = products.length;
+        products.push({
+          key: `${catKey}-item-${uid()}`,
+          name: `${catLabel} ${idx + 1}`,
+          sub: catLabel,
+          enabled: true,
+        });
+      }
+
+      products[productIdx] = {
+        ...products[productIdx],
+        name: newName,
+      };
+
+      brandTiles[catIdx] = { ...cat, products };
+      return { ...d, brandTiles };
+    });
+  };
+
   // ── Dropdown count update ──────────────────────────────────────
   const updateCountDirect = (key, value) =>
     setDraft((d) => ({
@@ -250,6 +317,24 @@ export default function CustomizeLayoutModal({
     ? `Please add ${missingUms} UMS role(s) to match the selected ${extraSectors} extra sector(s).`
     : null;
 
+  // ── Advisory & Mentor Validation (Coupled 3:2 and 6:4 rule) ───────
+  const advisoriesCount = Number(draft.slotCounts?.advisories ?? 3);
+  const mentorsCount = Number(draft.slotCounts?.mentors ?? 2);
+
+  const advisoryMentorValid =
+    (advisoriesCount === 3 && mentorsCount === 2) ||
+    (advisoriesCount === 6 && mentorsCount === 4);
+
+  const isSaveAllowed = ratioValid && advisoryMentorValid;
+
+  const advisoryMentorMessage = !advisoryMentorValid
+    ? advisoriesCount === 6 && mentorsCount !== 4
+      ? "When Advisory is changed to 6, Mentor must also be changed to 4."
+      : advisoriesCount === 3 && mentorsCount !== 2
+      ? "When Advisory is set to 3, Mentor must also be set to 2."
+      : "Advisory 3 requires Mentor 2, and Advisory 6 requires Mentor 4."
+    : null;
+
   // ── Original sector keys (to show remove only on new items) ───
   const originalSectorKeys = useRef(
     new Set(config.sectors?.map((s) => s.key) ?? [])
@@ -312,8 +397,8 @@ export default function CustomizeLayoutModal({
               <>
                 <DropdownRow
                   label="Patrons"
-                  value={draft.slotCounts.patrons ?? 3}
-                  options={[3, 6]}
+                  value={draft.slotCounts.patrons ?? 10}
+                  options={[5, 10, 15]}
                   onChange={(v) => updateCountDirect("patrons", v)}
                 />
                 <DropdownRow
@@ -324,49 +409,93 @@ export default function CustomizeLayoutModal({
                 />
                 <DropdownRow
                   label="Mentors"
-                  value={draft.slotCounts.mentors ?? 3}
-                  options={[3, 6]}
+                  value={draft.slotCounts.mentors ?? 2}
+                  options={[2, 4]}
                   onChange={(v) => updateCountDirect("mentors", v)}
                 />
                 <div className="my-2 border-t border-gray-100" />
               </>
             )}
-            <DropdownRow
-              label="UB Queen's"
-              value={draft.slotCounts.udyamiQueens ?? 5}
-              options={[5, 10, 15, 20]}
-              onChange={(v) => updateCountDirect("udyamiQueens", v)}
-            />
-            <DropdownRow
-              label="UB Realty Construction"
-              value={draft.slotCounts.ubRealtyConstruction ?? 5}
-              options={[5, 10, 15, 20]}
-              onChange={(v) => updateCountDirect("ubRealtyConstruction", v)}
-            />
-            <DropdownRow
-              label="Yuva Udyami"
-              value={draft.slotCounts.yuvaUdyami ?? 5}
-              options={[5, 10, 15, 20]}
-              onChange={(v) => updateCountDirect("yuvaUdyami", v)}
-            />
-            <DropdownRow
-              label="EC"
-              value={draft.slotCounts.ec ?? 5}
-              options={[5, 10, 15, 20]}
-              onChange={(v) => updateCountDirect("ec", v)}
-            />
-            <DropdownRow
-              label="UB Finance & IT"
-              value={draft.slotCounts.ubFinanceIT ?? 5}
-              options={[5, 10, 15, 20]}
-              onChange={(v) => updateCountDirect("ubFinanceIT", v)}
-            />
-            <DropdownRow
-              label="UB Social & Brand"
-              value={draft.slotCounts.ubSocialBrand ?? 5}
-              options={[5, 10, 15, 20]}
-              onChange={(v) => updateCountDirect("ubSocialBrand", v)}
-            />
+            {[
+              { catKey: "ub-queens", countKey: "udyamiQueens", label: "UB Queen's" },
+              { catKey: "ub-realty", countKey: "ubRealtyConstruction", label: "UB Realty Construction" },
+              { catKey: "yuva-udyami", countKey: "yuvaUdyami", label: "Yuva Udyami" },
+              { catKey: "ec", countKey: "ec", label: "E3" },
+              { catKey: "ub-finance-it", countKey: "ubFinanceIT", label: "UB Finance & IT" },
+              { catKey: "ub-social", countKey: "ubSocialBrand", label: "UB Social & Brand" },
+            ].map(({ catKey, countKey, label }) => {
+              const currentCount = draft.slotCounts?.[countKey] ?? 5;
+              const categoryData = (draft.brandTiles || []).find((c) => c.key === catKey);
+              const products = categoryData?.products || [];
+              const isExpanded = openCategoryInputs[catKey];
+
+              return (
+                <div key={catKey} className="border-b border-gray-100/80 last:border-b-0 py-1.5">
+                  <div className="flex items-center justify-between py-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] text-gray-700 font-medium">{label}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleCategoryInputs(catKey)}
+                        className="text-[10.5px] text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-0.5 bg-blue-50 px-2 py-0.5 rounded-md transition-colors"
+                      >
+                        {isExpanded ? "Hide names ▲" : `Edit ${currentCount} names ▼`}
+                      </button>
+                    </div>
+                    <select
+                      value={currentCount}
+                      onChange={(e) => {
+                        const newCount = Number(e.target.value);
+                        updateCountDirect(countKey, newCount);
+                        ensureCategoryProductsCount(catKey, label, newCount);
+                        setOpenCategoryInputs((prev) => ({ ...prev, [catKey]: true }));
+                      }}
+                      className="border border-gray-200 rounded-lg px-3 py-1.5 text-[13px] font-semibold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 cursor-pointer"
+                    >
+                      {[5, 10, 15, 20, 25].map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Expanded input fields for slot names */}
+                  {isExpanded && (
+                    <div className="mt-1.5 mb-2.5 pl-2.5 pr-1.5 py-2 bg-gray-50/90 rounded-xl border border-gray-200/60 space-y-2">
+                      <div className="flex items-center justify-between px-0.5">
+                        <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                          Slot Names ({currentCount} slots):
+                        </p>
+                        <span className="text-[10px] text-gray-400">Type custom name for each box</span>
+                      </div>
+                      <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+                        {Array.from({ length: currentCount }).map((_, idx) => {
+                          const prod = products[idx];
+                          const val = prod?.name !== undefined ? prod.name : `${label} ${idx + 1}`;
+                          return (
+                            <div key={idx} className="flex items-center gap-2">
+                              <span className="text-[11px] text-gray-400 w-5 text-right font-medium shrink-0">
+                                {idx + 1}.
+                              </span>
+                              <input
+                                type="text"
+                                value={val}
+                                onChange={(e) =>
+                                  updateBrandTileProductName(catKey, idx, e.target.value, label)
+                                }
+                                placeholder={`${label} ${idx + 1}`}
+                                className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-[12px] text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </Section>
 
           {/* ── Sectors ── */}
@@ -629,6 +758,17 @@ export default function CustomizeLayoutModal({
 
         {/* ── Footer ── */}
         <div className="px-4 sm:px-6 py-4 border-t border-gray-100 bg-gray-50 flex flex-col gap-2">
+          {advisoryMentorMessage && (
+            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 mb-1">
+              <span className="text-red-500 text-[14px] shrink-0 font-bold">⚠</span>
+              <div className="text-[11.5px] text-red-600 font-medium leading-snug">
+                <p className="font-bold text-red-700">{advisoryMentorMessage}</p>
+                <p className="text-[10.5px] text-red-500 mt-0.5">
+                  Rule: Advisory 3 pairs with Mentor 2, and Advisory 6 pairs with Mentor 4.
+                </p>
+              </div>
+            </div>
+          )}
           {ratioMessage && (
             <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3.5 py-2.5 mb-1">
               <span className="text-red-500 text-[14px] shrink-0 font-bold">⚠</span>
@@ -667,11 +807,11 @@ export default function CustomizeLayoutModal({
             </button>
             <button
               onClick={() => {
-                if (ratioValid) onSave(draft);
+                if (isSaveAllowed) onSave(draft);
               }}
-              disabled={!ratioValid}
+              disabled={!isSaveAllowed}
               className={`flex-1 min-w-[100px] text-[13px] font-semibold py-2.5 rounded-xl transition-colors ${
-                ratioValid
+                isSaveAllowed
                   ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                   : "bg-gray-300 text-gray-500 cursor-not-allowed opacity-60"
               }`}

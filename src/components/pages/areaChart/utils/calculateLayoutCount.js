@@ -19,19 +19,18 @@ const CATEGORY_COUNT_MAP = {
  * @param {Object} config - Ward chart layout configuration
  * @returns {number} Total count of available cards
  */
-export function calculateTotalLayoutCards(config) {
-  if (!config) return 103;
+export function calculateTotalLayoutCards(config, wardLength = 9) {
+  if (!config) return 95;
 
   const slotCounts = config.slotCounts || {};
 
   const mlaCount = 1;
-  const patronsCount = Number(slotCounts.patrons ?? 3);
+  const patronsCount = Number(slotCounts.patrons ?? 10);
   const officialsCount = 4;
   const chairmanCount = 1;
-  const chairmenPage2Count = Number(slotCounts.chairmenPage2 ?? 4);
-  const chairmenPage3Count = Number(slotCounts.chairmenPage3 ?? 13);
+  const totalChairmenCount = Number(wardLength || 9);
   const advisoriesCount = Number(slotCounts.advisories ?? 3);
-  const mentorsCount = Number(slotCounts.mentors ?? 3);
+  const mentorsCount = Number(slotCounts.mentors ?? 2);
   const coreRolesCount = 4; // President, Vice-President, General Secretary, Treasurer
 
   // Count all enabled sectors (including newly added custom sectors)
@@ -63,8 +62,7 @@ export function calculateTotalLayoutCards(config) {
     patronsCount +
     officialsCount +
     chairmanCount +
-    chairmenPage2Count +
-    chairmenPage3Count +
+    totalChairmenCount +
     advisoriesCount +
     mentorsCount +
     coreRolesCount +
@@ -78,8 +76,9 @@ export function calculateTotalLayoutCards(config) {
  * Returns the total layout card count as a string format for API payload.
  * 
  * @param {Object} config 
- * @returns {string} E.g. "103"
+ * @param {number} wardLength
+ * @returns {string} E.g. "95"
  */
-export function getLayoutCountString(config) {
-  return String(calculateTotalLayoutCards(config));
+export function getLayoutCountString(config, wardLength = 9) {
+  return String(calculateTotalLayoutCards(config, wardLength));
 }
