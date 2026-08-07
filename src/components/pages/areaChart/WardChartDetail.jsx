@@ -1038,7 +1038,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                 <div className="grid grid-cols-5 gap-x-3 gap-y-1.5">
                   {chairmenP2.map((i) => {
                     const slotId = `chairman-${i + 1}`;
-                    const label = `${gCode}.${i + 1} Chairman`;
+                    const label = `${constituencyWards[i]?.ward_number || `${gCode}.${i + 1}`} Chairman`;
                     return (
                       <div key={slotId}>
                         <p className="text-[8.5px] font-bold text-brick text-center mb-0.5 uppercase truncate">{label}</p>
@@ -1067,7 +1067,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                       <div key={ri} className={row.length === 5 ? "grid grid-cols-5 gap-5" : "flex justify-center gap-5"}>
                         {row.map((i) => {
                           const slotId = `chairman-${i + 1}`;
-                          const label = `${gCode}.${i + 1} Chairman`;
+                          const label = `${constituencyWards[i]?.ward_number || `${gCode}.${i + 1}`} Chairman`;
                           return (
                             <div key={slotId} className={row.length < 5 ? "w-[110px]" : ""}>
                               <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">{label}</p>
