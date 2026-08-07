@@ -39,15 +39,32 @@ const CORE_ROLE_TO_SLOT = {
   "Treasurer": "core-treasurer",
 };
 
+function extractPhotoUrl(val) {
+  if (!val) return null;
+  if (typeof val === "string" && val.trim()) return val;
+  if (typeof val === "object") {
+    if (typeof val.image === "string" && val.image.trim()) return val.image;
+    if (typeof val.url === "string" && val.url.trim()) return val.url;
+  }
+  return null;
+}
+
 /** Converts one API member object → the UI assignment shape */
 function toAssignment(member) {
+  const photo =
+    extractPhotoUrl(member.profileImage) ||
+    extractPhotoUrl(member.photoUrl) ||
+    extractPhotoUrl(member.profile?.profileImage) ||
+    extractPhotoUrl(member.profile?.businessDetails?.businessImage1) ||
+    null;
+
   return {
     name: member.name || "",
     company: member.companyName || member.company || "",
-    photoUrl: member.profileImage || member.photoUrl || null,
+    photoUrl: photo,
     mobileNumber: member.mobileNumber || "",
     email: member.email || "",
-    memberId: member.memberId || null,
+    memberId: member.memberId || member.userId || null,
     location: member.location || null,
     district: member.district || null,
     state: member.state || null,

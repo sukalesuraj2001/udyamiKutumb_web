@@ -53,10 +53,30 @@ function RoleBadge({ role }) {
   );
 }
 
+// ── Profile Photo Extractor ───────────────────────────────────────
+function getMemberPhotoUrl(member) {
+  if (!member) return null;
+  const p = member.profile || {};
+  const raw =
+    p.profileImage ||
+    member.profileImage ||
+    member.photoUrl ||
+    p.businessDetails?.businessImage1 ||
+    null;
+
+  if (!raw) return null;
+  if (typeof raw === "string" && raw.trim()) return raw;
+  if (typeof raw === "object") {
+    if (typeof raw.image === "string" && raw.image.trim()) return raw.image;
+    if (typeof raw.url === "string" && raw.url.trim()) return raw.url;
+  }
+  return null;
+}
+
 // ── Member card ───────────────────────────────────────────────────
 function MemberCard({ member, selected, onSelect }) {
   const role = member.userRoles?.[0]?.role;
-  const photo = member.profile?.profileImage ?? null;
+  const photo = getMemberPhotoUrl(member);
 
   return (
     <button
@@ -215,10 +235,11 @@ export default function AssignPositionModal({
   const handleAssignExisting = () => {
     if (!selectedMember || isSaving) return;
     const p = selectedMember.profile ?? {};
+    const photoUrl = getMemberPhotoUrl(selectedMember);
     onAssign({
       name: selectedMember.name,
-      company: p.businessDetails?.businessName ?? "",
-      photoUrl: p.profileImage ?? null,
+      company: p.businessDetails?.businessName ?? selectedMember.companyName ?? "",
+      photoUrl: photoUrl,
       memberId: selectedMember.userId,
       mobileNumber: selectedMember.mobileNumber,
       alternatePhone: p.alternateMobile,

@@ -285,9 +285,9 @@ export default function AssignRolesTab() {
 
     const roleObj = roles.find((r) => r.roleId === Number(roleId));
 
-    console.log("roleObj →", roleObj);                    
-    console.log("currentUserRole →", currentUserRole);    
-    console.log("locationData →", locationData);          
+    console.log("roleObj →", roleObj);
+    console.log("currentUserRole →", currentUserRole);
+    console.log("locationData →", locationData);
 
     // ── TalukHead flow ──
     if (roleObj?.role === "TalukHead") {
@@ -354,7 +354,7 @@ export default function AssignRolesTab() {
     if (isDistrictHead) return !!rowDistrict;
     if (isTalukaHead) return !!selectedDistrictHeadId && selectedTalukaIds.length > 0;
     if (isWardChairman) {
-      if (currentUserRole === "TalukHead") return !!selectedWardId; 
+      if (currentUserRole === "TalukHead") return !!selectedWardId;
       return !!wcTaluka && !!selectedTalukaHeadId && !!selectedWardId;
     }
     return true;
@@ -476,222 +476,226 @@ export default function AssignRolesTab() {
 
       {/* Table */}
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-        <table className="w-full text-[12.5px]">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50">
-              {["User", "Phone", "Current Role", "Location", "Status", "Action"].map((h) => (
-                <th key={h} className="text-left px-4 py-3 text-[10.5px] font-semibold tracking-wider uppercase text-gray-400 whitespace-nowrap">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {filteredUsers.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-[12.5px] text-gray-400">No users found.</td></tr>
-            ) : filteredUsers.map((u) => {
-              const badge = getRoleBadge(u.userRoles);
-              const isEditing = selectedUser?.userId === u.userId;
+        <div className="overflow-x-auto">
+          <table className="w-full text-[12.5px]">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                {["User", "Phone", "Current Role", "Location", "Status", "Action"].map((h) => (
+                  <th key={h} className="text-left px-4 py-3 text-[10.5px] font-semibold tracking-wider uppercase text-gray-400 whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filteredUsers.length === 0 ? (
+                <tr><td colSpan={6} className="px-4 py-10 text-center text-[12.5px] text-gray-400">No users found.</td></tr>
+              ) : filteredUsers.map((u) => {
+                const badge = getRoleBadge(u.userRoles);
+                const isEditing = selectedUser?.userId === u.userId;
 
-              return (
-                <tr key={u.userId} className={`transition-colors ${isEditing ? "bg-blue-50/40" : "hover:bg-gray-50/60"}`}>
-                  <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">{u.name}</td>
-                  <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{u.mobileNumber}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    {badge
-                      ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold border bg-blue-50 border-blue-200 text-blue-700">{badge}</span>
-                      : <span className="text-gray-400 text-[11px]">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{u.businessLocation || "—"}</td>
-                  <td className="px-4 py-3 whitespace-nowrap">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${u.isActive ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-gray-100 border-gray-200 text-gray-500"}`}>
-                      {u.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </td>
+                return (
+                  <tr key={u.userId} className={`transition-colors ${isEditing ? "bg-blue-50/40" : "hover:bg-gray-50/60"}`}>
+                    <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap">{u.name}</td>
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{u.mobileNumber}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {badge
+                        ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold border bg-blue-50 border-blue-200 text-blue-700">{badge}</span>
+                        : <span className="text-gray-400 text-[11px]">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-gray-500 max-w-[180px] truncate" title={u.businessLocation || "—"}>
+                      {u.businessLocation || "—"}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${u.isActive ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-gray-100 border-gray-200 text-gray-500"}`}>
+                        {u.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </td>
 
-                  {/* Action cell */}
-                  <td className="px-4 py-3">
-                    {isEditing ? (
-                      <div className="flex flex-wrap items-start gap-2">
+                    {/* Action cell */}
+                    <td className="px-4 py-3">
+                      {isEditing ? (
+                        <div className="flex flex-wrap items-start gap-2">
 
-                        {/* Role select */}
-                        <RowSelect
-                          value={newRoleId}
-                          onChange={handleRoleChange}
-                          placeholder="Select role…"
-                          options={visibleRoles.map((r) => ({ value: r.roleId, label: r.role }))}  // ✅
-                          loading={loadingRoles}
-                          minWidth="120px"
-                        />
-
-                        {/* ── DISTRICT HEAD flow ───── */}
-                        {isDistrictHead && (
+                          {/* Role select */}
                           <RowSelect
-                            value={rowDistrict}
-                            onChange={(e) => handleRowDistrictChange(e.target.value)}
-                            placeholder="District…"
-                            options={districts.map((d) => ({ value: d.districtId, label: d.districtName }))}
-                            minWidth="130px"
+                            value={newRoleId}
+                            onChange={handleRoleChange}
+                            placeholder="Select role…"
+                            options={visibleRoles.map((r) => ({ value: r.roleId, label: r.role }))}  // ✅
+                            loading={loadingRoles}
+                            minWidth="120px"
                           />
-                        )}
 
-                        {/* ── TALUKA HEAD flow ─────── */}
-                        {isTalukaHead && (
-                          <>
-                            {/* SuperAdmin district dropdown */}
-                            {currentUserRole !== "DistrictHead" && (
-                              <RowSelect
-                                value={selectedDHDistrict}
-                                onChange={(e) => handleDHDistrictSelect(e.target.value)}
-                                placeholder={loadingRoleUsers ? "Loading…" : "Select District…"}
-                                options={availableDistricts.map((d) => ({ value: d.districtId, label: d.districtName }))}
-                                loading={loadingRoleUsers}
-                                minWidth="140px"
-                              />
-                            )}
+                          {/* ── DISTRICT HEAD flow ───── */}
+                          {isDistrictHead && (
+                            <RowSelect
+                              value={rowDistrict}
+                              onChange={(e) => handleRowDistrictChange(e.target.value)}
+                              placeholder="District…"
+                              options={districts.map((d) => ({ value: d.districtId, label: d.districtName }))}
+                              minWidth="130px"
+                            />
+                          )}
 
-                            {/* DistrictHead ku — district name badge show */}
-                            {currentUserRole === "DistrictHead" && locationData.districtName && (
-                              <span className="h-7 px-2.5 flex items-center text-[11.5px] font-medium bg-blue-50 border border-blue-200 text-blue-700 rounded-lg">
-                                📍 {locationData.districtName}
-                              </span>
-                            )}
-
-                            {/* Talukas — both roles ku show (selectedDHDistrict set ஆனா) */}
-                            {selectedDHDistrict && (
-                              <div className="flex flex-col gap-1">
-                                <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">
-                                  Talukas
-                                  {selectedTalukaIds.length > 0 && (
-                                    <span className="text-blue-600 ml-1">({selectedTalukaIds.length} selected)</span>
-                                  )}
-                                </p>
-                                {loadingRowTalukas ? (
-                                  <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                                    <Loader2 size={11} className="animate-spin" /> Loading talukas…
-                                  </div>
-                                ) : rowTalukas.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1.5 max-w-[300px]">
-                                    {rowTalukas.map((t) => (
-                                      <label key={t.talukaId}
-                                        className={`flex items-center gap-1 text-[11px] cursor-pointer px-2 py-0.5 rounded border transition-colors ${selectedTalukaIds.includes(t.talukaId)
-                                          ? "bg-blue-600 border-blue-600 text-white"
-                                          : "bg-white border-gray-200 text-gray-600 hover:border-blue-300"
-                                          }`}>
-                                        <input type="checkbox"
-                                          checked={selectedTalukaIds.includes(t.talukaId)}
-                                          onChange={() => toggleTalukaId(t.talukaId)}
-                                          className="sr-only" />
-                                        {selectedTalukaIds.includes(t.talukaId) && <Check size={9} />}
-                                        {t.talukaName}
-                                      </label>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <span className="text-[11px] text-gray-400">No talukas found</span>
-                                )}
-                              </div>
-                            )}
-                          </>
-                        )}
-
-                        {/* ── WARD CHAIRMAN flow ────── */}
-                        {/* ── WARD CHAIRMAN flow ────── */}
-                        {isWardChairman && (
-                          <>
-                            {/* TalukHead ku district + taluka + talukaHead hide */}
-                            {currentUserRole !== "TalukHead" && (
-                              <>
+                          {/* ── TALUKA HEAD flow ─────── */}
+                          {isTalukaHead && (
+                            <>
+                              {/* SuperAdmin district dropdown */}
+                              {currentUserRole !== "DistrictHead" && (
                                 <RowSelect
-                                  value={wcDistrict}
-                                  onChange={(e) => handleWcDistrictChange(e.target.value)}
-                                  placeholder="District…"
-                                  options={districts.map((d) => ({ value: d.districtId, label: d.districtName }))}
-                                  minWidth="130px"
+                                  value={selectedDHDistrict}
+                                  onChange={(e) => handleDHDistrictSelect(e.target.value)}
+                                  placeholder={loadingRoleUsers ? "Loading…" : "Select District…"}
+                                  options={availableDistricts.map((d) => ({ value: d.districtId, label: d.districtName }))}
+                                  loading={loadingRoleUsers}
+                                  minWidth="140px"
                                 />
-                                {wcDistrict && (
+                              )}
+
+                              {/* DistrictHead ku — district name badge show */}
+                              {currentUserRole === "DistrictHead" && locationData.districtName && (
+                                <span className="h-7 px-2.5 flex items-center text-[11.5px] font-medium bg-blue-50 border border-blue-200 text-blue-700 rounded-lg">
+                                  📍 {locationData.districtName}
+                                </span>
+                              )}
+
+                              {/* Talukas — both roles ku show (selectedDHDistrict set ஆனா) */}
+                              {selectedDHDistrict && (
+                                <div className="flex flex-col gap-1">
+                                  <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">
+                                    Talukas
+                                    {selectedTalukaIds.length > 0 && (
+                                      <span className="text-blue-600 ml-1">({selectedTalukaIds.length} selected)</span>
+                                    )}
+                                  </p>
+                                  {loadingRowTalukas ? (
+                                    <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
+                                      <Loader2 size={11} className="animate-spin" /> Loading talukas…
+                                    </div>
+                                  ) : rowTalukas.length > 0 ? (
+                                    <div className="flex flex-wrap gap-1.5 max-w-[300px]">
+                                      {rowTalukas.map((t) => (
+                                        <label key={t.talukaId}
+                                          className={`flex items-center gap-1 text-[11px] cursor-pointer px-2 py-0.5 rounded border transition-colors ${selectedTalukaIds.includes(t.talukaId)
+                                            ? "bg-blue-600 border-blue-600 text-white"
+                                            : "bg-white border-gray-200 text-gray-600 hover:border-blue-300"
+                                            }`}>
+                                          <input type="checkbox"
+                                            checked={selectedTalukaIds.includes(t.talukaId)}
+                                            onChange={() => toggleTalukaId(t.talukaId)}
+                                            className="sr-only" />
+                                          {selectedTalukaIds.includes(t.talukaId) && <Check size={9} />}
+                                          {t.talukaName}
+                                        </label>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span className="text-[11px] text-gray-400">No talukas found</span>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          )}
+
+                          {/* ── WARD CHAIRMAN flow ────── */}
+                          {/* ── WARD CHAIRMAN flow ────── */}
+                          {isWardChairman && (
+                            <>
+                              {/* TalukHead ku district + taluka + talukaHead hide */}
+                              {currentUserRole !== "TalukHead" && (
+                                <>
                                   <RowSelect
-                                    value={wcTaluka}
-                                    onChange={(e) => handleWcTalukaChange(e.target.value)}
-                                    placeholder="Taluka…"
-                                    options={wcTalukas.map((t) => ({ value: t.talukaId, label: t.talukaName }))}
-                                    loading={loadingWcTalukas}
-                                    minWidth="120px"
+                                    value={wcDistrict}
+                                    onChange={(e) => handleWcDistrictChange(e.target.value)}
+                                    placeholder="District…"
+                                    options={districts.map((d) => ({ value: d.districtId, label: d.districtName }))}
+                                    minWidth="130px"
                                   />
-                                )}
-                                {wcTaluka && (
-                                  <RowSelect
-                                    value={selectedTalukaHeadId}
-                                    onChange={(e) => setSelectedTalukaHeadId(e.target.value)}
-                                    placeholder="Taluka Head…"
-                                    options={talukaHeads.map((u) => ({ value: u.userId, label: u.name }))}
-                                    loading={loadingTalukaHeads}
-                                    minWidth="140px"
-                                  />
-                                )}
-                              </>
-                            )}
+                                  {wcDistrict && (
+                                    <RowSelect
+                                      value={wcTaluka}
+                                      onChange={(e) => handleWcTalukaChange(e.target.value)}
+                                      placeholder="Taluka…"
+                                      options={wcTalukas.map((t) => ({ value: t.talukaId, label: t.talukaName }))}
+                                      loading={loadingWcTalukas}
+                                      minWidth="120px"
+                                    />
+                                  )}
+                                  {wcTaluka && (
+                                    <RowSelect
+                                      value={selectedTalukaHeadId}
+                                      onChange={(e) => setSelectedTalukaHeadId(e.target.value)}
+                                      placeholder="Taluka Head…"
+                                      options={talukaHeads.map((u) => ({ value: u.userId, label: u.name }))}
+                                      loading={loadingTalukaHeads}
+                                      minWidth="140px"
+                                    />
+                                  )}
+                                </>
+                              )}
 
-                            {/* TalukHead ku — taluka name badge show */}
-                            {currentUserRole === "TalukHead" && locationData.talukaName && (
-                              <span className="h-7 px-2.5 flex items-center text-[11.5px] font-medium bg-blue-50 border border-blue-200 text-blue-700 rounded-lg">
-                                📍 {locationData.talukaName}
-                              </span>
-                            )}
+                              {/* TalukHead ku — taluka name badge show */}
+                              {currentUserRole === "TalukHead" && locationData.talukaName && (
+                                <span className="h-7 px-2.5 flex items-center text-[11.5px] font-medium bg-blue-50 border border-blue-200 text-blue-700 rounded-lg">
+                                  📍 {locationData.talukaName}
+                                </span>
+                              )}
 
-                            {/* Ward dropdown — TalukHead  auto-loaded */}
-                            {(currentUserRole === "TalukHead" || selectedTalukaHeadId) && (
-                              <RowSelect
-                                value={selectedWardId}
-                                onChange={(e) => setSelectedWardId(e.target.value)}
-                                placeholder="Ward…"
-                                options={
-                                  currentUserRole === "TalukHead"
-                                    ? talukaWards.map((w) => ({
-                                      value: w.wardId,
-                                      label: `${w.wardNumber} — ${w.wardName}`,
-                                    }))
-                                    : wards.map((w) => ({
-                                      value: w.wardId,
-                                      label: `${w.wardNumber} — ${w.wardName}`,
-                                    }))
-                                }
-                                loading={currentUserRole === "TalukHead" ? talukaWardsStatus === "loading" : loadingWards}
-                                minWidth="160px"
-                              />
-                            )}
-                          </>
-                        )}
+                              {/* Ward dropdown — TalukHead  auto-loaded */}
+                              {(currentUserRole === "TalukHead" || selectedTalukaHeadId) && (
+                                <RowSelect
+                                  value={selectedWardId}
+                                  onChange={(e) => setSelectedWardId(e.target.value)}
+                                  placeholder="Ward…"
+                                  options={
+                                    currentUserRole === "TalukHead"
+                                      ? talukaWards.map((w) => ({
+                                        value: w.wardId,
+                                        label: `${w.wardNumber} — ${w.wardName}`,
+                                      }))
+                                      : wards.map((w) => ({
+                                        value: w.wardId,
+                                        label: `${w.wardNumber} — ${w.wardName}`,
+                                      }))
+                                  }
+                                  loading={currentUserRole === "TalukHead" ? talukaWardsStatus === "loading" : loadingWards}
+                                  minWidth="160px"
+                                />
+                              )}
+                            </>
+                          )}
 
-                        {/* Assign button */}
-                        <button onClick={handleAssign} disabled={!canAssign || assigning}
-                          className="h-7 px-3 text-[11.5px] font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-40 flex items-center gap-1 self-start">
-                          {assigning ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
-                          Assign
+                          {/* Assign button */}
+                          <button onClick={handleAssign} disabled={!canAssign || assigning}
+                            className="h-7 px-3 text-[11.5px] font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-40 flex items-center gap-1 self-start">
+                            {assigning ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
+                            Assign
+                          </button>
+
+                          {/* Cancel */}
+                          <button onClick={cancelEdit}
+                            className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors self-start">
+                            <X size={13} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => openEdit(u)}
+                          className="inline-flex items-center gap-1 h-7 px-3 text-[11.5px] font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-all whitespace-nowrap">
+                          <UserCheck size={12} /> Change Role
                         </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
 
-                        {/* Cancel */}
-                        <button onClick={cancelEdit}
-                          className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors self-start">
-                          <X size={13} />
-                        </button>
-                      </div>
-                    ) : (
-                      <button onClick={() => openEdit(u)}
-                        className="inline-flex items-center gap-1 h-7 px-3 text-[11.5px] font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-all whitespace-nowrap">
-                        <UserCheck size={12} /> Change Role
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-
-        <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
-          <p className="text-[12px] text-gray-400">
-            Showing <span className="font-semibold text-gray-600">{filteredUsers.length}</span> of{" "}
-            <span className="font-semibold text-gray-600">{users.length}</span> users
-          </p>
+          <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
+            <p className="text-[12px] text-gray-400">
+              Showing <span className="font-semibold text-gray-600">{filteredUsers.length}</span> of{" "}
+              <span className="font-semibold text-gray-600">{users.length}</span> users
+            </p>
+          </div>
         </div>
       </div>
 
