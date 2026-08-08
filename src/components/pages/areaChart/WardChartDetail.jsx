@@ -21,13 +21,15 @@ import {
   createWardChartData,
   getWardChartData,
   getLocationByWardHeadId,
+  getAllWardChaimansBy,
   selectWards,
+  selectWardChairmenList,
   selectAreaChartStatus,
   selectAreaChartError,
   selectFetchStatus,
   selectFetchedData,
 } from "../../redux/slices/areaChartSlice.js";
-import { mapApiToAssignments } from "./utils/Mapapitoassignments.js";
+import { mapApiToAssignments, mergeTalukaChairmenIntoAssignments } from "./utils/Mapapitoassignments.js";
 import { paginateBrandCategories } from "./utils/paginateCategories.js";
 import { getLayoutCountString } from "./utils/calculateLayoutCount.js";
 import ImageCropModal from "./models/ImageCropModal.jsx";
@@ -848,17 +850,6 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
 
 
 
-  const rows = useMemo(
-    () => Object.entries(assignments).map(([slotId, a]) => ({
-      name: a.name, company: a.company || "—", position: a.slotLabel || slotId,
-      status: a.status || "registered", slotId,
-      memberId: a.memberId || a.id || null, memberNumber: a.memberNumber || null,
-      mobileNumber: a.mobileNumber || null, email: a.email || null,
-      profileImage: a.photoUrl || a.profileImage || null,
-    })),
-    [assignments]
-  );
-
   const gCode = ward.g_code || ward.ward_number || ward.wardNumber || "G5.48";
 
   const reduxWards = useSelector(selectWards) || [];
@@ -866,6 +857,40 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
     if (!ward.constituency) return reduxWards;
     return reduxWards.filter((w) => w.constituency === ward.constituency);
   }, [reduxWards, ward.constituency]);
+
+  const wardChairmenList = useSelector(selectWardChairmenList);
+
+  const talukaId = useMemo(() => {
+    return (
+      fetchedData?.data?.taluka?.talukaId ||
+      ward?.talukaId ||
+      ward?.taluka?.talukaId ||
+      (constituencyWards[0] && constituencyWards[0].talukaId) ||
+      (wardFromStateOrStore && wardFromStateOrStore.talukaId) ||
+      null
+    );
+  }, [fetchedData, ward, constituencyWards, wardFromStateOrStore]);
+
+  useEffect(() => {
+    if (talukaId) {
+      dispatch(getAllWardChaimansBy(talukaId));
+    }
+  }, [dispatch, talukaId]);
+
+  const effectiveAssignments = useMemo(() => {
+    return mergeTalukaChairmenIntoAssignments(assignments, wardChairmenList, constituencyWards, gCode);
+  }, [assignments, wardChairmenList, constituencyWards, gCode]);
+
+  const rows = useMemo(
+    () => Object.entries(effectiveAssignments).map(([slotId, a]) => ({
+      name: a.name, company: a.company || "—", position: a.slotLabel || slotId,
+      status: a.status || "registered", slotId,
+      memberId: a.memberId || a.id || null, memberNumber: a.memberNumber || null,
+      mobileNumber: a.mobileNumber || null, email: a.email || null,
+      profileImage: a.photoUrl || a.profileImage || null,
+    })),
+    [effectiveAssignments]
+  );
 
   const reduxWardCount = constituencyWards.length > 0 ? constituencyWards.length : (reduxWards.length > 0 ? reduxWards.length : null);
   const apiWardCount = fetchedData?.data?.constituencyWardCount || fetchedData?.data?.wardsCount || fetchedData?.data?.totalWards || fetchedData?.data?.wardLength || (Array.isArray(fetchedData?.data?.wards) ? fetchedData.data.wards.length : null);
@@ -1066,8 +1091,8 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                         <PdfSlot
                           slotId={slotId}
                           tone="brick"
-                          assigned={assignments[slotId]}
-                          dimmed={isDimmed(slotId, "chairmen", assignments[slotId]?.name)}
+                          assigned={effectiveAssignments[slotId]}
+                          dimmed={isDimmed(slotId, "chairmen", effectiveAssignments[slotId]?.name)}
                           onAssignClick={slotClickProp}
                           showPlus={!isPreviewMode}
                           isSuperAdmin={isSuperAdmin}
@@ -1095,8 +1120,8 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                               <PdfSlot
                                 slotId={slotId}
                                 tone="brick"
-                                assigned={assignments[slotId]}
-                                dimmed={isDimmed(slotId, "chairmen", assignments[slotId]?.name)}
+                                assigned={effectiveAssignments[slotId]}
+                                dimmed={isDimmed(slotId, "chairmen", effectiveAssignments[slotId]?.name)}
                                 onAssignClick={slotClickProp}
                                 showPlus={!isPreviewMode}
                                 isSuperAdmin={isSuperAdmin}

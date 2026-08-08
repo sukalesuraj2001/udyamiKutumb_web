@@ -12,12 +12,14 @@ import ProductsPage, { SAMPLE_PRODUCT_CATEGORIES } from "./components/Productspa
 
 import {
     getWardChartData,
+    getAllWardChaimansBy,
     selectFetchStatus,
     selectFetchedData,
     selectLayoutConfig,
     selectWards,
+    selectWardChairmenList,
 } from "../../redux/slices/areaChartSlice.js";
-import { mapApiToAssignments } from "./utils/Mapapitoassignments.js";
+import { mapApiToAssignments, mergeTalukaChairmenIntoAssignments } from "./utils/Mapapitoassignments.js";
 import { paginateBrandCategories } from "./utils/paginateCategories.js";
 import { HERO_IMAGE_URL } from "./chartAssets.js";
 
@@ -190,7 +192,30 @@ export default function WardChartPdfView() {
         }
     }, [fetchStatus, fetchedData, layoutConfig]);
 
-    const heroImageUrl = assignments["hero-image"]?.photoUrl || HERO_IMAGE_URL;
+    const wardChairmenList = useSelector(selectWardChairmenList);
+    const reduxWards = useSelector(selectWards) || [];
+
+    const constituencyWards = useMemo(() => {
+        if (!constituency) return reduxWards;
+        return reduxWards.filter((w) => w.constituency === constituency);
+    }, [reduxWards, constituency]);
+
+    const talukaId =
+        searchParams.get("talukaId") ||
+        fetchedData?.data?.taluka?.talukaId ||
+        (constituencyWards[0] && constituencyWards[0].talukaId);
+
+    useEffect(() => {
+        if (talukaId) {
+            dispatch(getAllWardChaimansBy(talukaId));
+        }
+    }, [dispatch, talukaId]);
+
+    const effectiveAssignments = useMemo(() => {
+        return mergeTalukaChairmenIntoAssignments(assignments, wardChairmenList, constituencyWards, gCode);
+    }, [assignments, wardChairmenList, constituencyWards, gCode]);
+
+    const heroImageUrl = effectiveAssignments["hero-image"]?.photoUrl || HERO_IMAGE_URL;
     const gCode = wardNumber;
     const noop = () => { };
 
@@ -314,11 +339,7 @@ export default function WardChartPdfView() {
     );
 
 
-    const reduxWards = useSelector(selectWards) || [];
-    const constituencyWards = useMemo(() => {
-        if (!ward?.constituency) return reduxWards;
-        return reduxWards.filter((w) => w.constituency === ward.constituency);
-    }, [reduxWards, ward?.constituency]);
+
 
     const reduxWardCount = constituencyWards.length > 0 ? constituencyWards.length : (reduxWards.length > 0 ? reduxWards.length : null);
     const apiWardCount = fetchedData?.data?.constituencyWardCount || fetchedData?.data?.wardsCount || fetchedData?.data?.totalWards || fetchedData?.data?.wardLength || (Array.isArray(fetchedData?.data?.wards) ? fetchedData.data.wards.length : null);
@@ -445,7 +466,7 @@ export default function WardChartPdfView() {
                                             {gCode}.{i + 1} Chairman
                                         </p>
                                         <ChartSlot slotId={slotId} tone="brick" nameCase="upper"
-                                            assigned={assignments[slotId]} onAssignClick={noop} showPlus={false} isSuperAdmin={true} />
+                                            assigned={effectiveAssignments[slotId]} onAssignClick={noop} showPlus={false} isSuperAdmin={true} />
                                     </div>
                                 );
                             })}
@@ -472,7 +493,7 @@ export default function WardChartPdfView() {
                                                         {gCode}.{i + 1} Chairman
                                                     </p>
                                                     <ChartSlot slotId={slotId} tone="brick" nameCase="upper"
-                                                        assigned={assignments[slotId]} onAssignClick={noop} showPlus={false} isSuperAdmin={true} />
+                                                        assigned={effectiveAssignments[slotId]} onAssignClick={noop} showPlus={false} isSuperAdmin={true} />
                                                 </div>
                                             );
                                         })}

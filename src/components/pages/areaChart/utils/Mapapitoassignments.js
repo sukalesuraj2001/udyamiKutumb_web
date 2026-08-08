@@ -261,3 +261,76 @@ export function mapApiToAssignments(apiResponse) {
 
   return assignments;
 }
+
+/**
+ * mergeTalukaChairmenIntoAssignments
+ * Merges WardChairman objects from getAllWardChaimansBy response
+ * into slots chairman-1, chairman-2, ..., chairman-N for Page 2 display.
+ */
+export function mergeTalukaChairmenIntoAssignments(assignments, wardChairmenList, constituencyWards, gCode) {
+  if (!Array.isArray(wardChairmenList) || wardChairmenList.length === 0) {
+    return assignments || {};
+  }
+
+  const merged = { ...(assignments || {}) };
+  const targetWards = (Array.isArray(constituencyWards) && constituencyWards.length > 0)
+    ? constituencyWards
+    : wardChairmenList;
+
+  targetWards.forEach((constituencyWard, index) => {
+    const slotId = `chairman-${index + 1}`;
+
+    const wardId = constituencyWard?.id || constituencyWard?.wardId;
+    const wardNumber = constituencyWard?.ward_number || constituencyWard?.wardNumber;
+    const wardName = constituencyWard?.ward_name || constituencyWard?.wardName;
+
+    const matchedApiWard = wardChairmenList.find(
+      (item) =>
+        (wardId && item.wardId === wardId) ||
+        (wardNumber && item.wardNumber === wardNumber) ||
+        (wardName && item.wardName === wardName)
+    ) || wardChairmenList[index];
+
+    if (matchedApiWard && matchedApiWard.wardChart) {
+      const chartMembers = matchedApiWard.wardChart.members || [];
+      const chairmanMember = chartMembers.find(
+        (m) => m?.userType === "WardChairman" || m?.slotId === "ward-chairman"
+      ) || chartMembers[0];
+
+      if (chairmanMember && (chairmanMember.name || chairmanMember.memberName)) {
+        const photo =
+          chairmanMember.profileImage ||
+          chairmanMember.photoUrl ||
+          chairmanMember.profile?.profileImage ||
+          null;
+
+        merged[slotId] = {
+          name: chairmanMember.name || chairmanMember.memberName || "",
+          company: chairmanMember.companyName || chairmanMember.company || "",
+          photoUrl: (typeof photo === "string" && photo.trim()) ? photo : null,
+          mobileNumber: chairmanMember.mobileNumber || "",
+          email: chairmanMember.email || "",
+          memberId: chairmanMember.memberId || chairmanMember.userId || null,
+          status: chairmanMember.isActive === false ? "inactive" : (chairmanMember.status || "registered"),
+          slotLabel: `${wardNumber || `${gCode}.${index + 1}`} Chairman`,
+        };
+      } else if (matchedApiWard.wardChart.wardHead) {
+        const head = matchedApiWard.wardChart.wardHead;
+        if (head.firstName || head.name) {
+          merged[slotId] = {
+            name: head.firstName || head.name || "",
+            company: "",
+            photoUrl: null,
+            mobileNumber: head.mobileNumber || "",
+            email: head.email || "",
+            memberId: head.userId || null,
+            status: "registered",
+            slotLabel: `${wardNumber || `${gCode}.${index + 1}`} Chairman`,
+          };
+        }
+      }
+    }
+  });
+
+  return merged;
+}
