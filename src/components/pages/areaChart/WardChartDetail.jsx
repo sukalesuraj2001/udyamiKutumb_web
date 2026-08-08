@@ -112,7 +112,11 @@ function userTypeFromSlotId(slotId) {
   return "Member";
 }
 
-const getEffectiveWardHeadId = (user) => {
+const getEffectiveWardHeadId = (user, ward) => {
+  const wardChairmanId = ward?.wardChairmanUserId || ward?.wardHeadId || ward?.wardChairman?.userId;
+  if (wardChairmanId) {
+    return wardChairmanId;
+  }
   if (user?.role === "WardChairman") {
     return user?.userId || "";
   }
@@ -157,7 +161,7 @@ function buildSingleMemberPayload(ward, user, slotId, assignmentData) {
   if (umsKey) memberObj.umsKey = umsKey;
 
   return {
-    wardHeadId: getEffectiveWardHeadId(user),
+    wardHeadId: getEffectiveWardHeadId(user, ward),
     ward: ward.ward_name || ward.ward_number || "",
     members: [memberObj],
   };
@@ -212,8 +216,26 @@ export default function WardChartDetail() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const ward = state?.ward || { id: wardId, ward_name: "Ward", ward_number: "—", constituency: "" };
+  const wards = useSelector(selectWards);
+
+  const wardFromStateOrStore = useMemo(() => {
+    if (state?.ward) return state.ward;
+    if (wards && wards.length > 0) {
+      const found = wards.find((w) => String(w.id) === String(wardId));
+      if (found) return found;
+    }
+    return null;
+  }, [state?.ward, wards, wardId]);
+
+  const ward = wardFromStateOrStore || { id: wardId, ward_name: "Ward", ward_number: "—", constituency: "" };
   const { user } = useSelector((s) => s.auth);
+
+  const targetUserId =
+    ward.wardChairmanUserId ||
+    ward.wardHeadId ||
+    ward.wardChairman?.userId ||
+    (user?.role === "WardChairman" ? user?.userId : null) ||
+    user?.userId;
 
   const apiStatus = useSelector(selectAreaChartStatus);
   const apiError = useSelector(selectAreaChartError);
@@ -236,7 +258,7 @@ export default function WardChartDetail() {
     if (!row.memberId) { console.warn("memberId:", row); return; }
     dispatch(deleteWardChartMember(row.memberId))
       .unwrap()
-      .then(() => dispatch(getWardChartData({ userId: user?.userId, wardId: ward.id })))
+      .then(() => dispatch(getWardChartData({ userId: targetUserId, wardId: ward.id })))
       .catch((err) => console.error("Delete failed:", err));
   };
 
@@ -249,7 +271,7 @@ export default function WardChartDetail() {
     const croppedFile = new File([blob], "hero-image.jpg", { type: "image/jpeg" });
     const formData = new FormData();
     formData.append("data", JSON.stringify({
-      wardHeadId: getEffectiveWardHeadId(user),
+      wardHeadId: getEffectiveWardHeadId(user, ward),
       wardId: ward.id,
       ward: ward.ward_name || ward.ward_number || "",
       layoutCount: getLayoutCountString(config),
@@ -284,11 +306,13 @@ export default function WardChartDetail() {
   const isPreviewMode = tab === "preview";
 
   useEffect(() => {
-    if (user?.userId && ward.id) {
-      dispatch(getWardChartData({ userId: user.userId, wardId: ward.id }));
+    if (targetUserId && ward.id) {
+      dispatch(getWardChartData({ userId: targetUserId, wardId: ward.id }));
+    }
+    if (user?.userId && (!wards || wards.length === 0)) {
       dispatch(getLocationByWardHeadId(user.userId));
     }
-  }, []);
+  }, [dispatch, targetUserId, ward.id, user?.userId, wards]);
 
   useEffect(() => {
     if (fetchStatus === "succeeded" && fetchedData) {

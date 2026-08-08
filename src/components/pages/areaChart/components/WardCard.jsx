@@ -85,6 +85,8 @@ export default function WardCard({ ward, constituencyWardCount }) {
                 layoutCount: booths_total,
                 booths_total: booths_total,
                 g_code: ward.g_code || ward.ward_number || ward.wardNumber || "",
+                wardChairmanUserId: ward.wardChairmanUserId || ward.wardHeadId || ward.wardChairman?.userId,
+                wardHeadId: ward.wardHeadId || ward.wardChairmanUserId || ward.wardChairman?.userId,
               },
             },
           });

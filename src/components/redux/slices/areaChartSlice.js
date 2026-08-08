@@ -43,6 +43,9 @@ const mapToWardShape = (entry, constituencyWardCount = 9) => {
     wardsCount: constituencyWardCount,
     layoutCount: String(totalCards),
     is_active: true,
+    wardChairman: entry.wardChairman ?? null,
+    wardChairmanUserId: entry.wardChairman?.userId ?? entry.wardChairmanId ?? entry.wardHeadId ?? null,
+    wardHeadId: entry.wardChairman?.userId ?? entry.wardChairmanId ?? entry.wardHeadId ?? null,
   };
 };
 
