@@ -301,7 +301,7 @@ export default function GlobalLoader() {
         className="mt-3 text-center"
         style={{ opacity: done ? 1 : 0.8, transition: "opacity 0.4s" }}
       >
-        <p
+        {/* <p
           className="text-[11px] font-semibold tracking-[0.22em] uppercase"
           style={{ color: "#7ee8e4", textShadow: "0 1px 6px rgba(0,0,0,0.5)" }}
         >
@@ -312,7 +312,7 @@ export default function GlobalLoader() {
           style={{ textShadow: "0 2px 12px rgba(0,0,0,0.6)" }}
         >
           Kutumba
-        </h1>
+        </h1> */}
       </div>
     </div>
   );

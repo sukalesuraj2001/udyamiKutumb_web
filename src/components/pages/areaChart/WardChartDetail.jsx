@@ -882,14 +882,22 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
   }, [assignments, wardChairmenList, constituencyWards, gCode]);
 
   const rows = useMemo(
-    () => Object.entries(effectiveAssignments).map(([slotId, a]) => ({
-      name: a.name, company: a.company || "—", position: a.slotLabel || slotId,
-      status: a.status || "registered", slotId,
-      memberId: a.memberId || a.id || null, memberNumber: a.memberNumber || null,
-      mobileNumber: a.mobileNumber || null, email: a.email || null,
-      profileImage: a.photoUrl || a.profileImage || null,
-    })),
-    [effectiveAssignments]
+    () =>
+      Object.entries(assignments)
+        .filter(([slotId]) => !slotId.startsWith("chairman-") && slotId !== "hero-image")
+        .map(([slotId, a]) => ({
+          name: a.name,
+          company: a.company || "—",
+          position: a.slotLabel || slotId,
+          status: a.status || "registered",
+          slotId,
+          memberId: a.memberId || a.id || null,
+          memberNumber: a.memberNumber || null,
+          mobileNumber: a.mobileNumber || null,
+          email: a.email || null,
+          profileImage: a.photoUrl || a.profileImage || null,
+        })),
+    [assignments]
   );
 
   const reduxWardCount = constituencyWards.length > 0 ? constituencyWards.length : (reduxWards.length > 0 ? reduxWards.length : null);

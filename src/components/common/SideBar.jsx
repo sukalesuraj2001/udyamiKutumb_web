@@ -493,6 +493,8 @@ const NAV = {
                 { name: "Get Forms", path: "/wardChairman-head-dashboard/get-forms" },
                 // { name: "Form Submitions", path: "/wardChairman-head-dashboard/forms" },
                 { name: "Submitions List", path: "/wardChairman-head-dashboard/submitions-list" },
+                { name: "Applications", path: "/ward-chairman/cp/applications" },
+                { name: "Interviews", path: "/ward-chairman/cp/interviews" },
 
                 // { name: "Post Management", path: "/register" },
                 // { name: "News Management", path: "/wardChairman-head-dashboard/users" },
