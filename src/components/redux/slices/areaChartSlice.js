@@ -225,17 +225,56 @@ export const searchMembers = createAsyncThunk(
 
       let query = "";
       let wardName = "";
+      let talukaId = "";
+      let districtId = "";
+      let role = "";
 
       if (typeof payload === "string") {
         query = payload;
       } else if (payload && typeof payload === "object") {
         query = payload.query || payload.name || "";
         wardName = payload.wardName || payload.ward || payload.ward_name || "";
+        talukaId = payload.talukaId || payload.taluka_id || "";
+        districtId = payload.districtId || payload.district_id || "";
+        role = payload.role || payload.userRole || "";
+      }
+
+      const userRole = role || getState().auth.user?.role;
+      let locationData = null;
+      try {
+        locationData = JSON.parse(localStorage.getItem("locationData") || "{}");
+      } catch (e) {
+        // ignore
+      }
+
+      // If user is Taluka Head and talukaId wasn't passed in payload, fallback to locationData
+      if (!talukaId && (userRole === "TalukHead" || userRole === "TalukaHead" || userRole === "taluka_head")) {
+        talukaId = locationData?.talukaId || "";
+      }
+
+      // If user is District Head and districtId wasn't passed in payload, fallback to locationData
+      if (!districtId && (userRole === "DistrictHead" || userRole === "district_head")) {
+        districtId = locationData?.districtId || "";
+      }
+
+      // Construct API payload for search-users
+      const requestPayload = {
+        name: query || "",
+      };
+
+      if (wardName) {
+        requestPayload.ward = wardName;
+      }
+      if (talukaId) {
+        requestPayload.talukaId = talukaId;
+      }
+      if (districtId) {
+        requestPayload.districtId = districtId;
       }
 
       const { data } = await axios.post(
         `${BASE_URL}/userprofile/search-users`,
-        { name: query || "", ward: wardName || "" },
+        requestPayload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

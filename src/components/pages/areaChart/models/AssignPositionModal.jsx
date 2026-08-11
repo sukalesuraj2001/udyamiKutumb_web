@@ -145,6 +145,9 @@ function MemberCard({ member, selected, onSelect }) {
 // ── Main Modal ────────────────────────────────────────────────────
 export default function AssignPositionModal({
   wardName,
+  talukaId: propsTalukaId,
+  districtId: propsDistrictId,
+  role: propsRole,
   constituency,
   slotId,
   position = "Position",
@@ -155,6 +158,7 @@ export default function AssignPositionModal({
   const dispatch = useDispatch();
   const searchResults = useSelector(selectSearchResults);
   const searchStatus = useSelector(selectSearchStatus);
+  const authUser = useSelector((state) => state.auth?.user);
 
   const [tab, setTab] = useState("existing");
   const [search, setSearch] = useState("");
@@ -163,6 +167,19 @@ export default function AssignPositionModal({
 
   // Animation state
   const [animate, setAnimate] = useState(false);
+
+  // Location data fallback
+  const locationData = React.useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("locationData") || "{}");
+    } catch {
+      return {};
+    }
+  }, []);
+
+  const role = propsRole || authUser?.role;
+  const talukaId = propsTalukaId || locationData?.talukaId;
+  const districtId = propsDistrictId || locationData?.districtId;
 
   useEffect(() => {
     const timer = requestAnimationFrame(() => setAnimate(true));
@@ -214,11 +231,30 @@ export default function AssignPositionModal({
     if (search.trim().length < 2) return;
 
     debounceRef.current = setTimeout(() => {
-      dispatch(searchMembers({ query: search.trim(), wardName }));
+      const isTalukaHead = role === "TalukHead" || role === "TalukaHead" || role === "taluka_head";
+      const isDistrictHead = role === "DistrictHead" || role === "district_head";
+
+      const searchPayload = {
+        query: search.trim(),
+        name: search.trim(),
+        role,
+      };
+
+      if (isTalukaHead && talukaId) {
+        searchPayload.talukaId = talukaId;
+      } else if (isDistrictHead && districtId) {
+        searchPayload.districtId = districtId;
+      } else {
+        if (wardName) searchPayload.wardName = wardName;
+        if (talukaId) searchPayload.talukaId = talukaId;
+        if (districtId) searchPayload.districtId = districtId;
+      }
+
+      dispatch(searchMembers(searchPayload));
     }, 400);
 
     return () => clearTimeout(debounceRef.current);
-  }, [search, wardName, dispatch]);
+  }, [search, wardName, talukaId, districtId, role, dispatch]);
 
   // Cleanup blob URL
   useEffect(() => {
