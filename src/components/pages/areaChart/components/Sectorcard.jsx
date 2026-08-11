@@ -20,13 +20,13 @@ export default function SectorCard({
 
   return (
     <div className={`transition-opacity ${dimmed ? "opacity-25" : "opacity-100"}`}>
-      <div className="bg-white rounded-sm overflow-hidden border border-white/10 w-[110px] mx-auto">
-        <p className="bg-ink text-white text-[6px] font-bold uppercase tracking-wide text-center py-[2px] px-0.5 leading-tight truncate">
+      <div className=" rounded-sm overflow-hidden border border-white/10 w-[110px] mx-auto">
+        <p className=" text-white text-[6px] font-bold uppercase tracking-wide text-center py-[2px] px-0.5 leading-tight truncate">
           {displayLabel}
         </p>
         <button
           onClick={handleClick}
-          className="group relative w-full max-w-[110px] h-[110px] mx-auto bg-white flex items-center justify-center overflow-hidden p-1 cursor-pointer"
+          className="group relative w-[104px] h-[104px] bg-white border-[3px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden cursor-pointer shrink-0"
         >
           {assigned?.photoUrl ? (
             <img

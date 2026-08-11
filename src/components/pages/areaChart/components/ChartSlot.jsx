@@ -40,8 +40,7 @@ export default function ChartSlot({
   if (variant === "tabbed") {
     return (
       <div
-        className={`flex flex-col items-center transition-opacity ${
-          dimmed ? "opacity-25" : "opacity-100"
+        className={`flex flex-col items-center transition-opacity ${dimmed ? "opacity-25" : "opacity-100"
         }`}
       >
         <div className="w-full flex flex-col items-center">
@@ -58,8 +57,7 @@ export default function ChartSlot({
 
           <div
             onClick={handleClick}
-            className={`relative w-full max-w-[88px] aspect-square bg-[#E8E8E8] border-2 border-ink rounded-b-md rounded-tr-md flex items-center justify-center overflow-hidden ${
-              onAssignClick ? "cursor-pointer group" : "cursor-default"
+            className={`relative w-full max-w-[88px] aspect-square bg-[#E8E8E8] border-2 border-ink rounded-b-md rounded-tr-md flex items-center justify-center overflow-hidden ${onAssignClick ? "cursor-pointer group" : "cursor-default"
             }`}
           >
             {assigned?.photoUrl ? (
@@ -85,8 +83,7 @@ export default function ChartSlot({
   // ── DEFAULT variant ─────────────────────────────────────────────
   return (
     <div
-      className={`flex flex-col items-center gap-[4px] transition-opacity ${
-        dimmed ? "opacity-25" : "opacity-100"
+      className={`flex flex-col items-center gap-[4px] transition-opacity ${dimmed ? "opacity-25" : "opacity-100"
       }`}
     >
       {topLabel && (
@@ -97,13 +94,11 @@ export default function ChartSlot({
 
       <div
         onClick={handleClick}
-        className={`flex flex-col items-center gap-[4px] w-full ${
-          onAssignClick ? "cursor-pointer group" : "cursor-default"
+        className={`flex flex-col items-center gap-[4px] w-full ${onAssignClick ? "cursor-pointer group" : "cursor-default"
         }`}
       >
         <div
-          className={`relative w-[105px] h-[105px] rounded-lg border-[3px] border-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm ${
-            tone === "brick" ? "bg-[#AE0E14]" : "bg-[#0C1757]"
+          className={`relative w-[105px] h-[105px] rounded-lg border-[3px] border-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm ${tone === "brick" ? "bg-[#AE0E14]" : "bg-[#0C1757]"
           }`}
         >
           {assigned?.photoUrl ? (
@@ -126,8 +121,7 @@ export default function ChartSlot({
         {(hasAssigned || showPlaceholderName) && (
           <div className="text-center max-w-[92px]">
             <p
-              className={`text-[10px] font-bold leading-tight truncate ${nameColor} ${
-                nameCase === "upper" ? "uppercase" : ""
+              className={`text-[10px] font-bold leading-tight truncate ${nameColor} ${nameCase === "upper" ? "uppercase" : ""
               }`}
             >
               {assigned?.name || (nameCase === "upper" ? "NAME" : "Name")}

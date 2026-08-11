@@ -5,7 +5,7 @@ export default function ChairmanHighlightCard({ wardNumber, assigned, dimmed, on
   return (
     <button
       onClick={() => onAssignClick("ward-chairman", "Chairman")}
-      className={`flex flex-col items-center justify-center gap-1 bg-brick p-2 rounded-lg w-full transition-opacity ${isSuperAdmin ? "" : "group"} ${dimmed ? "opacity-25" : "opacity-100"}`}
+      className={`flex flex-col items-center justify-center h-[148px] gap-1 bg-brick p-2 rounded-lg w-full transition-opacity ${isSuperAdmin ? "" : "group"} ${dimmed ? "opacity-25" : "opacity-100"}`}
     >
       <p className="text-white text-[11px] font-bold text-center leading-tight mb-1">Chairman</p>
 

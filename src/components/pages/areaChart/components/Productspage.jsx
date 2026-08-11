@@ -95,15 +95,15 @@ export const SAMPLE_PRODUCT_CATEGORIES = [
   },
 ];
 
-export default function ProductsPage({ 
-  code, 
-  wardName, 
-  region, 
-  categories = SAMPLE_PRODUCT_CATEGORIES, 
-  assignments = {}, 
+export default function ProductsPage({
+  code,
+  wardName,
+  region,
+  categories = SAMPLE_PRODUCT_CATEGORIES,
+  assignments = {},
   onAssignClick,
   showPlus = true,
-  isSuperAdmin = false 
+  isSuperAdmin = false
 }) {
   const TOTAL_PAGE_ROWS = 7;
   const COLS = 5;
@@ -122,7 +122,7 @@ export default function ProductsPage({
     if (rowsToRender > 0) {
       const maxSlots = rowsToRender * COLS;
       const productsForCat = catProducts.slice(0, maxSlots);
-      
+
       const paddedProducts = [...productsForCat];
       while (paddedProducts.length < maxSlots) {
         paddedProducts.push(null);
@@ -189,8 +189,8 @@ export default function ProductsPage({
                   const slotId = p.isPlaceholder
                     ? `product-${cat.key}-slot-${pIdx + 1}`
                     : (p.key && (p.key.startsWith("sector-") || p.key.startsWith("ums-")))
-                    ? p.key
-                    : `product-${cat.key}-${p.key}`;
+                      ? p.key
+                      : `product-${cat.key}-${p.key}`;
                   const assigned = assignments[slotId];
 
                   // Sector / UMS styling override inside extra-sectors-ums category
@@ -201,16 +201,16 @@ export default function ProductsPage({
                       return (
                         <div key={p.key || `p-${pIdx}`} className="w-[138px] h-[134px] flex flex-col items-center justify-between p-1">
                           {/* White panel container matching Page 4 UMS panel */}
-                          <div className="w-[104px] bg-white rounded-sm border border-[#1a2e5e]/30 overflow-hidden p-1 flex flex-col items-center shrink-0">
+                          <div className="w-[104px] rounded-sm border border-[#1a2e5e]/30 overflow-hidden flex flex-col items-center shrink-0">
                             {/* Dark Red Header text */}
-                            <p className="text-[6.5px] font-bold text-[#b5121b] text-center truncate leading-tight w-full mb-1 uppercase">
+                            <p className="text-[6.5px] font-bold text-white text-center truncate leading-tight w-full mb-1 uppercase">
                               {p.name}
                             </p>
 
                             {/* Card button matching Page 4 UMS card */}
                             <button
                               onClick={() => onAssignClick?.(slotId, p.name)}
-                              className="group relative w-full h-[68px] bg-[#d0d0d8] border border-[#c8102e] rounded-sm flex items-center justify-center overflow-hidden cursor-pointer shrink-0"
+                              className="group relative w-[104px] h-[104px] bg-white border-[3px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden cursor-pointer shrink-0 cursor-pointer group"
                             >
                               {assigned?.photoUrl ? (
                                 <img
@@ -254,16 +254,16 @@ export default function ProductsPage({
                     return (
                       <div key={p.key || `p-${pIdx}`} className="w-[138px] h-[134px] flex flex-col items-center justify-between p-1">
                         {/* Outer card frame with dark header strip */}
-                        <div className="w-[104px] bg-white rounded-sm overflow-hidden border border-white/10 shrink-0 flex flex-col">
+                        <div className="w-[104px] rounded-sm overflow-hidden border border-white/10 shrink-0 flex flex-col">
                           {/* Dark Header Strip */}
-                          <div className="bg-[#1B2430] text-white text-[6.5px] font-bold uppercase tracking-wide text-center py-[2.5px] px-1 leading-tight truncate shrink-0">
+                          <div className=" text-white text-[6.5px] font-bold uppercase tracking-wide text-center py-[2.5px] px-1 leading-tight truncate shrink-0">
                             {p.name}
                           </div>
 
                           {/* Card Button / Image Area */}
                           <button
                             onClick={() => onAssignClick?.(slotId, p.name)}
-                            className="group relative w-full h-[80px] bg-white flex items-center justify-center overflow-hidden p-1 cursor-pointer"
+                            className="group relative w-[104px] h-[104px] bg-white border-[3px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden cursor-pointer shrink-0"
                           >
                             {assigned?.photoUrl ? (
                               <img

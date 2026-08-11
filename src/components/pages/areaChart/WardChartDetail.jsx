@@ -402,7 +402,7 @@ function convertModernColorToRgb(colorStr) {
 
         return A === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${A})`;
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // 3. Mathematical OKLCH -> sRGB fallback conversion
@@ -439,7 +439,7 @@ function convertModernColorToRgb(colorStr) {
 
         return A === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${A})`;
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   return colorStr;
@@ -489,7 +489,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
           // ignore cross-origin sheet errors
         }
       });
-    } catch (e) {}
+    } catch (e) { }
   }
 
   // 3. Sanitize all elements in tree
@@ -1150,7 +1150,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
         <ChartPage pageLabel="Advisory · Leadership · Sectors · UMS" pageNum={chairmenP3.length > 0 ? 4 : 3} ward={ward}>
           <div className="flex flex-col h-full min-h-full">
             {/* Advisory / Mentor row */}
-            <div className="flex flex-col items-center justify-center gap-3 px-4 py-3.5 bg-white border-b border-slate-100 shrink-0">
+            <div className="flex flex-col items-center justify-center gap-3 px-4 py-2 bg-white border-b border-slate-100 shrink-0">
               {Array.from({
                 length: Math.max(
                   Math.ceil((config.slotCounts.advisories || 3) / 3),
@@ -1243,8 +1243,8 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
             </div>
 
             {/* Leadership strip */}
-            <div className="flex items-center bg-[#1a2e5e] shrink-0 py-3.5 px-4 gap-4">
-              <div className="flex flex-col items-center justify-center shrink-0 w-[140px]">
+            <div className="flex items-center bg-[#1a2e5e] shrink-0 px-4 gap-4 h-[150px]">
+              <div className="flex flex-col items-center justify-center shrink-0 w-[140px] h-[120px]">
                 <ChairmanHighlightCard
                   wardNumber={gCode} assigned={assignments["ward-chairman"]}
                   dimmed={isDimmed("ward-chairman", "core", assignments["ward-chairman"]?.name)}
@@ -1289,7 +1289,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
             {/* Red container: Sectors + UMS (Fills remaining Page 4 height to footer) */}
             <div className="flex gap-2.5 px-[2%] py-[2%] bg-[#c8102e] flex-1 min-h-0">
               {/* Sectors flex column */}
-              <div className="flex-1 flex flex-col justify-evenly gap-1.5">
+              <div className="flex-1 flex flex-col justify-evenly gap-1.5 pt-[30px]">
                 {Array.from({ length: Math.ceil(firstPageSectors.length / 3) }).map((_, rowIdx) => {
                   const rowSectors = firstPageSectors.slice(rowIdx * 3, rowIdx * 3 + 3);
                   return (
@@ -1316,7 +1316,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
 
               {/* UMS panel */}
               {firstPageUms.length > 0 && (
-                <div className="w-[250px] rounded-sm border border-ink shrink-0 bg-white overflow-hidden flex flex-col h-full self-stretch">
+                <div className="w-[250px] rounded-sm border border-ink shrink-0 bg-white overflow-hidden flex flex-col h-full self-stretch mt-2">
                   <div className="bg-[#1a2e5e] py-[5px] text-center shrink-0">
                     <p className="text-[7.5px] font-bold text-white uppercase tracking-wider">Udyami Management System</p>
                   </div>
@@ -1329,7 +1329,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                           <p className="text-[6px] font-medium text-[#b5121b] text-center mb-0.5 min-h-[10px] leading-tight truncate w-full">{s.label}</p>
                           <div
                             onClick={() => handleSlotClick(slotId, s.label)}
-                            className={`relative w-full aspect-[3/2] border border-[#c8102e] rounded-sm bg-[#d0d0d8] overflow-hidden flex items-center justify-center ${!isPreviewMode ? "cursor-pointer group" : "cursor-default"}`}
+                            className={`group relative w-[104px] h-[104px] bg-white border-[3px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden cursor-pointer shrink-0 ${!isPreviewMode ? "cursor-pointer group" : "cursor-default"}`}
                           >
                             {assigned?.photoUrl ? (
                               <img src={assigned.photoUrl} alt={assigned.name} className="w-full h-full object-cover" />
