@@ -80,6 +80,7 @@ import CpFormPreview from "../pages/cp/Cpformpreview.jsx";
 import CpSubmissionsView from "../pages/onbording/cpOnbording/Cpsubmissionsview.jsx";
 import CloudPatraApplications from "../pages/cp/cloudPatra/CloudPatraApplications.jsx";
 import CloudPatraInterviews from "../pages/cp/cloudPatra/CloudPatraInterviews.jsx";
+import CpTable from "../pages/cp/CpTable.jsx";
 
 
 const AppRouter = [
@@ -534,7 +535,8 @@ const AppRouter = [
           { path: "/wardChairman-head-dashboard/get-forms", element: <CpFormPreview /> },
           { path: "/wardChairman-head-dashboard/submitions-list", element: <CpSubmissionsView /> },
           { path: "/ward-chairman/cp/applications" ,element: <CloudPatraApplications /> },
-          { path: "/ward-chairman/cp/interviews" ,element: <CloudPatraInterviews  /> }
+          { path: "/ward-chairman/cp/interviews" ,element: <CloudPatraInterviews  /> },
+          { path: "/ward-chairman/cp/cp-list" ,element: <CpTable  /> }
 
 
         ],

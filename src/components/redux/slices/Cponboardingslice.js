@@ -55,8 +55,7 @@ export const updateSubmissionStatus = createAsyncThunk(
 );
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  NEW APIs — Cloud Patra Channel Partner (new system)
-//  Company name "Cloud Patra" — naraiya companies varum so prefix use pannrom
+//  Cloud Patra Channel Partner APIs
 // ═════════════════════════════════════════════════════════════════════════════
 
 // ─── CP-1 : Get All Applications by Ward ─────────────────────────────────────
@@ -99,9 +98,6 @@ export const updateCloudPatraApplicationStatus = createAsyncThunk(
 export const scheduleCloudPatraInterview = createAsyncThunk(
   "cpOnboarding/scheduleCloudPatraInterview",
   async (interviewPayload, { getState, rejectWithValue }) => {
-    // interviewPayload = { applicationId, scheduledByUserId, scheduledAt,
-    //   durationMinutes, interviewMode, locationName, locationAddress,
-    //   latitude, longitude, meetingLink, interviewInstructions }
     try {
       const token = getState().auth.token;
       return await authRequest(
@@ -138,8 +134,6 @@ export const fetchCloudPatraInterviewsByWardChairman = createAsyncThunk(
 export const updateCloudPatraInterviewStatus = createAsyncThunk(
   "cpOnboarding/updateCloudPatraInterviewStatus",
   async ({ interviewId, userId, status, ...rest }, { getState, rejectWithValue }) => {
-    // rest = { rescheduleReason, scheduledAt, cancellationReason,
-    //          interviewNotes } — backend DTOla irukkadhellam pass pannalaam
     try {
       const token = getState().auth.token;
       return await authRequest(
@@ -148,6 +142,60 @@ export const updateCloudPatraInterviewStatus = createAsyncThunk(
           method: "PATCH",
           token,
           body: { userId, status, ...rest },
+        }
+      );
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+// ─── CP-6 : Get All Channel Partners by Ward ─────────────────────────────────
+// Ward la register aana CP list — CpTable top panel-ku use aagum
+export const fetchChannelPartnersByWard = createAsyncThunk(
+  "cpOnboarding/fetchChannelPartnersByWard",
+  async (wardId, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      return await authRequest(
+        `/auth/getAllChannelPartners?wardId=${wardId}`,
+        { token }
+      );
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+// ─── CP-7 : Get CP Submitted Forms by CP User ID ─────────────────────────────
+// Oru CP click panna avanga submit pannirukka ALL forms — multiple irukum
+export const fetchCpSubmittedDataByUserId = createAsyncThunk(
+  "cpOnboarding/fetchCpSubmittedDataByUserId",
+  async (cpUserId, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      return await authRequest(
+        `/cp-on-boarding/getCPSubmittedData/${cpUserId}`,
+        { token }
+      );
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+// ─── CP-8 : Update Survey Status by Ward Chairman ───────────────────────────
+export const updateSurveyStatusByWardChairman = createAsyncThunk(
+  "cpOnboarding/updateSurveyStatusByWardChairman",
+  async ({ surveyId, wardChairmanId, status, rejectionReason }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      return await authRequest(
+        `/cp-on-boarding/updateSurveyStatusByWardChairman/${surveyId}`,
+        {
+          method: "PATCH",
+          token,
+          body: { wardChairmanId, status, rejectionReason },
         }
       );
     } catch (err) {
@@ -171,7 +219,7 @@ const cpOnboardingSlice = createSlice({
 
     // ── Cloud Patra Applications ─────────────────────────────────────────────
     cpApplications: [],
-    cpApplicationsStatus: "idle",   // idle | loading | succeeded | failed
+    cpApplicationsStatus: "idle",
     cpApplicationsError: null,
 
     cpAppUpdateStatus: "idle",
@@ -187,6 +235,17 @@ const cpOnboardingSlice = createSlice({
 
     cpInterviewUpdateStatus: "idle",
     cpInterviewUpdateError: null,
+
+    // ── CP-6 : Channel Partners list by Ward ────────────────────────────────
+    cpPartnerList: [],
+    cpPartnerListStatus: "idle",   // idle | loading | succeeded | failed
+    cpPartnerListError: null,
+
+    // ── CP-7 : Submitted forms for a selected CP ────────────────────────────
+    // Multiple forms — array of form objects
+    selectedCpForms: [],
+    selectedCpFormsStatus: "idle",
+    selectedCpFormsError: null,
   },
 
   reducers: {
@@ -207,6 +266,12 @@ const cpOnboardingSlice = createSlice({
     resetCpInterviewUpdateStatus(state) {
       state.cpInterviewUpdateStatus = "idle";
       state.cpInterviewUpdateError = null;
+    },
+    // Clear selected CP forms when user deselects / unmounts CpTable
+    clearSelectedCpForms(state) {
+      state.selectedCpForms = [];
+      state.selectedCpFormsStatus = "idle";
+      state.selectedCpFormsError = null;
     },
   },
 
@@ -284,7 +349,6 @@ const cpOnboardingSlice = createSlice({
       })
       .addCase(updateCloudPatraApplicationStatus.fulfilled, (state, action) => {
         state.cpAppUpdateStatus = "succeeded";
-        // Optimistic update — list la status change panni vekku
         const { applicationId, status } = action.meta.arg;
         state.cpApplications = state.cpApplications.map((app) =>
           app.applicationId === applicationId || app._id === applicationId
@@ -306,7 +370,6 @@ const cpOnboardingSlice = createSlice({
       })
       .addCase(scheduleCloudPatraInterview.fulfilled, (state, action) => {
         state.cpScheduleStatus = "succeeded";
-        // Newly created interview-a list-la push panni vekku
         const newInterview =
           action.payload.data ?? action.payload.interview ?? null;
         if (newInterview) {
@@ -350,7 +413,6 @@ const cpOnboardingSlice = createSlice({
       })
       .addCase(updateCloudPatraInterviewStatus.fulfilled, (state, action) => {
         state.cpInterviewUpdateStatus = "succeeded";
-        // Optimistic update — interview list la status change panni vekku
         const { interviewId, status } = action.meta.arg;
         state.cpInterviews = state.cpInterviews.map((iv) =>
           iv.interviewId === interviewId || iv._id === interviewId
@@ -362,6 +424,85 @@ const cpOnboardingSlice = createSlice({
         state.cpInterviewUpdateStatus = "failed";
         state.cpInterviewUpdateError =
           action.payload || "Failed to update interview status";
+      });
+
+    // ── CP-6 : Fetch Channel Partners by Ward ─────────────────────────────────
+    builder
+      .addCase(fetchChannelPartnersByWard.pending, (state) => {
+        state.cpPartnerListStatus = "loading";
+        state.cpPartnerListError = null;
+      })
+      .addCase(fetchChannelPartnersByWard.fulfilled, (state, action) => {
+        state.cpPartnerListStatus = "succeeded";
+        const res = action.payload;
+        // Backend response shape flexible-a handle pannrom
+        if (Array.isArray(res)) {
+          state.cpPartnerList = res;
+        } else if (Array.isArray(res?.data)) {
+          state.cpPartnerList = res.data;
+        } else if (Array.isArray(res?.channelPartners)) {
+          state.cpPartnerList = res.channelPartners;
+        } else if (Array.isArray(res?.data?.channelPartners)) {
+          state.cpPartnerList = res.data.channelPartners;
+        } else {
+          state.cpPartnerList = res?.data ?? res?.partners ?? [];
+        }
+      })
+      .addCase(fetchChannelPartnersByWard.rejected, (state, action) => {
+        state.cpPartnerListStatus = "failed";
+        state.cpPartnerListError =
+          action.payload || "Failed to fetch channel partners";
+      });
+
+    // ── CP-7 : Fetch Submitted Forms by CP User ID ────────────────────────────
+    builder
+      .addCase(fetchCpSubmittedDataByUserId.pending, (state) => {
+        state.selectedCpFormsStatus = "loading";
+        state.selectedCpFormsError = null;
+        state.selectedCpForms = []; // Clear previous CP's forms
+      })
+      .addCase(fetchCpSubmittedDataByUserId.fulfilled, (state, action) => {
+        state.selectedCpFormsStatus = "succeeded";
+        const res = action.payload;
+        // Multiple forms irukum — flexible shape handling
+        if (Array.isArray(res)) {
+          state.selectedCpForms = res;
+        } else if (Array.isArray(res?.data)) {
+          state.selectedCpForms = res.data;
+        } else if (Array.isArray(res?.forms)) {
+          state.selectedCpForms = res.forms;
+        } else if (Array.isArray(res?.submissions)) {
+          state.selectedCpForms = res.submissions;
+        } else if (Array.isArray(res?.data?.forms)) {
+          state.selectedCpForms = res.data.forms;
+        } else {
+          state.selectedCpForms = [];
+        }
+      })
+      .addCase(fetchCpSubmittedDataByUserId.rejected, (state, action) => {
+        state.selectedCpFormsStatus = "failed";
+        state.selectedCpFormsError =
+          action.payload || "Failed to fetch CP submitted forms";
+      });
+
+    // ── CP-8 : Update Survey Status by Ward Chairman ──────────────────────────
+    builder
+      .addCase(updateSurveyStatusByWardChairman.pending, (state) => {
+        state.surveyUpdateStatus = "loading";
+        state.surveyUpdateError = null;
+      })
+      .addCase(updateSurveyStatusByWardChairman.fulfilled, (state, action) => {
+        state.surveyUpdateStatus = "succeeded";
+        const { surveyId, status } = action.meta.arg;
+        state.selectedCpForms = state.selectedCpForms.map((form) => {
+          const id = form.surveyId ?? form._id ?? form.formId ?? form.submissionId;
+          return id === surveyId ? { ...form, status } : form;
+        });
+      })
+      .addCase(updateSurveyStatusByWardChairman.rejected, (state, action) => {
+        state.surveyUpdateStatus = "failed";
+        state.surveyUpdateError =
+          action.payload || "Failed to update survey status";
       });
   },
 });
@@ -378,20 +519,34 @@ export const selectUpdateStatus = (state) => state.cpOnboarding.updateStatus;
 export const selectUpdateError  = (state) => state.cpOnboarding.updateError;
 
 // Cloud Patra Application selectors
-export const selectCpApplications      = (state) => state.cpOnboarding.cpApplications;
-export const selectCpApplicationsStatus= (state) => state.cpOnboarding.cpApplicationsStatus;
-export const selectCpApplicationsError = (state) => state.cpOnboarding.cpApplicationsError;
-export const selectCpAppUpdateStatus   = (state) => state.cpOnboarding.cpAppUpdateStatus;
-export const selectCpAppUpdateError    = (state) => state.cpOnboarding.cpAppUpdateError;
+export const selectCpApplications       = (state) => state.cpOnboarding.cpApplications;
+export const selectCpApplicationsStatus = (state) => state.cpOnboarding.cpApplicationsStatus;
+export const selectCpApplicationsError  = (state) => state.cpOnboarding.cpApplicationsError;
+export const selectCpAppUpdateStatus    = (state) => state.cpOnboarding.cpAppUpdateStatus;
+export const selectCpAppUpdateError     = (state) => state.cpOnboarding.cpAppUpdateError;
 
 // Cloud Patra Interview selectors
-export const selectCpInterviews             = (state) => state.cpOnboarding.cpInterviews;
-export const selectCpInterviewsStatus       = (state) => state.cpOnboarding.cpInterviewsStatus;
-export const selectCpInterviewsError        = (state) => state.cpOnboarding.cpInterviewsError;
-export const selectCpScheduleStatus         = (state) => state.cpOnboarding.cpScheduleStatus;
-export const selectCpScheduleError          = (state) => state.cpOnboarding.cpScheduleError;
-export const selectCpInterviewUpdateStatus  = (state) => state.cpOnboarding.cpInterviewUpdateStatus;
-export const selectCpInterviewUpdateError   = (state) => state.cpOnboarding.cpInterviewUpdateError;
+export const selectCpInterviews            = (state) => state.cpOnboarding.cpInterviews;
+export const selectCpInterviewsStatus      = (state) => state.cpOnboarding.cpInterviewsStatus;
+export const selectCpInterviewsError       = (state) => state.cpOnboarding.cpInterviewsError;
+export const selectCpScheduleStatus        = (state) => state.cpOnboarding.cpScheduleStatus;
+export const selectCpScheduleError         = (state) => state.cpOnboarding.cpScheduleError;
+export const selectCpInterviewUpdateStatus = (state) => state.cpOnboarding.cpInterviewUpdateStatus;
+export const selectCpInterviewUpdateError  = (state) => state.cpOnboarding.cpInterviewUpdateError;
+
+// CP-6 : Channel Partners list selectors
+export const selectCpPartnerList       = (state) => state.cpOnboarding.cpPartnerList;
+export const selectCpPartnerListStatus = (state) => state.cpOnboarding.cpPartnerListStatus;
+export const selectCpPartnerListError  = (state) => state.cpOnboarding.cpPartnerListError;
+
+// CP-7 : Selected CP's submitted forms selectors
+export const selectSelectedCpForms       = (state) => state.cpOnboarding.selectedCpForms;
+export const selectSelectedCpFormsStatus = (state) => state.cpOnboarding.selectedCpFormsStatus;
+export const selectSelectedCpFormsError  = (state) => state.cpOnboarding.selectedCpFormsError;
+
+// CP-8 : Survey update selectors
+export const selectSurveyUpdateStatus    = (state) => state.cpOnboarding.surveyUpdateStatus;
+export const selectSurveyUpdateError     = (state) => state.cpOnboarding.surveyUpdateError;
 
 // ─── Actions ──────────────────────────────────────────────────────────────────
 export const {
@@ -399,6 +554,8 @@ export const {
   resetCpAppUpdateStatus,
   resetCpScheduleStatus,
   resetCpInterviewUpdateStatus,
+  resetSurveyUpdateStatus,
+  clearSelectedCpForms,
 } = cpOnboardingSlice.actions;
 
 export default cpOnboardingSlice.reducer;
