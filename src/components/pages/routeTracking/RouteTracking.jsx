@@ -4,6 +4,7 @@ import {
   getAllRoutesByChairman,
   selectAllRoutes,
   selectRouteStatus,
+  selectJourneyReports,
 } from "../../redux/slices/Routetrackingslice.js";
 import { selectToken, selectUser } from "../../redux/slices/authSlice";
 import CreateRouteModal from "./CreateRouteModal";
@@ -55,6 +56,7 @@ export default function RouteTracking() {
   const user = useSelector(selectUser);
   const routes = useSelector(selectAllRoutes);
   const status = useSelector(selectRouteStatus);
+  const journeyReports = useSelector(selectJourneyReports);
 
   const [leafletReady, setLeafletReady] = useState(false);
   const [activeTab, setActiveTab] = useState("live");
@@ -281,9 +283,26 @@ export default function RouteTracking() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {routes.map((route) => {
                     const id = route._id || route.id || route.routeId;
+                    const cpId = route.channelPartnerId || route.assignedTo;
                     const statusKey = route.status?.toUpperCase() || "ASSIGNED";
                     const badge = STATUS_COLORS[statusKey] || STATUS_COLORS.ASSIGNED;
-                    const coverage = route.coveragePercent ?? route.coverage ?? 0;
+
+                    const matchingRep = journeyReports.find(
+                      (rep) =>
+                        (id && (rep.routeId === id || rep.reportId === id || rep._id === id)) ||
+                        (cpId && rep.channelPartnerId === cpId)
+                    );
+
+                    const rawCov =
+                      route.coveragePercentage ??
+                      route.coveragePercent ??
+                      route.coverage ??
+                      matchingRep?.coveragePercentage ??
+                      matchingRep?.coveragePercent ??
+                      matchingRep?.coverage ??
+                      (statusKey === "COMPLETED" || statusKey === "MATCHED" ? 100 : 0);
+
+                    const coverage = Number(Number(rawCov).toFixed(1));
                     const coords = route.routePath?.coordinates || [];
                     const cpName = route.channelPartnerName || "Unassigned";
 

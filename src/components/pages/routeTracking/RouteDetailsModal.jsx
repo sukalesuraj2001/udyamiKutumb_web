@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { useSelector } from "react-redux";
+import { selectJourneyReports } from "../../redux/slices/Routetrackingslice.js";
 
 const MAP_STYLES = {
   street: {
@@ -47,9 +49,34 @@ export default function RouteDetailsModal({ route, onClose, onEdit }) {
   const tileLayerRef = useRef(null);
   const [mapStyle, setMapStyle] = useState("street");
 
+  const reports = useSelector(selectJourneyReports);
+
   const statusKey = route?.status?.toUpperCase() || "ASSIGNED";
   const badge = STATUS_COLORS[statusKey] || STATUS_COLORS.ASSIGNED;
-  const coverage = route?.coveragePercent ?? route?.coverage ?? 0;
+
+  // Find matching journey report from Redux state if available
+  const matchingReport = useMemo(() => {
+    if (!route) return null;
+    const rId = route._id || route.id || route.routeId;
+    const cpId = route.channelPartnerId || route.assignedTo;
+    return reports.find(
+      (rep) =>
+        (rId && (rep.routeId === rId || rep.reportId === rId || rep._id === rId)) ||
+        (cpId && rep.channelPartnerId === cpId)
+    );
+  }, [route, reports]);
+
+  // Robust coverage calculation checking API response keys (coveragePercentage, coveragePercent, etc.)
+  const rawCoverage =
+    route?.coveragePercentage ??
+    route?.coveragePercent ??
+    route?.coverage ??
+    matchingReport?.coveragePercentage ??
+    matchingReport?.coveragePercent ??
+    matchingReport?.coverage ??
+    (statusKey === "COMPLETED" || statusKey === "MATCHED" ? 100 : 0);
+
+  const coverage = Number(Number(rawCoverage).toFixed(1));
   const coords = route?.routePath?.coordinates || [];
   const cpName = route?.channelPartnerName || "Unassigned";
 
@@ -297,6 +324,32 @@ export default function RouteDetailsModal({ route, onClose, onEdit }) {
                 {route._id || route.id || "—"}
               </span>
             </div>
+            {matchingReport && (
+              <>
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-500">Actual Distance Traveled:</span>
+                  <span className="font-semibold text-gray-900">
+                    {matchingReport.actualDistance != null
+                      ? `${(matchingReport.actualDistance / 1000).toFixed(2)} km (${matchingReport.actualDistance} m)`
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-500">Actual Journey Duration:</span>
+                  <span className="font-semibold text-gray-900">
+                    {matchingReport.actualDuration != null ? `${matchingReport.actualDuration} mins` : "—"}
+                  </span>
+                </div>
+                {matchingReport.totalTrackingPoints != null && (
+                  <div className="flex justify-between">
+                    <span className="font-medium text-gray-500">Tracking Points:</span>
+                    <span className="font-semibold text-gray-900">
+                      {matchingReport.coveredPoints ?? 0} / {matchingReport.totalTrackingPoints} covered ({matchingReport.deviatedPoints ?? 0} deviated)
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
             {route.createdAt && (
               <div className="flex justify-between">
                 <span className="font-medium text-gray-500">Created At:</span>

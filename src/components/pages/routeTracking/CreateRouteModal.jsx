@@ -66,6 +66,54 @@ async function fetchRoadPath(waypoints) {
   return { coordinates: waypoints, distance: 0, duration: 0 };
 }
 
+// ── Fetch Ward Boundary GeoJSON ────────────────────────────────────────────────
+async function fetchWardBoundaryGeoJson(wardName, talukaName, districtName, token) {
+  // 1. Try Backend Ward Map endpoint
+  if (wardName) {
+    try {
+      const url = `https://udyami-circle-db.onrender.com/ward/map/${encodeURIComponent(wardName)}?type=ward`;
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        return data.data; // GeoJSON FeatureCollection
+      }
+    } catch (e) {
+      console.warn("Backend ward map endpoint failed, trying fallback...", e);
+    }
+  }
+
+  // 2. Fallback to OpenStreetMap Nominatim GeoJSON query
+  const queryParts = [wardName, talukaName, districtName, "India"].filter(Boolean).join(", ");
+  if (!queryParts) return null;
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&geojson=1&polygon_geojson=1&q=${encodeURIComponent(queryParts)}`;
+    const res = await fetch(url);
+    const results = await res.json();
+    const polyResult = results.find(
+      (r) => r.geojson && (r.geojson.type === "Polygon" || r.geojson.type === "MultiPolygon")
+    );
+    if (polyResult) {
+      return {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            geometry: polyResult.geojson,
+            properties: { name: polyResult.display_name.split(",")[0] },
+          },
+        ],
+      };
+    }
+  } catch (e) {
+    console.warn("Nominatim boundary fallback failed", e);
+  }
+
+  return null;
+}
+
 export default function CreateRouteModal({ onClose, channelPartners = [] }) {
   const dispatch = useDispatch();
   const token = useSelector(selectToken);
@@ -81,11 +129,13 @@ export default function CreateRouteModal({ onClose, channelPartners = [] }) {
   const polylineRef = useRef(null);        // road-snapped display polyline
   const markersRef = useRef([]);           // click-point markers
   const locationMarkerRef = useRef(null);  // current-location blue dot
+  const wardLayerRef = useRef(null);       // ward boundary geojson layer
   const dropdownRef = useRef(null);
   const searchRef = useRef(null);
 
   // Map Style state (Street / Satellite / Night)
   const [mapStyle, setMapStyle] = useState("street");
+  const [loadingWard, setLoadingWard] = useState(false);
 
   // coords = raw click waypoints [[lng,lat],...]
   const [coords, setCoords] = useState([]);
@@ -370,6 +420,91 @@ export default function CreateRouteModal({ onClose, channelPartners = [] }) {
       navigator.geolocation.clearWatch(watchId);
       setLocating(false);
     }, 15000);
+  };
+
+  // ── Ward Location & Boundary Handler ──────────────────────────────────────
+  const handleWardLocation = async () => {
+    const map = leafletMap.current;
+    const L = window.L;
+    if (!map || !L) return;
+
+    let locData = null;
+    try {
+      locData =
+        JSON.parse(localStorage.getItem("locationData")) ||
+        JSON.parse(sessionStorage.getItem("locationData"));
+    } catch {
+      locData = null;
+    }
+
+    const wardName =
+      locData?.wardName ||
+      user?.wardName ||
+      user?.ward ||
+      (user?.wardNumber ? `Ward ${user.wardNumber}` : "");
+
+    const talukaName = locData?.talukaName || user?.talukaName || user?.taluka || "";
+    const districtName = locData?.districtName || user?.districtName || user?.district || "";
+
+    if (!wardName && !districtName) {
+      alert("No Ward assigned to your logged in user session.");
+      return;
+    }
+
+    setLoadingWard(true);
+
+    try {
+      const geoJsonData = await fetchWardBoundaryGeoJson(wardName, talukaName, districtName, token);
+
+      if (geoJsonData && (geoJsonData.features?.length > 0 || geoJsonData.geometry)) {
+        if (wardLayerRef.current) {
+          wardLayerRef.current.remove();
+          wardLayerRef.current = null;
+        }
+
+        const layer = L.geoJSON(geoJsonData, {
+          style: {
+            color: "#4f46e5",
+            weight: 3,
+            dashArray: "6 4",
+            fillColor: "#6366f1",
+            fillOpacity: 0.18,
+          },
+          onEachFeature: (feature, l) => {
+            const name = feature.properties?.name || feature.properties?.wardName || wardName || "Ward Boundary";
+            l.bindTooltip(`🏛️ <b>${name}</b><br/>Ward Boundary`, { permanent: false });
+          },
+        }).addTo(map);
+
+        wardLayerRef.current = layer;
+
+        const bounds = layer.getBounds();
+        if (bounds && bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [50, 50], animate: true, duration: 1.2 });
+        }
+      } else {
+        const query = [wardName, talukaName, districtName, "India"].filter(Boolean).join(", ");
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+        const results = await res.json();
+        if (results && results[0]) {
+          const lat = parseFloat(results[0].lat);
+          const lng = parseFloat(results[0].lon);
+          map.flyTo([lat, lng], 15, { duration: 1.2 });
+
+          L.popup()
+            .setLatLng([lat, lng])
+            .setContent(`<b>🏛️ ${wardName || "Ward Location"}</b><br/>${results[0].display_name}`)
+            .openOn(map);
+        } else {
+          alert(`Could not locate boundaries for ${wardName || "Ward"}.`);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load ward boundary:", err);
+      alert("Failed to load ward location and boundaries.");
+    } finally {
+      setLoadingWard(false);
+    }
   };
 
   const handleUndo = () => {
@@ -669,6 +804,49 @@ export default function CreateRouteModal({ onClose, channelPartners = [] }) {
 
               {/* Leaflet map */}
               <div ref={mapRef} className="rt-leaflet-map" />
+
+              {/* Ward Location & Boundary button — next to My Location */}
+              <button
+                onClick={handleWardLocation}
+                disabled={loadingWard}
+                title="Go to my Ward location & boundaries"
+                style={{
+                  position: "absolute",
+                  bottom: 92,
+                  right: 10,
+                  zIndex: 1000,
+                  height: 36,
+                  padding: "0 10px",
+                  borderRadius: 8,
+                  background: "#fff",
+                  border: "1px solid #e2e8f0",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
+                  cursor: loadingWard ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#4f46e5",
+                  opacity: loadingWard ? 0.7 : 1,
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={(e) => { if (!loadingWard) e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.3)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.25)"; }}
+              >
+                {loadingWard ? (
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" strokeWidth="2.5"
+                    style={{ animation: "rt-spin 0.8s linear infinite" }}>
+                    <circle cx="12" cy="12" r="10" strokeOpacity=".2"/>
+                    <path d="M12 2a10 10 0 0 1 10 10"/>
+                  </svg>
+                ) : (
+                  <>
+                    <span>🏛️</span>
+                    <span>My Ward Boundary</span>
+                  </>
+                )}
+              </button>
 
               {/* My Location button — bottom-right of map */}
               <button

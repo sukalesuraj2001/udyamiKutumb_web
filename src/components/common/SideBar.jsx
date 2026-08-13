@@ -494,7 +494,7 @@ const NAV = {
                 // { name: "Form Submitions", path: "/wardChairman-head-dashboard/forms" },
                 { name: "Submitions List", path: "/wardChairman-head-dashboard/submitions-list" },
                 { name: "Applications", path: "/ward-chairman/cp/applications" },
-                { name: "Interviews", path: "/ward-chairman/cp/interviews" },
+                { name: "Partner Enrollment", path: "/ward-chairman/cp/interviews" },
                 { name: "Channel Partners Survey List", path: "/ward-chairman/cp/cp-list" },
 
                 // { name: "Post Management", path: "/register" },
