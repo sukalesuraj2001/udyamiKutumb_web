@@ -9,8 +9,8 @@ import {
 import { selectToken } from "../../redux/slices/authSlice";
 
 const STATUS_CONFIG = {
-  MATCHED:   { label: "Matched",   cls: "bg-green-50 text-green-700 border-green-200" },
-  PARTIAL:   { label: "Partial",   cls: "bg-yellow-50 text-yellow-700 border-yellow-200" },
+  MATCHED: { label: "Matched", cls: "bg-green-50 text-green-700 border-green-200" },
+  PARTIAL: { label: "Partial", cls: "bg-yellow-50 text-yellow-700 border-yellow-200" },
   COMPLETED: { label: "Completed", cls: "bg-green-50 text-green-700 border-green-200" },
   UNMATCHED: { label: "Unmatched", cls: "bg-red-50 text-red-700 border-red-200" },
 };
@@ -145,11 +145,10 @@ export default function JourneyReportsTable() {
             <button
               key={f}
               onClick={() => { setFilter(f); setPage(1); }}
-              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${
-                filter === f
+              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${filter === f
                   ? "bg-white text-indigo-600 font-semibold shadow-sm"
                   : "text-gray-500 hover:text-gray-700"
-              }`}
+                }`}
             >
               {f === "ALL" ? "All" : f.charAt(0) + f.slice(1).toLowerCase()}
             </button>
@@ -186,20 +185,21 @@ export default function JourneyReportsTable() {
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto border border-gray-100 rounded-xl">
-            <table className="w-full text-sm border-collapse">
+          {/* px-4 → px-2.5, overflow-x-auto தேவையில்ல */}
+          <div className="border border-gray-100 rounded-xl">
+            <table className="w-full text-sm border-collapse table-fixed">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50">
-                  <th className="py-3.5 px-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Channel Partner</th>
-                  <th className="py-3.5 px-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Route Name</th>
-                  <th className="py-3.5 px-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Coverage %</th>
-                  <th className="py-3.5 px-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Distance (Actual / Plan)</th>
-                  <th className="py-3.5 px-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Duration (Actual / Plan)</th>
-                  <th className="py-3.5 px-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Points (Covered / Total)</th>
-                  <th className="py-3.5 px-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Deviation</th>
-                  <th className="py-3.5 px-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Completed</th>
-                  <th className="py-3.5 px-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
-                  <th className="py-3.5 px-4 text-center text-xs font-semibold uppercase tracking-wide text-gray-500">Details</th>
+                  <th className="py-3 px-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[14%]">Channel Partner</th>
+                  <th className="py-3 px-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[13%]">Route Name</th>
+                  <th className="py-3 px-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[10%]">Coverage</th>
+                  <th className="py-3 px-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[10%]">Distance</th>
+                  <th className="py-3 px-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[9%]">Duration</th>
+                  <th className="py-3 px-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[11%]">Points</th>
+                  <th className="py-3 px-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[10%]">Deviation</th>
+                  <th className="py-3 px-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[13%]">Completed</th>
+                  <th className="py-3 px-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 w-[9%]">Status</th>
+                  <th className="py-3 px-2.5 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 w-[7%]">Details</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -209,7 +209,6 @@ export default function JourneyReportsTable() {
                   const statusKey = isMatched ? "MATCHED" : (report.status || "COMPLETED").toUpperCase();
                   const badge = STATUS_CONFIG[statusKey] || STATUS_CONFIG.COMPLETED;
 
-                  // Fields matching backend API response
                   const rawCoverage = report.coveragePercentage ?? report.coveragePercent ?? report.coverage ?? 0;
                   const coveragePct = Number(rawCoverage).toFixed(1);
                   const cpName = report.channelPartnerName || cpNameMap[report.channelPartnerId] || "Channel Partner";
@@ -217,7 +216,6 @@ export default function JourneyReportsTable() {
 
                   const plannedDist = report.plannedDistance != null ? formatDistance(report.plannedDistance) : "—";
                   const actualDist = report.actualDistance != null ? formatDistance(report.actualDistance) : "—";
-
                   const plannedDur = report.plannedDuration != null ? `${report.plannedDuration}m` : "—";
                   const actualDur = report.actualDuration != null ? `${report.actualDuration}m` : "—";
 
@@ -228,29 +226,29 @@ export default function JourneyReportsTable() {
 
                   return (
                     <tr key={rid} className="hover:bg-gray-50/80 transition-colors">
-                      {/* CP Name */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 shadow-xs">
+
+                      {/* CP Name — avatar + name, no whitespace-nowrap */}
+                      <td className="py-3 px-2.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-7 h-7 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
                             {initials}
                           </div>
-                          <span className="font-semibold text-gray-900 whitespace-nowrap">{cpName}</span>
+                          <span className="font-semibold text-gray-900 text-xs truncate">{cpName}</span>
                         </div>
                       </td>
 
                       {/* Route Name */}
-                      <td className="py-3.5 px-4 font-medium text-gray-800 max-w-[180px]">
+                      <td className="py-3 px-2.5 font-medium text-gray-800 text-xs">
                         <span className="truncate block" title={report.routeName}>
                           {report.routeName || "—"}
                         </span>
                       </td>
 
-                      {/* Coverage % */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <td className="py-3 px-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-14 h-1.5 bg-gray-100 rounded-full overflow-hidden flex-shrink-0">
                             <div
-                              className="h-full rounded-full transition-all"
+                              className="h-full rounded-full"
                               style={{
                                 width: `${Math.min(Number(rawCoverage), 100)}%`,
                                 background: Number(rawCoverage) >= 90 ? "#16a34a" : Number(rawCoverage) >= 70 ? "#f59e0b" : "#ef4444",
@@ -262,25 +260,25 @@ export default function JourneyReportsTable() {
                       </td>
 
                       {/* Distance */}
-                      <td className="py-3.5 px-4 text-xs font-medium text-gray-700 whitespace-nowrap">
-                        <span className="text-gray-900 font-semibold">{actualDist}</span>
-                        <span className="text-gray-400 text-[11px] block">Plan: {plannedDist}</span>
+                      <td className="py-3 px-2.5 text-xs">
+                        <span className="font-semibold text-gray-900 block">{actualDist}</span>
+                        <span className="text-gray-400 text-[11px]">Plan: {plannedDist}</span>
                       </td>
 
                       {/* Duration */}
-                      <td className="py-3.5 px-4 text-xs font-medium text-gray-700 whitespace-nowrap">
-                        <span className="text-indigo-600 font-semibold">{actualDur}</span>
-                        <span className="text-gray-400 text-[11px] block">Plan: {plannedDur}</span>
+                      <td className="py-3 px-2.5 text-xs">
+                        <span className="font-semibold text-indigo-600 block">{actualDur}</span>
+                        <span className="text-gray-400 text-[11px]">Plan: {plannedDur}</span>
                       </td>
 
                       {/* Points */}
-                      <td className="py-3.5 px-4 text-xs whitespace-nowrap">
-                        <span className="font-semibold text-gray-800">{coveredPts} / {totalPts}</span>
-                        {devPts > 0 && <span className="text-amber-600 font-medium block text-[11px]">({devPts} deviated)</span>}
+                      <td className="py-3 px-2.5 text-xs">
+                        <span className="font-semibold text-gray-800 block">{coveredPts} / {totalPts}</span>
+                        {devPts > 0 && <span className="text-amber-600 font-medium text-[11px]">({devPts} deviated)</span>}
                       </td>
 
-                      {/* Deviation Distance */}
-                      <td className="py-3.5 px-4 text-xs font-medium whitespace-nowrap">
+                      {/* Deviation */}
+                      <td className="py-3 px-2.5 text-xs font-medium">
                         {devDist === 0 ? (
                           <span className="text-emerald-600 font-semibold">0 m ✓</span>
                         ) : (
@@ -289,22 +287,22 @@ export default function JourneyReportsTable() {
                       </td>
 
                       {/* Completed At */}
-                      <td className="py-3.5 px-4 text-gray-500 text-xs whitespace-nowrap">
+                      <td className="py-3 px-2.5 text-gray-500 text-xs">
                         {formatDate(report.completedAt || report.createdAt || report.startedAt)}
                       </td>
 
                       {/* Status Badge */}
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${badge.cls}`}>
+                      <td className="py-3 px-2.5">
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border ${badge.cls}`}>
                           {badge.label}
                         </span>
                       </td>
 
                       {/* Details Button */}
-                      <td className="py-3.5 px-4 text-center">
+                      <td className="py-3 px-2.5 text-center">
                         <button
                           onClick={() => setSelectedReport(report)}
-                          className="px-2.5 py-1 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors cursor-pointer"
+                          className="px-2 py-1 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors cursor-pointer"
                         >
                           👁️ View
                         </button>
@@ -334,11 +332,10 @@ export default function JourneyReportsTable() {
                   <button
                     key={p}
                     onClick={() => setPage(p)}
-                    className={`w-8 h-8 rounded-lg border text-sm font-medium transition-colors ${
-                      page === p
+                    className={`w-8 h-8 rounded-lg border text-sm font-medium transition-colors ${page === p
                         ? "bg-indigo-600 border-indigo-600 text-white"
                         : "border-gray-200 text-gray-600 hover:border-indigo-400 hover:text-indigo-600"
-                    }`}
+                      }`}
                   >
                     {p}
                   </button>
@@ -399,12 +396,10 @@ export default function JourneyReportsTable() {
 
               <div className="bg-gray-50 p-4 rounded-xl space-y-2 border border-gray-100 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-gray-500 font-medium">Report ID:</span>
-                  <span className="font-mono text-gray-800">{selectedReport.reportId || selectedReport._id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 font-medium">Channel Partner ID:</span>
-                  <span className="font-mono text-gray-800">{selectedReport.channelPartnerId}</span>
+                  <span className="text-gray-500 font-medium">Channel Partner Name:</span>
+                  <span className="font-semibold text-gray-900">
+                    {selectedReport.channelPartnerName || cpNameMap[selectedReport.channelPartnerId] || "Channel Partner"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500 font-medium">Actual Distance:</span>
