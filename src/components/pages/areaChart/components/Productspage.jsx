@@ -200,17 +200,19 @@ export default function ProductsPage({
                     if (isUmsType) {
                       return (
                         <div key={p.key || `p-${pIdx}`} className="w-[138px] h-[134px] flex flex-col items-center justify-between p-1">
-                          {/* White panel container matching Page 4 UMS panel */}
-                          <div className="w-[104px] rounded-sm border border-[#1a2e5e]/30 overflow-hidden flex flex-col items-center shrink-0">
-                            {/* Dark Red Header text */}
-                            <p className="text-[6.5px] font-bold text-white text-center truncate leading-tight w-full mb-1 uppercase">
+
+                          {/* ✅ Outer white bg wrapper */}
+                          <div className="bg-white rounded-xl p-[4px] flex flex-col items-center w-[114px]">
+
+                            {/* Title */}
+                            <p className="text-[6.5px] font-bold text-[#b5121b] text-center truncate leading-tight w-full mb-1 uppercase">
                               {p.name}
                             </p>
 
-                            {/* Card button matching Page 4 UMS card */}
+                            {/* Card button */}
                             <button
                               onClick={() => onAssignClick?.(slotId, p.name)}
-                              className="group relative w-[104px] h-[104px] bg-white border-[3px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden cursor-pointer shrink-0 cursor-pointer group"
+                              className="group relative w-[104px] h-[104px] bg-white border-[3px] border-[#1a2e5e] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden cursor-pointer shrink-0"
                             >
                               {assigned?.photoUrl ? (
                                 <img

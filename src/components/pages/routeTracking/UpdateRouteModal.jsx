@@ -11,6 +11,28 @@ import {
 } from "../../redux/slices/Routetrackingslice.js";
 import { selectToken, selectUser } from "../../redux/slices/authSlice";
 
+// ── Map Tile Layers Configuration ─────────────────────────────────────────────
+const MAP_STYLES = {
+  street: {
+    name: "Street",
+    icon: "🗺️",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: "© OpenStreetMap contributors",
+  },
+  satellite: {
+    name: "Satellite",
+    icon: "🛰️",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: "© Esri World Imagery",
+  },
+  dark: {
+    name: "Night",
+    icon: "🌙",
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    attribution: "© CARTO Dark",
+  },
+};
+
 export default function UpdateRouteModal({ route, onClose, channelPartners = [] }) {
   const dispatch = useDispatch();
   const token = useSelector(selectToken);
@@ -23,10 +45,12 @@ export default function UpdateRouteModal({ route, onClose, channelPartners = [] 
 
   const mapRef = useRef(null);
   const leafletMap = useRef(null);
+  const tileLayerRef = useRef(null);
   const polylineRef = useRef(null);
   const markersRef = useRef([]);
   const dropdownRef = useRef(null);
 
+  const [mapStyle, setMapStyle] = useState("street");
   const [coords, setCoords] = useState([]);
   const [form, setForm] = useState({
     routeName: "",
@@ -89,8 +113,9 @@ export default function UpdateRouteModal({ route, onClose, channelPartners = [] 
       14
     );
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap contributors",
+    const styleConfig = MAP_STYLES.street;
+    tileLayerRef.current = L.tileLayer(styleConfig.url, {
+      attribution: styleConfig.attribution,
       maxZoom: 19,
     }).addTo(map);
 
@@ -119,6 +144,23 @@ export default function UpdateRouteModal({ route, onClose, channelPartners = [] 
       leafletMap.current = null;
     };
   }, [step]);
+
+  // ── Switch Map Tile Layer (Street / Satellite / Night) ───────────────────
+  useEffect(() => {
+    const map = leafletMap.current;
+    const L = window.L;
+    if (!map || !L) return;
+
+    if (tileLayerRef.current) {
+      tileLayerRef.current.remove();
+    }
+
+    const styleConfig = MAP_STYLES[mapStyle] || MAP_STYLES.street;
+    tileLayerRef.current = L.tileLayer(styleConfig.url, {
+      attribution: styleConfig.attribution,
+      maxZoom: 19,
+    }).addTo(map);
+  }, [mapStyle]);
 
   const redrawPath = (map, points) => {
     const L = window.L;
@@ -507,7 +549,35 @@ export default function UpdateRouteModal({ route, onClose, channelPartners = [] 
               Click on the map to add waypoints. First point = Start, Last point = End.
             </div>
             
-            <div ref={mapRef} className="w-full h-96 rounded-lg border border-gray-200" />
+            <div style={{ position: "relative" }}>
+              {/* Map Layer Switcher */}
+              <div style={{
+                position: "absolute", top: 10, left: 10, zIndex: 1000,
+                display: "flex", gap: 3, background: "#fff", padding: 3,
+                borderRadius: 8, boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+                border: "1px solid #e2e8f0",
+              }}>
+                {Object.entries(MAP_STYLES).map(([key, styleObj]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setMapStyle(key)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      padding: "4px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                      border: "none", cursor: "pointer",
+                      background: mapStyle === key ? "#4f46e5" : "transparent",
+                      color: mapStyle === key ? "#fff" : "#475569",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    <span>{styleObj.icon}</span>
+                    <span>{styleObj.name}</span>
+                  </button>
+                ))}
+              </div>
+              <div ref={mapRef} className="w-full h-96 rounded-lg border border-gray-200" />
+            </div>
             
             <div className="flex items-center justify-between">
               <span className="text-sm text-gray-600">

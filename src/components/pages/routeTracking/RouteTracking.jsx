@@ -8,6 +8,7 @@ import {
 import { selectToken, selectUser } from "../../redux/slices/authSlice";
 import CreateRouteModal from "./CreateRouteModal";
 import UpdateRouteModal from "./UpdateRouteModal"; // NEW
+import RouteDetailsModal from "./RouteDetailsModal";
 import LiveTrackingPanel from "./LiveTrackingPanel";
 import JourneyReportsTable from "./JourneyReportsTable";
 
@@ -58,8 +59,10 @@ export default function RouteTracking() {
   const [leafletReady, setLeafletReady] = useState(false);
   const [activeTab, setActiveTab] = useState("live");
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showUpdateModal, setShowUpdateModal] = useState(false); // NEW
-  const [selectedRoute, setSelectedRoute] = useState(null); // NEW
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [selectedDetailsRoute, setSelectedDetailsRoute] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -106,6 +109,11 @@ export default function RouteTracking() {
   const handleEditRoute = (route) => {
     setSelectedRoute(route);
     setShowUpdateModal(true);
+  };
+
+  const handleViewDetails = (route) => {
+    setSelectedDetailsRoute(route);
+    setShowDetailsModal(true);
   };
 
   // Derived data
@@ -333,7 +341,10 @@ export default function RouteTracking() {
                               ✏️ Edit Route
                             </button>
                           )}
-                          <button className="flex-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
+                          <button
+                            onClick={() => handleViewDetails(route)}
+                            className="flex-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                          >
                             👁️ View Details
                           </button>
                         </div>
@@ -365,6 +376,18 @@ export default function RouteTracking() {
           route={selectedRoute}
           onClose={handleUpdateModalClose}
           channelPartners={[]}
+        />
+      )}
+
+      {/* Route Details Modal */}
+      {showDetailsModal && selectedDetailsRoute && (
+        <RouteDetailsModal
+          route={selectedDetailsRoute}
+          onClose={() => {
+            setShowDetailsModal(false);
+            setSelectedDetailsRoute(null);
+          }}
+          onEdit={handleEditRoute}
         />
       )}
     </div>

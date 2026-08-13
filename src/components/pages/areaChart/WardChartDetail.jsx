@@ -933,6 +933,19 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
     return rows;
   }, [chairmenP3]);
 
+  const displayWardsList = useMemo(() => {
+    if (constituencyWards && constituencyWards.length > 0) return constituencyWards;
+    if (reduxWards && reduxWards.length > 0) return reduxWards;
+    return [ward];
+  }, [constituencyWards, reduxWards, ward]);
+
+  const wardsToRender = useMemo(() => {
+    if (isPreviewMode && !isWardChairman && displayWardsList.length > 0) {
+      return displayWardsList;
+    }
+    return [ward];
+  }, [isPreviewMode, isWardChairman, displayWardsList, ward]);
+
   const isBusy = apiStatus === "loading" || fetchStatus === "loading";
 
   return (
@@ -1006,11 +1019,11 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
       </div>
 
       <div ref={pdfRef} className="pdf-container-wrapper space-y-6">
-        {/* ══════ PAGE 1 — COVER ══════ */}
+        {/* ══════ PAGE 1 — COVER (SINGLE COMMON COVER) ══════ */}
         <ChartPreviewFrame pageLabel="Cover Page">
           <CoverPage
-            code={wardInfo?.wardNumber ?? ""}
-            regionName={wardInfo?.wardName ?? ""}
+            code={wardInfo?.wardNumber ?? ward.ward_number ?? ""}
+            regionName={ward.constituency || wardInfo?.wardName || ward.ward_name}
             wardNumber={ward.ward_number}
             wardName={ward.ward_name}
             heroImageUrl={heroImageUrl}
@@ -1019,6 +1032,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
           />
         </ChartPreviewFrame>
 
+        {/* ══════ PAGES 2 & 3 — MLA · PATRONS · CHAIRMEN (COMMON FOR CONSTITUENCY) ══════ */}
         {!isWardChairman && (
           <>
             {/* ══════ PAGE 2 — MLA + Officials + Patrons + Chairmen ══════ */}
@@ -1146,276 +1160,253 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
           </>
         )}
 
-        {/* ══════ PAGE 4 — Advisory/Mentor + Leadership + Sectors/UMS ══════ */}
-        <ChartPage pageLabel="Advisory · Leadership · Sectors · UMS" pageNum={chairmenP3.length > 0 ? 4 : 3} ward={ward}>
-          <div className="flex flex-col h-full min-h-full">
-            {/* Advisory / Mentor row */}
-            <div className="flex flex-col items-center justify-center gap-3 px-4 py-2 bg-white border-b border-slate-100 shrink-0">
-              {Array.from({
-                length: Math.max(
-                  Math.ceil((config.slotCounts.advisories || 3) / 3),
-                  Math.ceil((config.slotCounts.mentors || 2) / 2)
-                ),
-              }).map((_, r) => {
-                const totalAdv = config.slotCounts.advisories || 3;
-                const totalMen = config.slotCounts.mentors || 2;
-                const rowAdvisories = Array.from({ length: totalAdv }).slice(r * 3, (r + 1) * 3);
-                const rowMentors = Array.from({ length: totalMen }).slice(r * 2, (r + 1) * 2);
+        {/* ══════ PER-WARD PAGES (ADVISORY/LEADERSHIP/SECTORS/UMS + PRODUCTS FOR EACH WARD) ══════ */}
+        {wardsToRender.map((w, wardIdx) => {
+          const currentGCode = w.g_code || w.ward_number || w.wardNumber || gCode;
+          const currentWardName = w.ward_name || w.wardName || "Ward";
+          const currentRegion = w.region || w.district || w.constituency || ward.constituency;
 
-                return (
-                  <div key={r} className="flex items-start justify-center">
-                    {/* Advisories slice */}
-                    <div className="flex gap-12">
-                      {rowAdvisories.map((_, idx) => {
-                        const i = r * 3 + idx;
-                        const slotId = `advisory-${i + 1}`;
-                        return (
-                          <div key={slotId} className="flex flex-col items-center gap-1">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <span className="w-5 h-5 rounded-full border-2 border-[#c8102e] text-[#c8102e] text-[9px] font-bold flex items-center justify-center shrink-0">
-                                {i + 1}
-                              </span>
-                              <span className="text-[11px] font-bold text-[#c8102e]">
-                                Advisory
-                              </span>
-                            </div>
-                            <ChartSlot
-                              slotId={slotId}
-                              label={`${i + 1} Advisory`}
-                              tone="navy"
-                              variant="default"
-                              showPlaceholderName={false}
-                              assigned={assignments[slotId]}
-                              dimmed={isDimmed(
-                                slotId,
-                                "advisories",
-                                assignments[slotId]?.name
-                              )}
-                              onAssignClick={slotClickProp}
-                              showPlus={!isPreviewMode}
-                              isSuperAdmin={isSuperAdmin}
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
+          const currentWardChairman = (
+            w.id === ward.id && assignments["ward-chairman"]?.name
+          ) ? assignments["ward-chairman"] : (
+            effectiveAssignments[`chairman-${wardIdx + 1}`] ||
+            (wardChairmenList || []).find(item => item.wardId === w.id || item.wardNumber === w.ward_number || item.wardName === w.ward_name)?.wardChart?.members?.find(m => m?.userType === "WardChairman" || m?.slotId === "ward-chairman") ||
+            null
+          );
 
-                    <div className="w-px self-stretch bg-slate-300 mx-8" />
+          const wardHeaderPrefix = wardsToRender.length > 1 ? `[Ward ${w.ward_number || wardIdx + 1} - ${currentWardName}] ` : "";
 
-                    {/* Mentors slice */}
-                    <div className="flex gap-14">
-                      {rowMentors.map((_, idx) => {
-                        const i = r * 2 + idx;
-                        const slotId = `mentor-${i + 1}`;
-                        return (
-                          <div key={slotId} className="flex flex-col items-center gap-1">
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <span className="w-5 h-5 rounded-full border-2 border-ink text-ink text-[9px] font-bold flex items-center justify-center shrink-0">
-                                {i + 1}
-                              </span>
-                              <span className="text-[11px] font-bold text-ink">
-                                Mentor
-                              </span>
-                            </div>
-                            <ChartSlot
-                              slotId={slotId}
-                              label={`${i + 1} Mentor`}
-                              tone="navy"
-                              variant="default"
-                              showPlaceholderName={false}
-                              assigned={assignments[slotId]}
-                              dimmed={isDimmed(
-                                slotId,
-                                "mentors",
-                                assignments[slotId]?.name
-                              )}
-                              onAssignClick={slotClickProp}
-                              showPlus={!isPreviewMode}
-                              isSuperAdmin={isSuperAdmin}
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+          return (
+            <React.Fragment key={w.id || `ward-block-${wardIdx}`}>
+              {/* ══════ PAGE 4 — Advisory/Mentor + Leadership + Sectors/UMS ══════ */}
+              <ChartPage pageLabel={`${wardHeaderPrefix}Advisory · Leadership · Sectors · UMS`} pageNum={chairmenP3.length > 0 ? 4 : 3} ward={w}>
+                <div className="flex flex-col h-full min-h-full">
+                  {/* Advisory / Mentor row */}
+                  <div className="flex flex-col items-center justify-center gap-3 px-4 py-2 bg-white border-b border-slate-100 shrink-0">
+                    {Array.from({
+                      length: Math.max(
+                        Math.ceil((config.slotCounts.advisories || 3) / 3),
+                        Math.ceil((config.slotCounts.mentors || 2) / 2)
+                      ),
+                    }).map((_, r) => {
+                      const totalAdv = config.slotCounts.advisories || 3;
+                      const totalMen = config.slotCounts.mentors || 2;
+                      const rowAdvisories = Array.from({ length: totalAdv }).slice(r * 3, (r + 1) * 3);
+                      const rowMentors = Array.from({ length: totalMen }).slice(r * 2, (r + 1) * 2);
 
-            {/* Leadership strip */}
-            <div className="flex items-center bg-[#1a2e5e] shrink-0 px-4 gap-4 h-[150px]">
-              <div className="flex flex-col items-center justify-center shrink-0 w-[140px] h-[120px]">
-                <ChairmanHighlightCard
-                  wardNumber={gCode} assigned={assignments["ward-chairman"]}
-                  dimmed={isDimmed("ward-chairman", "core", assignments["ward-chairman"]?.name)}
-                  onAssignClick={slotClickProp} showPlus={!isPreviewMode} isSuperAdmin={isSuperAdmin}
-                />
-              </div>
-
-              <div className="flex flex-1 justify-evenly items-center">
-                {CORE_ROLES.map((role) => {
-                  const slotId = `core-${role.toLowerCase().replace(/\s+/g, "-")}`;
-                  return (
-                    <div key={slotId} className="flex flex-col items-center w-[105px] gap-1">
-                      <p className="text-[11px] font-bold text-white text-center mb-1">{role}</p>
-                      <div
-                        onClick={() => handleSlotClick(slotId, role)}
-                        className={`relative w-[95px] h-[95px] rounded-lg border-2 border-[#c8102e] bg-[#d32f2f] flex items-center justify-center overflow-hidden shrink-0 shadow-sm ${!isPreviewMode && !isSuperAdmin ? "cursor-pointer group" : "cursor-default"}`}
-                      >
-                        {assignments[slotId]?.photoUrl ? (
-                          <img src={assignments[slotId].photoUrl} alt={assignments[slotId].name} className="w-full h-full object-cover" />
-                        ) : (
-                          <svg viewBox="0 0 64 64" className="w-[85%] h-[85%] text-white" fill="currentColor">
-                            <circle cx="32" cy="22" r="12" />
-                            <path d="M8 56 Q8 40 32 40 Q56 40 56 56 Z" />
-                          </svg>
-                        )}
-                        {!isPreviewMode && !isSuperAdmin && (
-                          <span className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
-                        )}
-                      </div>
-                      <p className="mt-1.5 text-[9.5px] font-bold text-white uppercase text-center leading-tight truncate max-w-[100px]">
-                        {assignments[slotId]?.name || "NAME"}
-                      </p>
-                      <p className="text-[7.5px] text-white/70 text-center leading-tight truncate max-w-[100px]">
-                        {assignments[slotId]?.company}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Red container: Sectors + UMS (Fills remaining Page 4 height to footer) */}
-            <div className="flex gap-2.5 px-[2%] py-[2%] bg-[#c8102e] flex-1 min-h-0">
-              {/* Sectors flex column */}
-              <div className="flex-1 flex flex-col justify-evenly gap-1.5 pt-[30px]">
-                {Array.from({ length: Math.ceil(firstPageSectors.length / 3) }).map((_, rowIdx) => {
-                  const rowSectors = firstPageSectors.slice(rowIdx * 3, rowIdx * 3 + 3);
-                  return (
-                    <div key={rowIdx} className="flex justify-center gap-6 px-4">
-                      {rowSectors.map((s) => {
-                        const slotId = `sector-${s.key}`;
-                        return (
-                          <div key={s.key} className="w-[118px] shrink-0">
-                            <SectorCard
-                              slotId={slotId} label={s.label} assigned={assignments[slotId]}
-                              dimmed={isDimmed(slotId, "sectors", assignments[slotId]?.name)}
-                              onAssignClick={slotClickProp} showPlus={!isPreviewMode} isSuperAdmin={isSuperAdmin}
-                            />
-                          </div>
-                        );
-                      })}
-                      {rowSectors.length < 3 && Array.from({ length: 3 - rowSectors.length }).map((_, fi) => (
-                        <div key={`fill-${fi}`} className="w-[118px] shrink-0 opacity-0" />
-                      ))}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* UMS panel */}
-              {firstPageUms.length > 0 && (
-                <div className="w-[250px] rounded-sm border border-ink shrink-0 bg-white overflow-hidden flex flex-col h-full self-stretch mt-2">
-                  <div className="bg-[#1a2e5e] py-[5px] text-center shrink-0">
-                    <p className="text-[7.5px] font-bold text-white uppercase tracking-wider">Udyami Management System</p>
-                  </div>
-                  <div className="flex-1 grid grid-cols-2 px-3 py-2 gap-x-3 gap-y-1.5 content-evenly">
-                    {firstPageUms.map((s) => {
-                      const slotId = `ums-${s.key}`;
-                      const assigned = assignments[slotId];
                       return (
-                        <div key={s.key} className="flex flex-col items-center min-w-0">
-                          <p className="text-[6px] font-medium text-[#b5121b] text-center mb-0.5 min-h-[10px] leading-tight truncate w-full">{s.label}</p>
-                          <div
-                            onClick={() => handleSlotClick(slotId, s.label)}
-                            className={`group relative w-[104px] h-[104px] bg-white border-[3px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden cursor-pointer shrink-0 ${!isPreviewMode ? "cursor-pointer group" : "cursor-default"}`}
-                          >
-                            {assigned?.photoUrl ? (
-                              <img src={assigned.photoUrl} alt={assigned.name} className="w-full h-full object-cover" />
-                            ) : assigned?.name ? (
-                              <User size={18} className="text-slate-600" />
-                            ) : null}
-                            {!isPreviewMode && !isSuperAdmin && (
-                              <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                            )}
+                        <div key={r} className="flex items-start justify-center">
+                          {/* Advisories slice */}
+                          <div className="flex gap-12">
+                            {rowAdvisories.map((_, idx) => {
+                              const i = r * 3 + idx;
+                              const slotId = `advisory-${i + 1}`;
+                              return (
+                                <div key={slotId} className="flex flex-col items-center gap-1">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <span className="w-5 h-5 rounded-full border-2 border-[#c8102e] text-[#c8102e] text-[9px] font-bold flex items-center justify-center shrink-0">
+                                      {i + 1}
+                                    </span>
+                                    <span className="text-[11px] font-bold text-[#c8102e]">
+                                      Advisory
+                                    </span>
+                                  </div>
+                                  <ChartSlot
+                                    slotId={slotId}
+                                    label={`${i + 1} Advisory`}
+                                    tone="navy"
+                                    variant="default"
+                                    showPlaceholderName={false}
+                                    assigned={assignments[slotId]}
+                                    dimmed={isDimmed(
+                                      slotId,
+                                      "advisories",
+                                      assignments[slotId]?.name
+                                    )}
+                                    onAssignClick={slotClickProp}
+                                    showPlus={!isPreviewMode}
+                                    isSuperAdmin={isSuperAdmin}
+                                  />
+                                </div>
+                              );
+                            })}
                           </div>
-                          <p className="text-[7.5px] font-bold text-slate-800 text-center mt-0.5 truncate w-full leading-tight min-h-[10px]">
-                            {assigned?.name || ""}
-                          </p>
+
+                          <div className="w-px self-stretch bg-slate-300 mx-8" />
+
+                          {/* Mentors slice */}
+                          <div className="flex gap-14">
+                            {rowMentors.map((_, idx) => {
+                              const i = r * 2 + idx;
+                              const slotId = `mentor-${i + 1}`;
+                              return (
+                                <div key={slotId} className="flex flex-col items-center gap-1">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    <span className="w-5 h-5 rounded-full border-2 border-ink text-ink text-[9px] font-bold flex items-center justify-center shrink-0">
+                                      {i + 1}
+                                    </span>
+                                    <span className="text-[11px] font-bold text-ink">
+                                      Mentor
+                                    </span>
+                                  </div>
+                                  <ChartSlot
+                                    slotId={slotId}
+                                    label={`${i + 1} Mentor`}
+                                    tone="navy"
+                                    variant="default"
+                                    showPlaceholderName={false}
+                                    assigned={assignments[slotId]}
+                                    dimmed={isDimmed(
+                                      slotId,
+                                      "mentors",
+                                      assignments[slotId]?.name
+                                    )}
+                                    onAssignClick={slotClickProp}
+                                    showPlus={!isPreviewMode}
+                                    isSuperAdmin={isSuperAdmin}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       );
                     })}
                   </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </ChartPage>
 
-        {/* ══════ PRODUCT PAGES ══════ */}
-        {/* Hidden measure div */}
-        <div
-          ref={measureRef}
-          style={{
-            position: "fixed", top: "-9999px", left: "-9999px",
-            width: "855px", opacity: 0, pointerEvents: "none", zIndex: -1,
-          }}
-        >
-          <div data-banner="true">
-            <ChartHeaderBanner
-              code={gCode}
-              wardName={ward.ward_name}
-              region={ward.region || ward.district || ward.constituency}
-            />
-          </div>
-          {activeBrandCategories.map((cat) => {
-            const cols = 5;
+                  {/* Leadership strip */}
+                  <div className="flex items-center bg-[#1a2e5e] shrink-0 px-4 gap-4 h-[150px]">
+                    <div className="flex flex-col items-center justify-center shrink-0 w-[140px] h-[120px]">
+                      <ChairmanHighlightCard
+                        wardNumber={currentGCode}
+                        assigned={currentWardChairman}
+                        dimmed={isDimmed("ward-chairman", "core", currentWardChairman?.name)}
+                        onAssignClick={slotClickProp} showPlus={!isPreviewMode} isSuperAdmin={isSuperAdmin}
+                      />
+                    </div>
 
-            return (
-              <div key={cat.key} data-cat-key={cat.key}>
-                <div className="flex" style={{ backgroundColor: `${cat.color}18` }}>
-                  <div className="w-[32px] shrink-0" style={{ backgroundColor: cat.color }} />
-                  <div
-                    className="flex-1 grid gap-[10px] p-[12px]"
-                    style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
-                  >
-                    {cat.products.map((p) => (
-                      <div key={p.key}>
-                        <p className="text-[9px] font-bold mb-[4px] truncate">{p.name}</p>
-                        <div className="w-full aspect-square border-[3px] rounded-xl"
-                          style={{ borderColor: cat.color }} />
+                    <div className="flex flex-1 justify-evenly items-center">
+                      {CORE_ROLES.map((role) => {
+                        const slotId = `core-${role.toLowerCase().replace(/\s+/g, "-")}`;
+                        return (
+                          <div key={slotId} className="flex flex-col items-center w-[105px] gap-1">
+                            <p className="text-[11px] font-bold text-white text-center mb-1">{role}</p>
+                            <div
+                              onClick={() => handleSlotClick(slotId, role)}
+                              className={`relative w-[95px] h-[95px] rounded-lg border-2 border-[#c8102e] bg-[#d32f2f] flex items-center justify-center overflow-hidden shrink-0 shadow-sm ${!isPreviewMode && !isSuperAdmin ? "cursor-pointer group" : "cursor-default"}`}
+                            >
+                              {assignments[slotId]?.photoUrl ? (
+                                <img src={assignments[slotId].photoUrl} alt={assignments[slotId].name} className="w-full h-full object-cover" />
+                              ) : (
+                                <svg viewBox="0 0 64 64" className="w-[85%] h-[85%] text-white" fill="currentColor">
+                                  <circle cx="32" cy="22" r="12" />
+                                  <path d="M8 56 Q8 40 32 40 Q56 40 56 56 Z" />
+                                </svg>
+                              )}
+                              {!isPreviewMode && !isSuperAdmin && (
+                                <span className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
+                              )}
+                            </div>
+                            <p className="mt-1.5 text-[9.5px] font-bold text-white uppercase text-center leading-tight truncate max-w-[100px]">
+                              {assignments[slotId]?.name || "NAME"}
+                            </p>
+                            <p className="text-[7.5px] text-white/70 text-center leading-tight truncate max-w-[100px]">
+                              {assignments[slotId]?.company}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Red container: Sectors + UMS */}
+                  <div className="flex gap-2.5 px-[2%] py-[2%] bg-[#c8102e] flex-1 min-h-0">
+                    {/* Sectors flex column */}
+                    <div className="flex-1 flex flex-col justify-evenly gap-1.5 pt-[30px]">
+                      {Array.from({ length: Math.ceil(firstPageSectors.length / 3) }).map((_, rowIdx) => {
+                        const rowSectors = firstPageSectors.slice(rowIdx * 3, rowIdx * 3 + 3);
+                        return (
+                          <div key={rowIdx} className="flex justify-center gap-6 px-4">
+                            {rowSectors.map((s) => {
+                              const slotId = `sector-${s.key}`;
+                              return (
+                                <div key={s.key} className="w-[118px] shrink-0">
+                                  <SectorCard
+                                    slotId={slotId} label={s.label} assigned={assignments[slotId]}
+                                    dimmed={isDimmed(slotId, "sectors", assignments[slotId]?.name)}
+                                    onAssignClick={slotClickProp} showPlus={!isPreviewMode} isSuperAdmin={isSuperAdmin}
+                                  />
+                                </div>
+                              );
+                            })}
+                            {rowSectors.length < 3 && Array.from({ length: 3 - rowSectors.length }).map((_, fi) => (
+                              <div key={`fill-${fi}`} className="w-[118px] shrink-0 opacity-0" />
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* UMS panel */}
+                    {firstPageUms.length > 0 && (
+                      <div className="w-[250px] rounded-sm border border-ink shrink-0 bg-white overflow-hidden flex flex-col h-full self-stretch mt-2">
+                        <div className="bg-[#1a2e5e] py-[5px] text-center shrink-0">
+                          <p className="text-[7.5px] font-bold text-white uppercase tracking-wider">Udyami Management System</p>
+                        </div>
+                        <div className="flex-1 grid grid-cols-2 px-3 py-2 gap-x-3 gap-y-1.5 content-evenly">
+                          {firstPageUms.map((s) => {
+                            const slotId = `ums-${s.key}`;
+                            const assigned = assignments[slotId];
+                            return (
+                              <div key={s.key} className="flex flex-col items-center min-w-0">
+                                <p className="text-[6px] font-medium text-[#b5121b] text-center mb-0.5 min-h-[10px] leading-tight truncate w-full">{s.label}</p>
+                                <div
+                                  onClick={() => handleSlotClick(slotId, s.label)}
+                                  className={`group relative w-[104px] h-[104px] bg-white border-[3px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden cursor-pointer shrink-0 ${!isPreviewMode ? "cursor-pointer group" : "cursor-default"}`}
+                                >
+                                  {assigned?.photoUrl ? (
+                                    <img src={assigned.photoUrl} alt={assigned.name} className="w-full h-full object-cover" />
+                                  ) : assigned?.name ? (
+                                    <User size={18} className="text-slate-600" />
+                                  ) : null}
+                                  {!isPreviewMode && !isSuperAdmin && (
+                                    <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                                  )}
+                                </div>
+                                <p className="text-[7.5px] font-bold text-slate-800 text-center mt-0.5 truncate w-full leading-tight min-h-[10px]">
+                                  {assigned?.name || ""}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
-              </div>
-            );
-          })}
-          <div data-footer="true">
-            <PageFooter num={1} />
-          </div>
-        </div>
+              </ChartPage>
 
-        {/* ─── FIX: Products page rendering with single label ─── */}
-        {(productPages.length > 0 ? productPages : [activeBrandCategories]).map((pageCats, pageIdx) => (
-          <ChartPreviewFrame
-            key={`products-page-${pageIdx}`}
-            // ─── FIX: Always show "Products" without page number ───
-            pageLabel={pageIdx === 0 ? "Products" : "Products"} // Removed (${pageIdx + 1})
-          >
-            <ProductsPage
-              code={gCode}
-              wardName={ward.ward_name}
-              region={ward.region || ward.district || ward.constituency}
-              categories={pageCats}
-              assignments={assignments}
-              onAssignClick={slotClickProp}
-              showPlus={!isPreviewMode}
-              isSuperAdmin={isSuperAdmin}
-            />
-          </ChartPreviewFrame>
-        ))}
+              {/* ══════ PRODUCT PAGES FOR WARD ══════ */}
+              {(productPages.length > 0 ? productPages : [activeBrandCategories]).map((pageCats, pageIdx) => (
+                <ChartPreviewFrame
+                  key={`products-page-${w.id || wardIdx}-${pageIdx}`}
+                  pageLabel={`${wardHeaderPrefix}Products`}
+                >
+                  <ProductsPage
+                    code={currentGCode}
+                    wardName={currentWardName}
+                    region={currentRegion}
+                    categories={pageCats}
+                    assignments={assignments}
+                    onAssignClick={slotClickProp}
+                    showPlus={!isPreviewMode}
+                    isSuperAdmin={isSuperAdmin}
+                  />
+                </ChartPreviewFrame>
+              ))}
+            </React.Fragment>
+          );
+        })}
       </div>
 
       {/* ── All Assignments Table ── */}

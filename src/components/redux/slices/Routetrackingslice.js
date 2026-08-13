@@ -77,15 +77,16 @@ export const getAssignedRoute = createAsyncThunk(
 
 export const trackCPRoute = createAsyncThunk(
   "routeTracking/trackCPRoute",
-  async ({ channelPartnerId, token }, { rejectWithValue }) => {
+  async ({ routeId, channelPartnerId, token }, { rejectWithValue }) => {
     try {
+      const targetId = routeId || channelPartnerId;
       const data = await authRequest(
-        `/create-route/trackCPRoute/${channelPartnerId}`,
+        `/create-route/trackCPRoute/${targetId}`,
         "GET",
         null,
         token
       );
-      return { channelPartnerId, ...data.data };
+      return { routeId: targetId, channelPartnerId, ...data.data };
     } catch (err) {
       return rejectWithValue(err.message);
     }
@@ -261,15 +262,77 @@ const routeTrackingSlice = createSlice({
       .addCase(trackCPRoute.fulfilled, (state, action) => {
         state.trackingStatus = "succeeded";
         state.trackingData = action.payload;
-        if (action.payload?.currentLocation?.lat && action.payload?.currentLocation?.lng) {
-          const { lat, lng } = action.payload.currentLocation;
-          const cpId = action.payload.channelPartnerId;
+        const payload = action.payload;
+        if (!payload) return;
+
+        const cpId = payload.channelPartnerId;
+        const curLoc = payload.currentLocation;
+        const history = payload.trackingHistory || [];
+        const routeData = payload.route;
+
+        const lat = curLoc?.latitude ?? curLoc?.lat;
+        const lng = curLoc?.longitude ?? curLoc?.lng;
+
+        if (cpId && lat != null && lng != null) {
           state.liveLocations[cpId] = {
-            lat, lng,
+            lat: Number(lat),
+            lng: Number(lng),
             updatedAt: Date.now(),
-            coverage: action.payload.currentLocation.coverage || 0,
-            deviation: action.payload.currentLocation.deviation || 0,
+            coverage: curLoc?.coverage || payload?.coveragePercent || 0,
+            deviation: curLoc?.deviationDistance || curLoc?.deviation || 0,
+            speed: curLoc?.speed,
+            battery: curLoc?.battery,
+            isOnRoute: curLoc?.isOnRoute,
           };
+        }
+
+        // Update matching route in state.routes array so activeRoutes subscribers re-render
+        if (state.routes && state.routes.length > 0) {
+          const routeId = routeData?.routeId || routeData?._id || routeData?.id;
+          const idx = state.routes.findIndex((r) => {
+            const rId = r._id || r.routeId || r.id;
+            const rCpId =
+              r.channelPartnerId ||
+              r.assignedTo ||
+              r.channelPartner?._id ||
+              (typeof r.channelPartner === "string" ? r.channelPartner : null);
+            return (
+              (routeId && (r._id === routeId || r.routeId === routeId || r.id === routeId)) ||
+              (cpId && rCpId === cpId)
+            );
+          });
+
+          if (idx !== -1) {
+            const existingRoute = state.routes[idx];
+            const newCoords = routeData?.routePath?.coordinates || [];
+            const mergedRoutePath =
+              newCoords.length >= 2 ? routeData.routePath : existingRoute.routePath;
+
+            state.routes[idx] = {
+              ...existingRoute,
+              ...(routeData || {}),
+              routePath: mergedRoutePath,
+              status: routeData?.status || existingRoute.status || "STARTED",
+              channelPartnerName:
+                existingRoute.channelPartnerName ||
+                routeData?.channelPartnerName ||
+                "Channel Partner",
+              channelPartnerId:
+                existingRoute.channelPartnerId ||
+                cpId ||
+                routeData?.channelPartnerId,
+              currentLocation: curLoc || existingRoute.currentLocation,
+              trackingHistory:
+                history && history.length > 0
+                  ? history
+                  : existingRoute.trackingHistory || [],
+              livePoints:
+                history && history.length > 0
+                  ? history
+                  : existingRoute.livePoints || [],
+              deviation: curLoc?.deviationDistance || existingRoute.deviation,
+            };
+          }
         }
       })
       .addCase(trackCPRoute.rejected, (state, action) => {

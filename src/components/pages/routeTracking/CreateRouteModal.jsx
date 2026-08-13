@@ -11,6 +11,28 @@ import {
 } from "../../redux/slices/Routetrackingslice.js";
 import { selectToken, selectUser } from "../../redux/slices/authSlice";
 
+// ── Map Tile Layers Configuration ─────────────────────────────────────────────
+const MAP_STYLES = {
+  street: {
+    name: "Street",
+    icon: "🗺️",
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: "© OpenStreetMap contributors",
+  },
+  satellite: {
+    name: "Satellite",
+    icon: "🛰️",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: "© Esri World Imagery",
+  },
+  dark: {
+    name: "Night",
+    icon: "🌙",
+    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+    attribution: "© CARTO Dark",
+  },
+};
+
 // ── Debounce hook for search ──────────────────────────────────────────────────
 function useDebounce(value, delay) {
   const [dv, setDv] = useState(value);
@@ -24,19 +46,24 @@ function useDebounce(value, delay) {
 // ── Fetch road-snapped route via OSRM (free, no API key) ─────────────────────
 async function fetchRoadPath(waypoints) {
   // waypoints: [[lng, lat], [lng, lat], ...]
-  if (waypoints.length < 2) return waypoints;
+  if (waypoints.length < 2) return { coordinates: waypoints, distance: 0, duration: 0 };
   const coords = waypoints.map(([lng, lat]) => `${lng},${lat}`).join(";");
   const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
   try {
     const res = await fetch(url);
     const data = await res.json();
-    if (data.code === "Ok" && data.routes?.[0]?.geometry?.coordinates) {
-      return data.routes[0].geometry.coordinates; // [[lng,lat],...]
+    if (data.code === "Ok" && data.routes?.[0]) {
+      const route = data.routes[0];
+      return {
+        coordinates: route.geometry?.coordinates || waypoints,
+        distance: route.distance || 0, // meters
+        duration: route.duration || 0, // seconds
+      };
     }
   } catch (e) {
     console.warn("OSRM routing failed, falling back to straight line", e);
   }
-  return waypoints; // fallback: straight line
+  return { coordinates: waypoints, distance: 0, duration: 0 };
 }
 
 export default function CreateRouteModal({ onClose, channelPartners = [] }) {
@@ -50,11 +77,15 @@ export default function CreateRouteModal({ onClose, channelPartners = [] }) {
 
   const mapRef = useRef(null);
   const leafletMap = useRef(null);
+  const tileLayerRef = useRef(null);
   const polylineRef = useRef(null);        // road-snapped display polyline
   const markersRef = useRef([]);           // click-point markers
   const locationMarkerRef = useRef(null);  // current-location blue dot
   const dropdownRef = useRef(null);
   const searchRef = useRef(null);
+
+  // Map Style state (Street / Satellite / Night)
+  const [mapStyle, setMapStyle] = useState("street");
 
   // coords = raw click waypoints [[lng,lat],...]
   const [coords, setCoords] = useState([]);
@@ -117,8 +148,9 @@ export default function CreateRouteModal({ onClose, channelPartners = [] }) {
     const map = L.map(mapRef.current, { zoomControl: true }).setView(
       [12.9716, 77.5946], 14
     );
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap contributors",
+    const styleConfig = MAP_STYLES.street;
+    tileLayerRef.current = L.tileLayer(styleConfig.url, {
+      attribution: styleConfig.attribution,
       maxZoom: 19,
     }).addTo(map);
 
@@ -141,6 +173,23 @@ export default function CreateRouteModal({ onClose, channelPartners = [] }) {
     };
   }, []);
 
+  // ── Switch Map Tile Layer (Street / Satellite / Night) ───────────────────
+  useEffect(() => {
+    const map = leafletMap.current;
+    const L = window.L;
+    if (!map || !L) return;
+
+    if (tileLayerRef.current) {
+      tileLayerRef.current.remove();
+    }
+
+    const styleConfig = MAP_STYLES[mapStyle] || MAP_STYLES.street;
+    tileLayerRef.current = L.tileLayer(styleConfig.url, {
+      attribution: styleConfig.attribution,
+      maxZoom: 19,
+    }).addTo(map);
+  }, [mapStyle]);
+
   // ── Re-fetch road path whenever coords change ─────────────────────────────
   useEffect(() => {
     if (coords.length < 2) {
@@ -155,10 +204,22 @@ export default function CreateRouteModal({ onClose, channelPartners = [] }) {
     if (!map) return;
 
     setRouteLoading(true);
-    fetchRoadPath(coords).then((snapped) => {
-      setRoadCoords(snapped);
-      drawRoadPolyline(map, snapped);
+    fetchRoadPath(coords).then(({ coordinates, distance, duration }) => {
+      setRoadCoords(coordinates);
+      drawRoadPolyline(map, coordinates);
       setRouteLoading(false);
+
+      // Auto-calculate distance (in meters or km) & estimated duration (in minutes)
+      if (distance > 0 || duration > 0) {
+        const distMeters = Math.round(distance);
+        const durationMinutes = Math.max(1, Math.round(duration / 60));
+
+        setForm((prev) => ({
+          ...prev,
+          plannedDistance: distMeters.toString(),
+          estimatedDuration: durationMinutes.toString(),
+        }));
+      }
     });
   }, [coords]);
 
@@ -476,6 +537,33 @@ export default function CreateRouteModal({ onClose, channelPartners = [] }) {
             {/* Map wrapper — position:relative so search box can float over it */}
             <div style={{ position: "relative" }}>
 
+              {/* ── Map Layer Switcher (Street / Satellite / Night) ─────────── */}
+              <div style={{
+                position: "absolute", top: 10, left: 10, zIndex: 1000,
+                display: "flex", gap: 3, background: "#fff", padding: 3,
+                borderRadius: 8, boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+                border: "1px solid #e2e8f0",
+              }}>
+                {Object.entries(MAP_STYLES).map(([key, styleObj]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setMapStyle(key)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      padding: "4px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                      border: "none", cursor: "pointer",
+                      background: mapStyle === key ? "#4f46e5" : "transparent",
+                      color: mapStyle === key ? "#fff" : "#475569",
+                      transition: "all 0.15s",
+                    }}
+                  >
+                    <span>{styleObj.icon}</span>
+                    <span>{styleObj.name}</span>
+                  </button>
+                ))}
+              </div>
+
               {/* ── Search box (floats over map) ─────────────────────────── */}
               <div
                 ref={searchRef}
@@ -764,7 +852,14 @@ export default function CreateRouteModal({ onClose, channelPartners = [] }) {
               </div>
 
               <div className="rt-form-group">
-                <label className="rt-label">Planned Distance (meters)</label>
+                <label className="rt-label">
+                  Planned Distance (meters)
+                  {form.plannedDistance ? (
+                    <span style={{ fontSize: 11, color: "#16a34a", marginLeft: 6, fontWeight: 500 }}>
+                       ({(parseFloat(form.plannedDistance) / 1000).toFixed(2)} km)
+                    </span>
+                  ) : null}
+                </label>
                 <input
                   className="rt-input" type="number" placeholder="e.g. 2500"
                   value={form.plannedDistance}
@@ -773,7 +868,10 @@ export default function CreateRouteModal({ onClose, channelPartners = [] }) {
               </div>
 
               <div className="rt-form-group">
-                <label className="rt-label">Estimated Duration (minutes)</label>
+                <label className="rt-label">
+                  Estimated Duration (minutes)
+                 
+                </label>
                 <input
                   className="rt-input" type="number" placeholder="e.g. 45"
                   value={form.estimatedDuration}
