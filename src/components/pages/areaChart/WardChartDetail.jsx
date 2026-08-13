@@ -15,6 +15,7 @@ import CoverPage from "./components/CoverPage.jsx";
 import ChartPreviewFrame from "./components/ChartPreviewFrame.jsx";
 import { useSelector, useDispatch } from "react-redux";
 import PositionDetailsModal from "./models/PositionDetailsModal.jsx";
+import UcnMembersSidePanel from "./models/UcnMembersSidePanel.jsx";
 import { deleteWardChartMember, selectLayoutConfig, selectWardInfo } from "../../redux/slices/areaChartSlice.js";
 import { HERO_IMAGE_URL } from "./chartAssets.js";
 import {
@@ -22,14 +23,20 @@ import {
   getWardChartData,
   getLocationByWardHeadId,
   getAllWardChaimansBy,
+  fetchUcnMembers,
+  fetchChannelPartners,
+  fetchPatrons,
   selectWards,
   selectWardChairmenList,
   selectAreaChartStatus,
   selectAreaChartError,
   selectFetchStatus,
   selectFetchedData,
+  selectUcnMembers,
+  selectChannelPartners,
+  selectPatrons,
 } from "../../redux/slices/areaChartSlice.js";
-import { mapApiToAssignments, mergeTalukaChairmenIntoAssignments } from "./utils/Mapapitoassignments.js";
+import { mapApiToAssignments, mergeTalukaChairmenIntoAssignments, mergePatronsIntoAssignments, mergeUcnMembersIntoAssignments } from "./utils/Mapapitoassignments.js";
 import { paginateBrandCategories } from "./utils/paginateCategories.js";
 import { getLayoutCountString } from "./utils/calculateLayoutCount.js";
 import ImageCropModal from "./models/ImageCropModal.jsx";
@@ -245,6 +252,9 @@ export default function WardChartDetail() {
   const fetchedData = useSelector(selectFetchedData);
   const wardInfo = useSelector(selectWardInfo);
   const layoutConfig = useSelector(selectLayoutConfig);
+  const ucnMembers = useSelector(selectUcnMembers);
+  const channelPartners = useSelector(selectChannelPartners);
+  const patrons = useSelector(selectPatrons);
 
   const [assignments, setAssignments] = useState({});
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
@@ -296,12 +306,13 @@ export default function WardChartDetail() {
   const isWardChairman = user?.role === "WardChairman";
   const isSuperAdmin = user?.role === "SuperAdmin";
 
-  const [tab, setTab] = useState(user?.role === "WardChairman" ? "build" : "preview");
+  const [tab, setTab] = useState(user?.role === "WardChairman" ? "build" : "build");
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const pdfRef = useRef(null);
   const [showCustomize, setShowCustomize] = useState(false);
   const [modal, setModal] = useState(null);
   const [selectedPosition, setSelectedPosition] = useState(null);
+  const [sidePanelSlot, setSidePanelSlot] = useState(null);
   const [search] = useState("");
   const [sectionFilter] = useState("all");
 
@@ -310,6 +321,10 @@ export default function WardChartDetail() {
   useEffect(() => {
     if (targetUserId && ward.id) {
       dispatch(getWardChartData({ userId: targetUserId, wardId: ward.id }));
+    }
+    if (ward.id) {
+      dispatch(fetchUcnMembers(ward.id));
+      dispatch(fetchChannelPartners({ wardId: ward.id }));
     }
     if (user?.userId && (!wards || wards.length === 0)) {
       dispatch(getLocationByWardHeadId(user.userId));
@@ -320,10 +335,8 @@ export default function WardChartDetail() {
     if (fetchStatus === "succeeded" && fetchedData) {
       const mapped = mapApiToAssignments(fetchedData);
       setAssignments(mapped);
-
       const apiData = fetchedData?.data || {};
       const apiLayoutConfig = apiData.layoutConfig;
-      const apiLayoutCount = apiData.layoutCount || apiLayoutConfig?.layoutCount;
 
       if (apiLayoutConfig && typeof apiLayoutConfig === "object") {
         setConfig({
@@ -686,14 +699,24 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
   const openDetails = (id, label) => {
     const a = assignments[id];
     setSelectedPosition({
-      slotId: id, role: label,
-      memberName: a?.name || null, company: a?.company || null,
-      mobileNumber: a?.mobileNumber || null, email: a?.email || null,
-      location: a?.location || null, district: a?.district || null,
-      reportsTo: a?.reportsTo || null, directReports: a?.directReports || null,
-      assignedDate: a?.assignedDate || null, memberId: a?.memberId || null,
-      memberNumber: a?.memberNumber || null, status: a?.status || null,
+      slotId: id,
+      role: a?.positionName || a?.slotLabel || label,
+      memberName: a?.name || null,
+      company: a?.company || null,
+      mobileNumber: a?.mobileNumber || null,
+      email: a?.email || null,
+      location: a?.location || null,
+      district: a?.district || null,
+      reportsTo: a?.reportsTo || null,
+      directReports: a?.directReports || null,
+      assignedDate: a?.assignedDate || null,
+      memberId: a?.memberId || null,
+      memberNumber: a?.memberNumber || null,
+      status: a?.status || null,
       profileImage: a?.photoUrl || a?.profileImage || null,
+      positionDescription: a?.positionDescription || null,
+      assignedUserName: a?.assignedUserName || null,
+      fromDate: a?.fromDate || null,
     });
   };
 
@@ -706,6 +729,93 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
     );
   }
 
+  const handleAssignMemberFromPanel = (selectedMember) => {
+    if (!sidePanelSlot) return;
+    const slotId = sidePanelSlot.slotId;
+    const label = sidePanelSlot.label;
+
+    const isCommon = isBlockedForWardChairman(slotId);
+    const photoUrl =
+      selectedMember.profileImage ||
+      selectedMember.photoUrl ||
+      selectedMember.profile?.profileImage ||
+      selectedMember.profile?.photoUrl ||
+      selectedMember.profile?.businessDetails?.businessImage1 ||
+      "";
+
+    const payload = buildSingleMemberPayload(ward, user, slotId, {
+      name: selectedMember.name || selectedMember.assignedUserName || "",
+      mobileNumber: selectedMember.mobileNumber || "",
+      email: selectedMember.email || "",
+      company: selectedMember.companyName || selectedMember.company || "",
+      photoUrl,
+      status: "registered",
+      slotLabel: label,
+    });
+
+    const formData = new FormData();
+    formData.append("data", JSON.stringify({
+      wardHeadId: payload.wardHeadId,
+      wardId: ward.id,
+      ward: payload.ward,
+      layoutCount: getLayoutCountString(config),
+      applyToAllWards: isCommon,
+      isCommonPage: isCommon,
+      members: payload.members.map(({ profileImage, ...m }) => ({
+        ...m,
+        profileImage: profileImage || "",
+      })),
+    }));
+
+    dispatch(createWardChartData(formData))
+      .unwrap()
+      .then(() => {
+        if (talukaId) dispatch(getAllWardChaimansBy(talukaId));
+      })
+      .catch((err) => console.error("Create ward chart data error:", err));
+
+    // Optimistically update local assignments state for immediate visual feedback
+    setAssignments((prev) => ({
+      ...prev,
+      [slotId]: {
+        name: selectedMember.name || selectedMember.assignedUserName || "",
+        company: selectedMember.companyName || selectedMember.company || "",
+        photoUrl: (typeof photoUrl === "string" && photoUrl.trim()) ? photoUrl : null,
+        mobileNumber: selectedMember.mobileNumber || "",
+        email: selectedMember.email || "",
+        memberId: selectedMember.userId || selectedMember.memberId || null,
+        status: "registered",
+        slotLabel: label,
+        positionName: selectedMember.positionName || null,
+        positionDescription: selectedMember.positionDescription || null,
+        assignedUserName: selectedMember.assignedUserName || null,
+      },
+    }));
+
+    setSidePanelSlot(null);
+  };
+
+  const isUcnSidePanelSlot = (slotId) => {
+    if (!slotId) return false;
+    return (
+      slotId === "core-president" ||
+      slotId === "core-vice-president" ||
+      slotId === "core-general-secretary" ||
+      slotId === "core-treasurer" ||
+      slotId.startsWith("ums-")
+    );
+  };
+
+  const isChannelPartnerSlot = (slotId) => {
+    if (!slotId) return false;
+    return slotId.startsWith("product-");
+  };
+
+  const isPatronSlot = (slotId) => {
+    if (!slotId) return false;
+    return slotId.startsWith("patron-");
+  };
+
   const handleSlotClick = (id, label) => {
     const a = assignments[id];
     if (isWardChairman && (id === "ward-chairman" || isBlockedForWardChairman(id))) {
@@ -716,8 +826,17 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
       if (a?.name) openDetails(id, label);
       return;
     }
-    if (a?.name) { openDetails(id, label); }
-    else { setModal({ slotId: id, label }); }
+    if (a?.name) {
+      openDetails(id, label);
+    } else if (isUcnSidePanelSlot(id)) {
+      setSidePanelSlot({ slotId: id, label, panelType: "ucn" });
+    } else if (isChannelPartnerSlot(id)) {
+      setSidePanelSlot({ slotId: id, label, panelType: "channelPartner" });
+    } else if (isPatronSlot(id)) {
+      setSidePanelSlot({ slotId: id, label, panelType: "patron" });
+    } else {
+      setModal({ slotId: id, label });
+    }
   };
 
   const slotClickProp = handleSlotClick;
@@ -874,17 +993,26 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
   useEffect(() => {
     if (talukaId) {
       dispatch(getAllWardChaimansBy(talukaId));
+      dispatch(fetchPatrons(talukaId));
     }
   }, [dispatch, talukaId]);
 
   const effectiveAssignments = useMemo(() => {
-    return mergeTalukaChairmenIntoAssignments(assignments, wardChairmenList, constituencyWards, gCode);
+    const withChairmen = mergeTalukaChairmenIntoAssignments(assignments, wardChairmenList, constituencyWards, gCode);
+    return mergePatronsIntoAssignments(withChairmen, wardChairmenList);
   }, [assignments, wardChairmenList, constituencyWards, gCode]);
 
   const rows = useMemo(
     () =>
-      Object.entries(assignments)
-        .filter(([slotId]) => !slotId.startsWith("chairman-") && slotId !== "hero-image")
+      Object.entries(effectiveAssignments)
+        .filter(
+          ([slotId, a]) =>
+            !slotId.startsWith("chairman-") &&
+            !slotId.startsWith("patron-") &&
+            slotId !== "hero-image" &&
+            a &&
+            a.name
+        )
         .map(([slotId, a]) => ({
           name: a.name,
           company: a.company || "—",
@@ -897,7 +1025,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
           email: a.email || null,
           profileImage: a.photoUrl || a.profileImage || null,
         })),
-    [assignments]
+    [effectiveAssignments]
   );
 
   const reduxWardCount = constituencyWards.length > 0 ? constituencyWards.length : (reduxWards.length > 0 ? reduxWards.length : null);
@@ -1091,8 +1219,8 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                         key={slotId}
                         slotId={slotId}
                         tone="navy"
-                        assigned={assignments[slotId]}
-                        dimmed={isDimmed(slotId, "patrons", assignments[slotId]?.name)}
+                        assigned={effectiveAssignments[slotId]}
+                        dimmed={isDimmed(slotId, "patrons", effectiveAssignments[slotId]?.name)}
                         onAssignClick={slotClickProp}
                         showPlus={!isPreviewMode}
                         isSuperAdmin={isSuperAdmin}
@@ -1431,8 +1559,34 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
           open={!!selectedPosition}
           position={selectedPosition}
           onClose={() => setSelectedPosition(null)}
+          onReassign={(slotId, role) => {
+            setSelectedPosition(null);
+            if (isUcnSidePanelSlot(slotId)) {
+              setSidePanelSlot({ slotId, label: role, panelType: "ucn" });
+            } else if (isChannelPartnerSlot(slotId)) {
+              setSidePanelSlot({ slotId, label: role, panelType: "channelPartner" });
+            } else if (isPatronSlot(slotId)) {
+              setSidePanelSlot({ slotId, label: role, panelType: "patron" });
+            } else {
+              setModal({ slotId, label: role });
+            }
+          }}
         />
       )}
+
+      <UcnMembersSidePanel
+        open={Boolean(sidePanelSlot)}
+        onClose={() => setSidePanelSlot(null)}
+        slotId={sidePanelSlot?.slotId}
+        slotLabel={sidePanelSlot?.label}
+        wardName={ward.ward_name}
+        ucnMembers={ucnMembers}
+        channelPartners={channelPartners}
+        patrons={patrons}
+        panelType={sidePanelSlot?.panelType || "ucn"}
+        onSearchBusiness={(businessName) => dispatch(fetchChannelPartners({ wardId: ward.id, businessName }))}
+        onAssignMember={handleAssignMemberFromPanel}
+      />
 
       {showCustomize && (
         <CustomizeLayoutModal

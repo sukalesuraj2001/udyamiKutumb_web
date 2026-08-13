@@ -334,3 +334,138 @@ export function mergeTalukaChairmenIntoAssignments(assignments, wardChairmenList
 
   return merged;
 }
+
+/**
+ * mergePatronsIntoAssignments
+ * Merges assigned patrons from all ward charts in the taluka (wardChairmenList)
+ * into assignments state for patron-1 .. patron-10 slots.
+ * Patrons assigned in any ward in the taluka show across all 10 wards.
+ */
+export function mergePatronsIntoAssignments(assignments, wardChairmenList) {
+  const merged = { ...(assignments || {}) };
+
+  if (!Array.isArray(wardChairmenList) || wardChairmenList.length === 0) {
+    return merged;
+  }
+
+  wardChairmenList.forEach((wardItem) => {
+    const chartMembers = wardItem?.wardChart?.members || [];
+    chartMembers.forEach((m) => {
+      if (!m) return;
+      const isPatronMember = m.userType === "Patron" || (m.slotId && m.slotId.startsWith("patron-"));
+      if (!isPatronMember) return;
+
+      const slotId = m.slotId || "patron-1";
+
+      if (!merged[slotId] || !merged[slotId].name) {
+        const photo =
+          extractPhotoUrl(m.profileImage) ||
+          extractPhotoUrl(m.photoUrl) ||
+          extractPhotoUrl(m.profile?.profileImage) ||
+          extractPhotoUrl(m.profile?.photoUrl) ||
+          extractPhotoUrl(m.profile?.businessDetails?.businessImage1) ||
+          null;
+
+        merged[slotId] = {
+          name: m.name || m.memberName || "",
+          company: m.companyName || m.company || "",
+          photoUrl: (typeof photo === "string" && photo.trim()) ? photo : null,
+          mobileNumber: m.mobileNumber || "",
+          email: m.email || "",
+          memberId: m.memberId || m.userId || null,
+          status: m.isActive === false ? "inactive" : (m.status || "registered"),
+          slotLabel: m.slotLabel || `Patron ${slotId.split("-")[1] || 1}`,
+          positionName: m.positionName || null,
+        };
+      }
+    });
+  });
+
+  return merged;
+}
+
+const UCN_ASSIGNMENT_TYPE_TO_SLOT = {
+  "circle_leader": "core-president",
+  "circle-leader": "core-president",
+  "president": "core-president",
+  "vice_president": "core-vice-president",
+  "vice-president": "core-vice-president",
+  "general_secretary": "core-general-secretary",
+  "general-secretary": "core-general-secretary",
+  "treasurer": "core-treasurer",
+  "ward_chairman": "ward-chairman",
+  "ward-chairman": "ward-chairman",
+};
+
+const UMS_KEYS = [
+  "ai", "comms", "digital", "ground", "circle",
+  "directory", "hall", "finance2", "kutumba", "arbitration"
+];
+
+/**
+ * mergeUcnMembersIntoAssignments
+ * Merges member array from GET /auth/ucn-members/:wardId API
+ * into assignments state for President, VP, GS, Treasurer, UMS, and other roles.
+ */
+export function mergeUcnMembersIntoAssignments(assignments, ucnMembersList) {
+  if (!Array.isArray(ucnMembersList) || ucnMembersList.length === 0) {
+    return assignments || {};
+  }
+
+  const merged = { ...(assignments || {}) };
+
+  ucnMembersList.forEach((member, index) => {
+    if (!member) return;
+
+    const assignmentType = (member.assignmentType || "").toLowerCase();
+    let slotId = member.slotId || null;
+
+    if (!slotId) {
+      if (UCN_ASSIGNMENT_TYPE_TO_SLOT[assignmentType]) {
+        slotId = UCN_ASSIGNMENT_TYPE_TO_SLOT[assignmentType];
+      } else if (assignmentType.startsWith("ums_") || assignmentType.startsWith("ums-")) {
+        slotId = `ums-${assignmentType.replace(/^ums[_-]/, "")}`;
+      } else if (member.umsKey) {
+        slotId = `ums-${member.umsKey}`;
+      } else if (UMS_KEYS.includes(assignmentType)) {
+        slotId = `ums-${assignmentType}`;
+      } else if (member.sectorKey || assignmentType.startsWith("sector_") || assignmentType.startsWith("sector-")) {
+        const sec = member.sectorKey || assignmentType.replace(/^sector[_-]/, "");
+        slotId = `sector-${sec}`;
+      } else if (assignmentType === "advisory") {
+        slotId = `advisory-${index + 1}`;
+      } else if (assignmentType === "mentor") {
+        slotId = `mentor-${index + 1}`;
+      }
+    }
+
+    if (slotId && (member.name || member.userId)) {
+      const photo =
+        extractPhotoUrl(member.profileImage) ||
+        extractPhotoUrl(member.photoUrl) ||
+        extractPhotoUrl(member.profile?.profileImage) ||
+        null;
+
+      merged[slotId] = {
+        name: member.name || member.assignedUserName || "",
+        company: member.companyName || member.company || "",
+        photoUrl: photo,
+        mobileNumber: member.mobileNumber || "",
+        email: member.email || "",
+        memberId: member.userId || member.memberId || null,
+        location: member.location || member.positionName || null,
+        district: member.districtId || member.district || null,
+        state: member.state || null,
+        status: member.positionIsActive === false ? "inactive" : (member.status || "registered"),
+        slotLabel: member.positionName || member.slotLabel || slotId,
+        positionName: member.positionName || null,
+        positionDescription: member.positionDescription || null,
+        assignedUserName: member.assignedUserName || null,
+        fromDate: member.fromDate || null,
+        assignmentType: member.assignmentType || null,
+      };
+    }
+  });
+
+  return merged;
+}

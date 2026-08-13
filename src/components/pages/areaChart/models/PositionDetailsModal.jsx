@@ -22,7 +22,7 @@ import {
  *   slotId, role, memberName, mobileNumber, email,
  *   company, memberId, memberNumber, status, profileImage / photoUrl
  */
-export default function PositionDetailsModal({ open, position, onClose }) {
+export default function PositionDetailsModal({ open, position, onClose, onReassign }) {
   if (!open || !position) return null;
 
   const {
@@ -35,6 +35,9 @@ export default function PositionDetailsModal({ open, position, onClose }) {
     status,
     profileImage,
     photoUrl,
+    positionDescription,
+    assignedUserName,
+    fromDate,
   } = position;
 
   const photo = profileImage || photoUrl || null;
@@ -171,28 +174,40 @@ export default function PositionDetailsModal({ open, position, onClose }) {
               value={company}
             />
           )}
+
+          {/* Description */}
+          {positionDescription && (
+            <InfoRow
+              icon={<UserCircle2 size={13} className="text-[#c8102e]" />}
+              label="Description"
+              value={positionDescription}
+            />
+          )}
+
+          {/* Assigned By */}
+          {assignedUserName && (
+            <InfoRow
+              icon={<BadgeCheck size={13} className="text-[#c8102e]" />}
+              label="Assigned By"
+              value={assignedUserName}
+            />
+          )}
         </div>
 
         {/* ── Bottom CTA strip ── */}
-        {/* <div
-          className="px-6 py-4 flex gap-2 border-t border-slate-100"
-          style={{ background: "#f8f9fc" }}
-        >
-          <a
-            href={`tel:${mobileNumber}`}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-bold text-white transition-opacity hover:opacity-90"
-            style={{ background: "linear-gradient(135deg, #1a2e5e, #273f80)" }}
-          >
-            <Phone size={12} /> Call
-          </a>
-          <a
-            href={`mailto:${email}`}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-[12px] font-bold text-white transition-opacity hover:opacity-90"
-            style={{ background: "linear-gradient(135deg, #c8102e, #e53935)" }}
-          >
-            <Mail size={12} /> Email
-          </a>
-        </div> */}
+        <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50 flex items-center gap-2">
+          {onReassign && (
+            <button
+              onClick={() => {
+                onClose();
+                onReassign(position.slotId, position.role);
+              }}
+              className="w-full py-2.5 rounded-xl text-[12px] font-bold text-white bg-gradient-to-r from-[#1a2e5e] to-[#c8102e] hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-xs"
+            >
+              <UserCircle2 size={15} /> Change / Reassign Member
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

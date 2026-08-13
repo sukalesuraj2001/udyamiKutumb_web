@@ -359,6 +359,92 @@ export const getAllWardChaimansBy = createAsyncThunk(
   }
 );
 
+// ─── GET /auth/ucn-members/:wardId ──────────────────────────────
+export const fetchUcnMembers = createAsyncThunk(
+  "areaChart/fetchUcnMembers",
+  async (wardId, { getState, dispatch, rejectWithValue }) => {
+    dispatch(showLoader());
+    try {
+      const token = getState().auth.token;
+      const { data } = await axios.get(
+        `${BASE_URL}/auth/ucn-members/${wardId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!data.success) throw new Error(data.message || "Fetch failed");
+      return data.data;
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Something went wrong"
+      );
+    } finally {
+      dispatch(hideLoader());
+    }
+  }
+);
+
+// ─── GET /auth/getAllChannelPartners ──────────────────────────────
+export const fetchChannelPartners = createAsyncThunk(
+  "areaChart/fetchChannelPartners",
+  async (params, { getState, dispatch, rejectWithValue }) => {
+    dispatch(showLoader());
+    try {
+      const token = getState().auth.token;
+      let wardId = "";
+      let businessName = "";
+      let page = 1;
+      let limit = 50;
+
+      if (typeof params === "string") {
+        wardId = params;
+      } else if (params && typeof params === "object") {
+        wardId = params.wardId || "";
+        businessName = params.businessName || "";
+        if (params.page) page = params.page;
+        if (params.limit) limit = params.limit;
+      }
+
+      let url = `${BASE_URL}/auth/getAllChannelPartners?page=${page}&limit=${limit}`;
+      if (wardId) url += `&wardId=${wardId}`;
+      if (businessName) url += `&businessName=${encodeURIComponent(businessName)}`;
+
+      const { data } = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!data.success) throw new Error(data.message || "Fetch failed");
+      return data.data || [];
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Something went wrong"
+      );
+    } finally {
+      dispatch(hideLoader());
+    }
+  }
+);
+
+// ─── GET /auth/getAllPatrons/:talukaId ──────────────────────────────
+export const fetchPatrons = createAsyncThunk(
+  "areaChart/fetchPatrons",
+  async (talukaId, { getState, dispatch, rejectWithValue }) => {
+    dispatch(showLoader());
+    try {
+      const token = getState().auth.token;
+      const { data } = await axios.get(
+        `${BASE_URL}/auth/getAllPatrons/${talukaId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!data.success) throw new Error(data.message || "Fetch failed");
+      return data.data || [];
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Something went wrong"
+      );
+    } finally {
+      dispatch(hideLoader());
+    }
+  }
+);
+
 // ─── Slice ────────────────────────────────────────────────────────
 const initialState = {
   status: "idle",
@@ -389,6 +475,18 @@ const initialState = {
   wardChairmenList: [],
   wardChairmenStatus: "idle",
   wardChairmenError: null,
+
+  ucnMembers: [],
+  ucnMembersStatus: "idle",
+  ucnMembersError: null,
+
+  channelPartners: [],
+  channelPartnersStatus: "idle",
+  channelPartnersError: null,
+
+  patrons: [],
+  patronsStatus: "idle",
+  patronsError: null,
 };
 
 const areaChartSlice = createSlice({
@@ -529,6 +627,57 @@ const areaChartSlice = createSlice({
         state.wardChairmenError = action.payload || "Something went wrong";
         state.wardChairmenList = [];
       });
+
+    // ── fetchUcnMembers ──
+    builder
+      .addCase(fetchUcnMembers.pending, (state) => {
+        state.ucnMembersStatus = "loading";
+        state.ucnMembersError = null;
+      })
+      .addCase(fetchUcnMembers.fulfilled, (state, action) => {
+        state.ucnMembersStatus = "succeeded";
+        state.ucnMembers = action.payload;
+        state.ucnMembersError = null;
+      })
+      .addCase(fetchUcnMembers.rejected, (state, action) => {
+        state.ucnMembersStatus = "failed";
+        state.ucnMembersError = action.payload || "Something went wrong";
+        state.ucnMembers = [];
+      });
+
+    // ── fetchChannelPartners ──
+    builder
+      .addCase(fetchChannelPartners.pending, (state) => {
+        state.channelPartnersStatus = "loading";
+        state.channelPartnersError = null;
+      })
+      .addCase(fetchChannelPartners.fulfilled, (state, action) => {
+        state.channelPartnersStatus = "succeeded";
+        state.channelPartners = action.payload;
+        state.channelPartnersError = null;
+      })
+      .addCase(fetchChannelPartners.rejected, (state, action) => {
+        state.channelPartnersStatus = "failed";
+        state.channelPartnersError = action.payload || "Something went wrong";
+        state.channelPartners = [];
+      });
+
+    // ── fetchPatrons ──
+    builder
+      .addCase(fetchPatrons.pending, (state) => {
+        state.patronsStatus = "loading";
+        state.patronsError = null;
+      })
+      .addCase(fetchPatrons.fulfilled, (state, action) => {
+        state.patronsStatus = "succeeded";
+        state.patrons = action.payload;
+        state.patronsError = null;
+      })
+      .addCase(fetchPatrons.rejected, (state, action) => {
+        state.patronsStatus = "failed";
+        state.patronsError = action.payload || "Something went wrong";
+        state.patrons = [];
+      });
   },
 });
 
@@ -560,7 +709,19 @@ export const selectWardChairmenList = (s) => s.areaChart.wardChairmenList;
 export const selectWardChairmenStatus = (s) => s.areaChart.wardChairmenStatus;
 export const selectWardChairmenError = (s) => s.areaChart.wardChairmenError;
 
+export const selectUcnMembers = (s) => s.areaChart.ucnMembers;
+export const selectUcnMembersStatus = (s) => s.areaChart.ucnMembersStatus;
+export const selectUcnMembersError = (s) => s.areaChart.ucnMembersError;
+
+export const selectChannelPartners = (s) => s.areaChart.channelPartners;
+export const selectChannelPartnersStatus = (s) => s.areaChart.channelPartnersStatus;
+export const selectChannelPartnersError = (s) => s.areaChart.channelPartnersError;
+
+export const selectPatrons = (s) => s.areaChart.patrons;
+export const selectPatronsStatus = (s) => s.areaChart.patronsStatus;
+export const selectPatronsError = (s) => s.areaChart.patronsError;
+
 export const selectWardInfo = (s) => s.areaChart.wardInfo;
 export const selectLayoutConfig = (s) => s.areaChart.fetchedData?.data?.layoutConfig ?? null;
 export const { clearAreaChartState, clearLocationState } = areaChartSlice.actions;
-export default areaChartSlice.reducer;
+export default areaChartSlice.reducer;
