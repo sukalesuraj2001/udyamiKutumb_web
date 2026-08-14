@@ -79,471 +79,120 @@ const EmptyState = ({ icon, title, sub }) => (
   </div>
 );
 
-// ═════════════════════════════════════════════════════════════════════════════
-//  IMAGE LIGHTBOX
-// ═════════════════════════════════════════════════════════════════════════════
-const ImageLightbox = ({ images, startIndex = 0, onClose }) => {
-  const [current, setCurrent] = useState(startIndex);
-  const [loaded, setLoaded]   = useState(false);
-  const [zoomed, setZoomed]   = useState(false);
+import ImageLightbox from "./ImageLightbox.jsx";
+import BuildingExplorerView from "./BuildingExplorerView.jsx";
 
-  const total = images.length;
-
-  const prev = useCallback(() => {
-    setLoaded(false);
-    setZoomed(false);
-    setCurrent(i => (i - 1 + total) % total);
-  }, [total]);
-
-  const next = useCallback(() => {
-    setLoaded(false);
-    setZoomed(false);
-    setCurrent(i => (i + 1) % total);
-  }, [total]);
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.key === "Escape")      onClose();
-      if (e.key === "ArrowLeft")   prev();
-      if (e.key === "ArrowRight")  next();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [onClose, prev, next]);
-
-  // Prevent body scroll when open
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
-
-  const img = images[current];
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0, zIndex: 9999,
-        background: "rgba(0,0,0,0.92)",
-        display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center",
-        animation: "lbFadeIn 0.18s ease",
-      }}
-    >
-      <style>{`
-        @keyframes lbFadeIn { from { opacity:0 } to { opacity:1 } }
-        @keyframes lbSlideUp { from { opacity:0; transform:translateY(18px) scale(0.97) } to { opacity:1; transform:translateY(0) scale(1) } }
-      `}</style>
-
-      {/* ── Top bar ── */}
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          position: "absolute", top: 0, left: 0, right: 0,
-          padding: "14px 20px",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.7), transparent)",
-          zIndex: 10,
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>
-            {img.imageType || `Image ${current + 1}`}
-          </div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>
-            {current + 1} / {total}
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {/* Zoom toggle */}
-          <button
-            onClick={e => { e.stopPropagation(); setZoomed(z => !z); }}
-            title={zoomed ? "Fit to screen" : "Zoom in"}
-            style={{
-              width: 36, height: 36, borderRadius: 8,
-              background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)",
-              color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 16,
-            }}
-          >
-            {zoomed ? "⊖" : "⊕"}
-          </button>
-          {/* Download */}
-          <a
-            href={img.imageUrl}
-            download
-            target="_blank"
-            rel="noreferrer"
-            onClick={e => e.stopPropagation()}
-            title="Download image"
-            style={{
-              width: 36, height: 36, borderRadius: 8,
-              background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)",
-              color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 16, textDecoration: "none",
-            }}
-          >
-            ↓
-          </a>
-          {/* Close */}
-          <button
-            onClick={e => { e.stopPropagation(); onClose(); }}
-            title="Close (Esc)"
-            style={{
-              width: 36, height: 36, borderRadius: 8,
-              background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)",
-              color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 18, fontWeight: 700,
-            }}
-          >
-            ✕
-          </button>
-        </div>
-      </div>
-
-      {/* ── Main image ── */}
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          position: "relative",
-          maxWidth: zoomed ? "none" : "88vw",
-          maxHeight: zoomed ? "none" : "78vh",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          animation: "lbSlideUp 0.22s ease",
-        }}
-      >
-        {!loaded && (
-          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ width: 32, height: 32, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.15)", borderTop: "2px solid #fff", animation: "spin 0.7s linear infinite" }} />
-            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-          </div>
-        )}
-        <img
-          key={current}
-          src={img.imageUrl}
-          alt={img.imageType || "Survey image"}
-          onLoad={() => setLoaded(true)}
-          onClick={() => setZoomed(z => !z)}
-          style={{
-            maxWidth: zoomed ? "95vw" : "88vw",
-            maxHeight: zoomed ? "95vh" : "78vh",
-            width: "auto", height: "auto",
-            borderRadius: zoomed ? 4 : 12,
-            boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
-            objectFit: "contain",
-            opacity: loaded ? 1 : 0,
-            transition: "opacity 0.2s",
-            cursor: zoomed ? "zoom-out" : "zoom-in",
-            display: "block",
-          }}
-        />
-      </div>
-
-      {/* ── Prev / Next arrows ── */}
-      {total > 1 && (
-        <>
-          <button
-            onClick={e => { e.stopPropagation(); prev(); }}
-            style={{
-              position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)",
-              width: 44, height: 44, borderRadius: "50%",
-              background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)",
-              color: "#fff", fontSize: 20, cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "background 0.15s",
-              zIndex: 10,
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.22)"}
-            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.12)"}
-          >‹</button>
-          <button
-            onClick={e => { e.stopPropagation(); next(); }}
-            style={{
-              position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)",
-              width: 44, height: 44, borderRadius: "50%",
-              background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)",
-              color: "#fff", fontSize: 20, cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              transition: "background 0.15s",
-              zIndex: 10,
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.22)"}
-            onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.12)"}
-          >›</button>
-        </>
-      )}
-
-      {/* ── Bottom thumbnail strip ── */}
-      {total > 1 && (
-        <div
-          onClick={e => e.stopPropagation()}
-          style={{
-            position: "absolute", bottom: 18,
-            display: "flex", gap: 8, alignItems: "center",
-            padding: "8px 12px",
-            background: "rgba(0,0,0,0.5)", borderRadius: 12,
-            backdropFilter: "blur(8px)",
-            maxWidth: "90vw", overflowX: "auto",
-          }}
-        >
-          {images.map((im, i) => (
-            <div
-              key={im.imageId ?? i}
-              onClick={() => { setLoaded(false); setZoomed(false); setCurrent(i); }}
-              style={{
-                width: i === current ? 52 : 42,
-                height: i === current ? 52 : 42,
-                borderRadius: 8,
-                overflow: "hidden",
-                flexShrink: 0,
-                cursor: "pointer",
-                border: i === current ? "2px solid #fff" : "2px solid transparent",
-                opacity: i === current ? 1 : 0.55,
-                transition: "all 0.15s",
-              }}
-            >
-              <img
-                src={im.imageUrl}
-                alt={im.imageType || `img ${i}`}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ─── Survey / Form Detail Card ────────────────────────────────────────────────
-const SurveyCard = ({ form, index }) => {
-  const dispatch = useDispatch();
-  const [open, setOpen]           = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [rejectOpen, setRejectOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
-  const [lightboxIndex, setLightboxIndex] = useState(null); // null = closed
-
-  const { user } = useSelector((s) => s.auth || {});
-  const wardChairmanId = user?._id || user?.userId;
-
+// ─── Survey / Form Card ───────────────────────────────────────────────────────
+const SurveyCard = ({ form, index, onOpen3D }) => {
   const surveyId    = form.surveyId ?? form._id ?? form.formId ?? form.submissionId;
   const status      = form.status ?? "SUBMITTED";
   const isVerified  = status?.toUpperCase() === "VERIFIED";
   const isRejected  = status?.toUpperCase() === "REJECTED";
-  const surveyTitle = form.surveyNumber ? `Survey #${String(form.surveyNumber).padStart(2,"0")}` : form.formType ?? form.formName ?? "Survey";
-
-  const handleAction = async (newStatus, reason = "VERIFIED.") => {
-    if (!wardChairmanId) { alert("Ward Chairman ID not found. Please re-login."); return; }
-    setVerifying(true);
-    try {
-      await dispatch(updateSurveyStatusByWardChairman({ surveyId, wardChairmanId, status: newStatus, rejectionReason: reason })).unwrap();
-      setRejectOpen(false);
-    } catch (e) { alert(e || "Status update failed"); }
-    finally { setVerifying(false); }
-  };
+  const surveyTitle = form.surveyNumber
+    ? `Survey #${String(form.surveyNumber).startsWith("D") ? form.surveyNumber : "D-" + String(form.surveyNumber).padStart(2, "0")}`
+    : form.formType ?? form.formName ?? "Survey";
 
   const images = Array.isArray(form.images) ? form.images : [];
+  const floorsCount = Array.isArray(form.floors) ? form.floors.length : form.numberOfFloors || 0;
 
   return (
-    <>
-      {/* ── Lightbox (portal-style, rendered here) ── */}
-      {lightboxIndex !== null && (
-        <ImageLightbox
-          images={images}
-          startIndex={lightboxIndex}
-          onClose={() => setLightboxIndex(null)}
-        />
-      )}
-
-      <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${open ? "#bfdbfe" : "#e5e7eb"}`, boxShadow: open ? "0 4px 20px rgba(29,78,216,0.10)" : "0 1px 3px rgba(0,0,0,0.06)", overflow: "hidden", marginBottom: 14, transition: "box-shadow 0.2s, border-color 0.2s" }}>
-        {/* ── Clickable header ── */}
+    <div
+      onClick={() => onOpen3D(form)}
+      style={{
+        background: "#fff",
+        borderRadius: 16,
+        border: "1px solid #e5e7eb",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+        padding: "18px 22px",
+        marginBottom: 14,
+        cursor: "pointer",
+        transition: "all 0.2s ease",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 16,
+        flexWrap: "wrap",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "#93c5fd";
+        e.currentTarget.style.boxShadow = "0 6px 20px rgba(29,78,216,0.12)";
+        e.currentTarget.style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "#e5e7eb";
+        e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)";
+        e.currentTarget.style.transform = "translateY(0)";
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
         <div
-          onClick={() => setOpen(p => !p)}
-          style={{ padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, cursor: "pointer", background: open ? "#eff6ff" : "#fff", borderBottom: open ? "1px solid #dbeafe" : "none", userSelect: "none", transition: "background 0.15s" }}
+          style={{
+            width: 46,
+            height: 46,
+            borderRadius: 14,
+            background: isVerified ? "#d1fae5" : isRejected ? "#fee2e2" : "#eff6ff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 16,
+            fontWeight: 800,
+            color: isVerified ? "#065f46" : isRejected ? "#991b1b" : "#1d4ed8",
+            flexShrink: 0,
+          }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: isVerified ? "#d1fae5" : isRejected ? "#fee2e2" : "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: isVerified ? "#065f46" : isRejected ? "#991b1b" : "#1d4ed8", flexShrink: 0 }}>
-              {String(index + 1).padStart(2, "0")}
-            </div>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>{surveyTitle}</div>
-              <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                {form.locationType && <span style={{ background: "#f0f9ff", color: "#0369a1", padding: "1px 7px", borderRadius: 4, fontSize: 10, fontWeight: 600 }}>{form.locationType}</span>}
-                {form.createdAt && <span>Submitted {formatDate(form.createdAt)}</span>}
-                <span>ID: …{String(surveyId).slice(-6)}</span>
-              </div>
-            </div>
+          {String(index + 1).padStart(2, "0")}
+        </div>
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#111827", display: "flex", alignItems: "center", gap: 8 }}>
+            {surveyTitle}
+            {form.locationAddress && <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 400 }}>· {form.locationAddress}</span>}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-            <StatusChip status={status} size="lg" />
-            <div style={{ width: 30, height: 30, borderRadius: 8, background: open ? "#dbeafe" : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}>
-              <svg width="14" height="14" fill="none" stroke={open ? "#1d4ed8" : "#6b7280"} strokeWidth="2.5" viewBox="0 0 24 24" style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>
-                <path d="M6 9l6 6 6-6"/>
-              </svg>
-            </div>
+          <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 4, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+            {form.locationType && (
+              <span style={{ background: "#f0f9ff", color: "#0369a1", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
+                🏢 {form.locationType} ({floorsCount} {floorsCount === 1 ? "Floor" : "Floors"})
+              </span>
+            )}
+            {images.length > 0 && (
+              <span style={{ background: "#fdf4ff", color: "#86198f", padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600 }}>
+                📷 {images.length} {images.length === 1 ? "Photo" : "Photos"}
+              </span>
+            )}
+            {form.createdAt && <span>Submitted {formatDate(form.createdAt)}</span>}
+            <span>ID: …{String(surveyId).slice(-6)}</span>
           </div>
         </div>
-
-        {/* ── Collapsible body ── */}
-        {open && (
-        <div style={{ padding: "18px 22px" }}>
-          {/* Location block */}
-          {(form.locationAddress || form.latitude) && (
-            <div style={{ background: "#f8fafc", borderRadius: 10, padding: "14px 16px", marginBottom: 14, border: "1px solid #f1f5f9" }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>📍 Location Information</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: "6px 24px" }}>
-                {form.locationAddress && <InfoCell label="Address" value={form.locationAddress} />}
-                {form.locationType && <InfoCell label="Location Type" value={form.locationType} />}
-                {form.numberOfFloors != null && <InfoCell label="Floors" value={String(form.numberOfFloors)} />}
-                {form.latitude && <InfoCell label="GPS" value={`${Number(form.latitude).toFixed(6)}, ${Number(form.longitude).toFixed(6)}`} />}
-              </div>
-            </div>
-          )}
-
-          {/* Floors */}
-          {Array.isArray(form.floors) && form.floors.length > 0 && (
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>🏢 Floors Breakdown ({form.floors.length})</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 8 }}>
-                {form.floors.map((fl, fi) => (
-                  <div key={fl.floorId ?? fi} style={{ background: "#f8fafc", borderRadius: 8, padding: "10px 14px", border: "1px solid #e5e7eb" }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#1e293b", marginBottom: 4 }}>Floor #{fl.floorNumber ?? fi} <span style={{ fontSize: 10, color: "#64748b", fontWeight: 400 }}>({fl.floorType ?? "STANDARD"})</span></div>
-                    <div style={{ fontSize: 11, color: "#475569" }}>Usage: <b>{fl.usageType || "—"}</b></div>
-                    <div style={{ fontSize: 11, color: "#475569" }}>Occupancy: <b>{fl.occupancyType || fl.residentialOccupancy || "—"}</b></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── Images with click-to-lightbox ── */}
-          {images.length > 0 && (
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
-                📷 Images ({images.length})
-              </div>
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                {images.map((img, ii) => (
-                  <div
-                    key={img.imageId ?? ii}
-                    onClick={() => setLightboxIndex(ii)}
-                    style={{ textAlign: "center", cursor: "pointer", position: "relative" }}
-                  >
-                    <div style={{ position: "relative", width: 110, height: 85, borderRadius: 8, overflow: "hidden", border: "1px solid #e5e7eb", display: "block" }}>
-                      <img
-                        src={img.imageUrl}
-                        alt={img.imageType || "Survey"}
-                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform 0.2s" }}
-                        onMouseEnter={e => e.currentTarget.style.transform = "scale(1.06)"}
-                        onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
-                      />
-                      {/* Hover overlay */}
-                      <div
-                        style={{
-                          position: "absolute", inset: 0,
-                          background: "rgba(0,0,0,0)",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          transition: "background 0.18s",
-                          borderRadius: 8,
-                        }}
-                        onMouseEnter={e => {
-                          e.currentTarget.style.background = "rgba(0,0,0,0.32)";
-                          e.currentTarget.querySelector("span").style.opacity = "1";
-                        }}
-                        onMouseLeave={e => {
-                          e.currentTarget.style.background = "rgba(0,0,0,0)";
-                          e.currentTarget.querySelector("span").style.opacity = "0";
-                        }}
-                      >
-                        <span style={{ opacity: 0, fontSize: 22, transition: "opacity 0.18s", pointerEvents: "none" }}>🔍</span>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 10, color: "#64748b", marginTop: 4, maxWidth: 110, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {img.imageType || `Image ${ii + 1}`}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Other fields */}
-          {(() => {
-            const skip = new Set(["_id","__v","createdAt","updatedAt","floors","images","surveyId","cpUserId","locationAddress","locationType","numberOfFloors","latitude","longitude","status","surveyNumber"]);
-            const extras = Object.entries(form).filter(([k,v]) => !skip.has(k) && typeof v !== "object");
-            if (!extras.length) return null;
-            return (
-              <div style={{ background: "#f8fafc", borderRadius: 10, padding: "14px 16px", border: "1px solid #f1f5f9", marginBottom: 14 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>📄 Form Details</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: "6px 24px" }}>
-                  {extras.map(([k, v]) => (
-                    <InfoCell key={k} label={k.replace(/([A-Z])/g," $1").replace(/^./,c=>c.toUpperCase())} value={String(v ?? "")} />
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
-
-          {/* Status banners */}
-          {isVerified && (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "linear-gradient(90deg,#d1fae5,#ecfdf5)", borderRadius: 10, border: "1px solid #a7f3d0" }}>
-              <span style={{ fontSize: 18 }}>✅</span>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#065f46" }}>Verified by Ward Chairman</div>
-                {form.verifiedAt && <div style={{ fontSize: 11, color: "#6ee7b7", marginTop: 1 }}>{formatDate(form.verifiedAt)}</div>}
-              </div>
-            </div>
-          )}
-          {isRejected && (
-            <div style={{ padding: "12px 16px", background: "linear-gradient(90deg,#fee2e2,#fef2f2)", borderRadius: 10, border: "1px solid #fca5a5" }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#991b1b", display: "flex", gap: 8, alignItems: "center" }}><span>❌</span> Rejected</div>
-              {form.rejectionReason && <div style={{ fontSize: 12, color: "#b91c1c", marginTop: 4 }}>Reason: {form.rejectionReason}</div>}
-            </div>
-          )}
-
-          {/* Action buttons */}
-          {!isVerified && !isRejected && (
-            <div style={{ marginTop: 16, paddingTop: 14, borderTop: "1px solid #f3f4f6" }}>
-              {rejectOpen ? (
-                <div style={{ background: "#fff7f7", borderRadius: 10, padding: 14, border: "1px solid #fca5a5" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#991b1b", marginBottom: 8 }}>Reason for Rejection</div>
-                  <input
-                    value={rejectReason}
-                    onChange={e => setRejectReason(e.target.value)}
-                    placeholder="Describe the issue…"
-                    style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid #fca5a5", fontSize: 13, marginBottom: 10, boxSizing: "border-box", outline: "none" }}
-                  />
-                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                    <button onClick={() => setRejectOpen(false)} style={{ padding: "8px 16px", border: "1px solid #e5e7eb", borderRadius: 8, background: "#fff", fontSize: 12, cursor: "pointer", fontWeight: 500 }}>Cancel</button>
-                    <button
-                      disabled={verifying || !rejectReason.trim()}
-                      onClick={() => handleAction("REJECTED", rejectReason)}
-                      style={{ padding: "8px 18px", background: verifying || !rejectReason.trim() ? "#fca5a5" : "#dc2626", color: "#fff", border: "none", borderRadius: 8, fontSize: 12, cursor: "pointer", fontWeight: 700 }}
-                    >Confirm Reject</button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                  <button
-                    disabled={verifying}
-                    onClick={() => setRejectOpen(true)}
-                    style={{ padding: "9px 20px", background: "#fff", color: "#dc2626", border: "1.5px solid #fca5a5", borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-                  >✕  Reject</button>
-                  <button
-                    disabled={verifying}
-                    onClick={() => handleAction("VERIFIED", "VERIFIED.")}
-                    style={{ padding: "9px 22px", background: "linear-gradient(135deg,#059669,#10b981)", color: "#fff", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 3px 10px rgba(16,185,129,0.35)", display: "flex", alignItems: "center", gap: 6 }}
-                  >{verifying ? "Verifying…" : "✓  Verify Survey"}</button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-        )}
       </div>
-    </>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
+        <StatusChip status={status} size="lg" />
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpen3D(form);
+          }}
+          style={{
+            background: "linear-gradient(135deg, #1d4ed8, #2563eb)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 10,
+            padding: "9px 18px",
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            boxShadow: "0 3px 10px rgba(29,78,216,0.25)",
+            transition: "transform 0.15s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+        >
+          🏢 Explore 3D Building →
+        </button>
+      </div>
+    </div>
   );
 };
 
@@ -559,31 +208,22 @@ const InfoCell = ({ label, value }) =>
 //  CP FORMS PAGE (second view)
 // ═════════════════════════════════════════════════════════════════════════════
 const CpFormsPage = ({ cp, cpForms, cpFormsStatus, cpFormsError, onBack, cpIndex }) => {
-  const [activeFilter, setActiveFilter] = useState("all");
+  const [selectedSurveyFor3D, setSelectedSurveyFor3D] = useState(null);
+
+  if (selectedSurveyFor3D) {
+    return (
+      <BuildingExplorerView
+        form={selectedSurveyFor3D}
+        cp={cp}
+        onBack={() => setSelectedSurveyFor3D(null)}
+      />
+    );
+  }
 
   const name   = cp.name ?? cp.fullName ?? cp.cpName ?? "Unknown";
   const phone  = cp.phone ?? cp.mobile ?? cp.mobileNumber ?? cp.phoneNumber ?? "";
   const email  = cp.email ?? "";
   const status = cp.status ?? (cp.isActive ? "active" : "inactive");
-
-  const verifiedCount = cpForms.filter(f => f.status?.toUpperCase() === "VERIFIED").length;
-  const rejectedCount = cpForms.filter(f => f.status?.toUpperCase() === "REJECTED").length;
-  const pendingCount  = cpForms.filter(f => !["VERIFIED","REJECTED"].includes(f.status?.toUpperCase())).length;
-
-  const filteredForms = cpForms.filter(f => {
-    if (activeFilter === "all")      return true;
-    if (activeFilter === "verified") return f.status?.toUpperCase() === "VERIFIED";
-    if (activeFilter === "rejected") return f.status?.toUpperCase() === "REJECTED";
-    if (activeFilter === "pending")  return !["VERIFIED","REJECTED"].includes(f.status?.toUpperCase());
-    return true;
-  });
-
-  const FILTER_TABS = [
-    { key: "all",      label: "All",      count: cpForms.length,  activeColor: "#1d4ed8", activeBg: "#eff6ff", dot: "#3b82f6" },
-    { key: "verified", label: "Verified", count: verifiedCount,   activeColor: "#065f46", activeBg: "#d1fae5", dot: "#10b981" },
-    { key: "pending",  label: "Pending",  count: pendingCount,    activeColor: "#92400e", activeBg: "#fef3c7", dot: "#f59e0b" },
-    { key: "rejected", label: "Rejected", count: rejectedCount,   activeColor: "#991b1b", activeBg: "#fee2e2", dot: "#ef4444" },
-  ];
 
   return (
     <div style={{ fontFamily: "'Inter','Segoe UI',sans-serif", background: "#f8fafc", minHeight: "100vh" }}>
@@ -615,61 +255,31 @@ const CpFormsPage = ({ cp, cpForms, cpFormsStatus, cpFormsError, onBack, cpIndex
         </div>
 
         <div style={{ display: "flex", gap: 12, marginTop: 24, flexWrap: "wrap" }}>
-          {[
-            { filterKey: "all",      label: "Total Forms", value: cpForms.length, numColor: "#fff"    },
-            { filterKey: "verified", label: "Verified",    value: verifiedCount,  numColor: "#86efac" },
-            { filterKey: "pending",  label: "Pending",     value: pendingCount,   numColor: "#fde68a" },
-            { filterKey: "rejected", label: "Rejected",    value: rejectedCount,  numColor: "#fca5a5" },
-          ].map(s => {
-            const isActive = activeFilter === s.filterKey;
-            return (
-              <div
-                key={s.filterKey}
-                onClick={() => setActiveFilter(s.filterKey)}
-                style={{ background: isActive ? "rgba(255,255,255,0.28)" : "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", borderRadius: 12, padding: "12px 20px", minWidth: 90, border: isActive ? "1.5px solid rgba(255,255,255,0.55)" : "1px solid rgba(255,255,255,0.15)", cursor: "pointer", transition: "all 0.15s", transform: isActive ? "translateY(-1px)" : "none", boxShadow: isActive ? "0 4px 14px rgba(0,0,0,0.15)" : "none" }}
-              >
-                <div style={{ fontSize: 22, fontWeight: 800, color: s.numColor }}>{s.value}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 1, fontWeight: isActive ? 700 : 400 }}>{s.label}</div>
-              </div>
-            );
-          })}
+          <div
+            style={{
+              background: "rgba(255,255,255,0.18)",
+              backdropFilter: "blur(8px)",
+              borderRadius: 12,
+              padding: "12px 20px",
+              minWidth: 120,
+              border: "1px solid rgba(255,255,255,0.25)",
+            }}
+          >
+            <div style={{ fontSize: 24, fontWeight: 800, color: "#fff" }}>{cpForms.length}</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.85)", marginTop: 1 }}>Total Submitted Forms</div>
+          </div>
         </div>
       </div>
 
       <div style={{ margin: "-60px 24px 28px", position: "relative" }}>
         <div style={{ background: "#fff", borderRadius: 16, boxShadow: "0 4px 24px rgba(0,0,0,0.08)", marginBottom: 14, overflow: "hidden" }}>
-          <div style={{ padding: "18px 22px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #f3f4f6" }}>
+          <div style={{ padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div>
               <div style={{ fontSize: 16, fontWeight: 700, color: "#111827" }}>Submitted Forms</div>
               <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 1 }}>
-                {filteredForms.length} of {cpForms.length} forms
-                {activeFilter !== "all" && <span style={{ color: "#1d4ed8", fontWeight: 600 }}> · {activeFilter} filter active</span>}
+                {cpForms.length} {cpForms.length === 1 ? "survey form" : "survey forms"} submitted
               </div>
             </div>
-            {activeFilter !== "all" && (
-              <button
-                onClick={() => setActiveFilter("all")}
-                style={{ background: "#f3f4f6", border: "none", borderRadius: 7, padding: "5px 12px", fontSize: 12, color: "#6b7280", cursor: "pointer", fontWeight: 500 }}
-              >✕ Clear filter</button>
-            )}
-          </div>
-          <div style={{ padding: "12px 22px", display: "flex", gap: 8, flexWrap: "wrap" }}>
-            {FILTER_TABS.map(tab => {
-              const isActive = activeFilter === tab.key;
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveFilter(tab.key)}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "7px 16px", borderRadius: 22, border: isActive ? "none" : "1.5px solid #e5e7eb", background: isActive ? tab.activeBg : "#fff", color: isActive ? tab.activeColor : "#6b7280", fontSize: 13, fontWeight: isActive ? 700 : 500, cursor: "pointer", transition: "all 0.15s", boxShadow: isActive ? `0 2px 8px ${tab.dot}33` : "none" }}
-                >
-                  <span style={{ width: 7, height: 7, borderRadius: "50%", background: isActive ? tab.dot : "#d1d5db", flexShrink: 0, transition: "background 0.15s" }} />
-                  {tab.label}
-                  <span style={{ background: isActive ? tab.activeColor : "#e5e7eb", color: isActive ? "#fff" : "#6b7280", borderRadius: 10, padding: "1px 7px", fontSize: 11, fontWeight: 700, transition: "all 0.15s" }}>
-                    {tab.count}
-                  </span>
-                </button>
-              );
-            })}
           </div>
         </div>
 
@@ -679,11 +289,13 @@ const CpFormsPage = ({ cp, cpForms, cpFormsStatus, cpFormsError, onBack, cpIndex
         {cpFormsStatus === "succeeded" && cpForms.length === 0 && (
           <EmptyState icon="📂" title="No submissions yet" sub="This channel partner hasn't submitted any survey forms." />
         )}
-        {cpFormsStatus === "succeeded" && cpForms.length > 0 && filteredForms.length === 0 && (
-          <EmptyState icon="🔍" title={`No ${activeFilter} forms`} sub={`This CP has no ${activeFilter} submissions. Try a different filter.`} />
-        )}
-        {cpFormsStatus === "succeeded" && filteredForms.map((form, i) => (
-          <SurveyCard key={form._id ?? form.formId ?? form.surveyId ?? i} form={form} index={i} />
+        {cpFormsStatus === "succeeded" && cpForms.map((form, i) => (
+          <SurveyCard
+            key={form._id ?? form.formId ?? form.surveyId ?? i}
+            form={form}
+            index={i}
+            onOpen3D={setSelectedSurveyFor3D}
+          />
         ))}
       </div>
     </div>
