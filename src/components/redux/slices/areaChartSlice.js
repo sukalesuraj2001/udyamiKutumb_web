@@ -206,6 +206,14 @@ export const createWardChartData = createAsyncThunk(
       return data;
     } catch (err) {
       console.error("createWardChartData", err);
+      const resData = err.response?.data;
+      if (resData && typeof resData === "object") {
+        return rejectWithValue({
+          message: resData.message || (typeof resData.error === "string" ? resData.error : null) || err.message || "An error occurred",
+          error: resData.error || "Error",
+          statusCode: resData.statusCode || err.response?.status || 400,
+        });
+      }
       return rejectWithValue(
         err.response?.data?.message || err.message || "Something went wrong"
       );
@@ -445,6 +453,29 @@ export const fetchPatrons = createAsyncThunk(
   }
 );
 
+// ─── GET /udyamimngt/getMngtMembers/:wardId ──────────────────────────────
+export const fetchUmsMembers = createAsyncThunk(
+  "areaChart/fetchUmsMembers",
+  async (wardId, { getState, dispatch, rejectWithValue }) => {
+    dispatch(showLoader());
+    try {
+      const token = getState().auth.token;
+      const { data } = await axios.get(
+        `${BASE_URL}/udyamimngt/getMngtMembers/${wardId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!data.success) throw new Error(data.message || "Fetch failed");
+      return data.data || [];
+    } catch (err) {
+      return rejectWithValue(
+        err.response?.data?.message || err.message || "Something went wrong"
+      );
+    } finally {
+      dispatch(hideLoader());
+    }
+  }
+);
+
 // ─── Slice ────────────────────────────────────────────────────────
 const initialState = {
   status: "idle",
@@ -487,12 +518,19 @@ const initialState = {
   patrons: [],
   patronsStatus: "idle",
   patronsError: null,
+
+  umsMembers: [],
+  umsMembersStatus: "idle",
+  umsMembersError: null,
 };
 
 const areaChartSlice = createSlice({
   name: "areaChart",
   initialState,
   reducers: {
+    clearAreaChartError(state) {
+      state.error = null;
+    },
     clearAreaChartState(state) {
       state.status = "idle";
       state.data = null;
@@ -678,6 +716,23 @@ const areaChartSlice = createSlice({
         state.patronsError = action.payload || "Something went wrong";
         state.patrons = [];
       });
+
+    // ── fetchUmsMembers ──
+    builder
+      .addCase(fetchUmsMembers.pending, (state) => {
+        state.umsMembersStatus = "loading";
+        state.umsMembersError = null;
+      })
+      .addCase(fetchUmsMembers.fulfilled, (state, action) => {
+        state.umsMembersStatus = "succeeded";
+        state.umsMembers = action.payload;
+        state.umsMembersError = null;
+      })
+      .addCase(fetchUmsMembers.rejected, (state, action) => {
+        state.umsMembersStatus = "failed";
+        state.umsMembersError = action.payload || "Something went wrong";
+        state.umsMembers = [];
+      });
   },
 });
 
@@ -721,7 +776,11 @@ export const selectPatrons = (s) => s.areaChart.patrons;
 export const selectPatronsStatus = (s) => s.areaChart.patronsStatus;
 export const selectPatronsError = (s) => s.areaChart.patronsError;
 
+export const selectUmsMembers = (s) => s.areaChart.umsMembers;
+export const selectUmsMembersStatus = (s) => s.areaChart.umsMembersStatus;
+export const selectUmsMembersError = (s) => s.areaChart.umsMembersError;
+
 export const selectWardInfo = (s) => s.areaChart.wardInfo;
 export const selectLayoutConfig = (s) => s.areaChart.fetchedData?.data?.layoutConfig ?? null;
-export const { clearAreaChartState, clearLocationState } = areaChartSlice.actions;
+export const { clearAreaChartError, clearAreaChartState, clearLocationState } = areaChartSlice.actions;
 export default areaChartSlice.reducer;

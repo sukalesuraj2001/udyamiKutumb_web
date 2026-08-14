@@ -18,7 +18,9 @@ import PositionDetailsModal from "./models/PositionDetailsModal.jsx";
 import UcnMembersSidePanel from "./models/UcnMembersSidePanel.jsx";
 import { deleteWardChartMember, selectLayoutConfig, selectWardInfo } from "../../redux/slices/areaChartSlice.js";
 import { HERO_IMAGE_URL } from "./chartAssets.js";
+import ErrorModal from "../../common/ErrorModal.jsx";
 import {
+  clearAreaChartError,
   createWardChartData,
   getWardChartData,
   getLocationByWardHeadId,
@@ -26,6 +28,7 @@ import {
   fetchUcnMembers,
   fetchChannelPartners,
   fetchPatrons,
+  fetchUmsMembers,
   selectWards,
   selectWardChairmenList,
   selectAreaChartStatus,
@@ -35,8 +38,9 @@ import {
   selectUcnMembers,
   selectChannelPartners,
   selectPatrons,
+  selectUmsMembers,
 } from "../../redux/slices/areaChartSlice.js";
-import { mapApiToAssignments, mergeTalukaChairmenIntoAssignments, mergePatronsIntoAssignments, mergeUcnMembersIntoAssignments } from "./utils/Mapapitoassignments.js";
+import { mapApiToAssignments, mergeTalukaChairmenIntoAssignments, mergePatronsIntoAssignments, mergeUcnMembersIntoAssignments, mergeUmsMembersIntoAssignments } from "./utils/Mapapitoassignments.js";
 import { paginateBrandCategories } from "./utils/paginateCategories.js";
 import { getLayoutCountString } from "./utils/calculateLayoutCount.js";
 import ImageCropModal from "./models/ImageCropModal.jsx";
@@ -165,6 +169,8 @@ function buildSingleMemberPayload(ward, user, slotId, assignmentData) {
     slotLabel: assignmentData.slotLabel || slotId,
   };
 
+  if (assignmentData.memberId) memberObj.memberId = assignmentData.memberId;
+  if (assignmentData.userId) memberObj.userId = assignmentData.userId;
   if (coreRoleMap[slotId]) memberObj.coreRole = coreRoleMap[slotId];
   if (sectorKey) memberObj.sectorKey = sectorKey;
   if (umsKey) memberObj.umsKey = umsKey;
@@ -255,6 +261,10 @@ export default function WardChartDetail() {
   const ucnMembers = useSelector(selectUcnMembers);
   const channelPartners = useSelector(selectChannelPartners);
   const patrons = useSelector(selectPatrons);
+  const umsMembers = useSelector(selectUmsMembers);
+
+  const [errorModalData, setErrorModalData] = useState(null);
+  const activeError = errorModalData || apiError;
 
   const [assignments, setAssignments] = useState({});
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
@@ -300,7 +310,9 @@ export default function WardChartDetail() {
       }],
     }));
     formData.append("profileImages", croppedFile);
-    dispatch(createWardChartData(formData));
+    dispatch(createWardChartData(formData))
+      .unwrap()
+      .catch((err) => setErrorModalData(err));
   };
 
   const isWardChairman = user?.role === "WardChairman";
@@ -324,6 +336,7 @@ export default function WardChartDetail() {
     }
     if (ward.id) {
       dispatch(fetchUcnMembers(ward.id));
+      dispatch(fetchUmsMembers(ward.id));
       dispatch(fetchChannelPartners({ wardId: ward.id }));
     }
     if (user?.userId && (!wards || wards.length === 0)) {
@@ -693,7 +706,9 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
     }));
 
     if (photoFile) formData.append("profileImages", photoFile);
-    dispatch(createWardChartData(formData));
+    dispatch(createWardChartData(formData))
+      .unwrap()
+      .catch((err) => setErrorModalData(err));
   };
 
   const openDetails = (id, label) => {
@@ -735,7 +750,31 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
     const label = sidePanelSlot.label;
 
     const isCommon = isBlockedForWardChairman(slotId);
+
+    const nameToAssign =
+      selectedMember.holder?.user?.name ||
+      selectedMember.name ||
+      selectedMember.assignedUserName ||
+      "";
+
+    const mobileToAssign =
+      selectedMember.holder?.user?.mobileNumber ||
+      selectedMember.mobileNumber ||
+      "";
+
+    const emailToAssign =
+      selectedMember.holder?.user?.email ||
+      selectedMember.email ||
+      "";
+
+    const companyToAssign =
+      selectedMember.designation?.designationName ||
+      selectedMember.companyName ||
+      selectedMember.company ||
+      "";
+
     const photoUrl =
+      selectedMember.holder?.user?.profile?.profileImage ||
       selectedMember.profileImage ||
       selectedMember.photoUrl ||
       selectedMember.profile?.profileImage ||
@@ -743,14 +782,23 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
       selectedMember.profile?.businessDetails?.businessImage1 ||
       "";
 
+    const memberIdToAssign =
+      selectedMember.holder?.user?.userId ||
+      selectedMember.userId ||
+      selectedMember.memberId ||
+      selectedMember.assignmentId ||
+      null;
+
     const payload = buildSingleMemberPayload(ward, user, slotId, {
-      name: selectedMember.name || selectedMember.assignedUserName || "",
-      mobileNumber: selectedMember.mobileNumber || "",
-      email: selectedMember.email || "",
-      company: selectedMember.companyName || selectedMember.company || "",
+      name: nameToAssign,
+      mobileNumber: mobileToAssign,
+      email: emailToAssign,
+      company: companyToAssign,
       photoUrl,
       status: "registered",
       slotLabel: label,
+      memberId: memberIdToAssign,
+      userId: memberIdToAssign,
     });
 
     const formData = new FormData();
@@ -770,27 +818,32 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
     dispatch(createWardChartData(formData))
       .unwrap()
       .then(() => {
+        setAssignments((prev) => ({
+          ...prev,
+          [slotId]: {
+            name: nameToAssign,
+            company: companyToAssign,
+            photoUrl: (typeof photoUrl === "string" && photoUrl.trim()) ? photoUrl : null,
+            mobileNumber: mobileToAssign,
+            email: emailToAssign,
+            memberId: memberIdToAssign,
+            status: "registered",
+            slotLabel: label,
+            positionName: selectedMember.positionName || selectedMember.designation?.designationName || null,
+            positionDescription: selectedMember.positionDescription || selectedMember.designation?.description || null,
+            assignedUserName: nameToAssign,
+          },
+        }));
+
+        if (targetUserId && ward.id) {
+          dispatch(getWardChartData({ userId: targetUserId, wardId: ward.id }));
+        }
         if (talukaId) dispatch(getAllWardChaimansBy(talukaId));
       })
-      .catch((err) => console.error("Create ward chart data error:", err));
-
-    // Optimistically update local assignments state for immediate visual feedback
-    setAssignments((prev) => ({
-      ...prev,
-      [slotId]: {
-        name: selectedMember.name || selectedMember.assignedUserName || "",
-        company: selectedMember.companyName || selectedMember.company || "",
-        photoUrl: (typeof photoUrl === "string" && photoUrl.trim()) ? photoUrl : null,
-        mobileNumber: selectedMember.mobileNumber || "",
-        email: selectedMember.email || "",
-        memberId: selectedMember.userId || selectedMember.memberId || null,
-        status: "registered",
-        slotLabel: label,
-        positionName: selectedMember.positionName || null,
-        positionDescription: selectedMember.positionDescription || null,
-        assignedUserName: selectedMember.assignedUserName || null,
-      },
-    }));
+      .catch((err) => {
+        console.error("Create ward chart data error:", err);
+        setErrorModalData(err);
+      });
 
     setSidePanelSlot(null);
   };
@@ -801,9 +854,13 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
       slotId === "core-president" ||
       slotId === "core-vice-president" ||
       slotId === "core-general-secretary" ||
-      slotId === "core-treasurer" ||
-      slotId.startsWith("ums-")
+      slotId === "core-treasurer"
     );
+  };
+
+  const isUmsSidePanelSlot = (slotId) => {
+    if (!slotId) return false;
+    return slotId.startsWith("ums-");
   };
 
   const isChannelPartnerSlot = (slotId) => {
@@ -830,6 +887,8 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
       openDetails(id, label);
     } else if (isUcnSidePanelSlot(id)) {
       setSidePanelSlot({ slotId: id, label, panelType: "ucn" });
+    } else if (isUmsSidePanelSlot(id)) {
+      setSidePanelSlot({ slotId: id, label, panelType: "ums" });
     } else if (isChannelPartnerSlot(id)) {
       setSidePanelSlot({ slotId: id, label, panelType: "channelPartner" });
     } else if (isPatronSlot(id)) {
@@ -1345,11 +1404,11 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                                     tone="navy"
                                     variant="default"
                                     showPlaceholderName={false}
-                                    assigned={assignments[slotId]}
+                                    assigned={effectiveAssignments[slotId]}
                                     dimmed={isDimmed(
                                       slotId,
                                       "advisories",
-                                      assignments[slotId]?.name
+                                      effectiveAssignments[slotId]?.name
                                     )}
                                     onAssignClick={slotClickProp}
                                     showPlus={!isPreviewMode}
@@ -1383,11 +1442,11 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                                     tone="navy"
                                     variant="default"
                                     showPlaceholderName={false}
-                                    assigned={assignments[slotId]}
+                                    assigned={effectiveAssignments[slotId]}
                                     dimmed={isDimmed(
                                       slotId,
                                       "mentors",
-                                      assignments[slotId]?.name
+                                      effectiveAssignments[slotId]?.name
                                     )}
                                     onAssignClick={slotClickProp}
                                     showPlus={!isPreviewMode}
@@ -1423,8 +1482,8 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                               onClick={() => handleSlotClick(slotId, role)}
                               className={`relative w-[95px] h-[95px] rounded-lg border-2 border-[#c8102e] bg-[#d32f2f] flex items-center justify-center overflow-hidden shrink-0 shadow-sm ${!isPreviewMode && !isSuperAdmin ? "cursor-pointer group" : "cursor-default"}`}
                             >
-                              {assignments[slotId]?.photoUrl ? (
-                                <img src={assignments[slotId].photoUrl} alt={assignments[slotId].name} className="w-full h-full object-cover" />
+                              {effectiveAssignments[slotId]?.photoUrl ? (
+                                <img src={effectiveAssignments[slotId].photoUrl} alt={effectiveAssignments[slotId].name} className="w-full h-full object-cover" />
                               ) : (
                                 <svg viewBox="0 0 64 64" className="w-[85%] h-[85%] text-white" fill="currentColor">
                                   <circle cx="32" cy="22" r="12" />
@@ -1436,10 +1495,10 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                               )}
                             </div>
                             <p className="mt-1.5 text-[9.5px] font-bold text-white uppercase text-center leading-tight truncate max-w-[100px]">
-                              {assignments[slotId]?.name || "NAME"}
+                              {effectiveAssignments[slotId]?.name || "NAME"}
                             </p>
                             <p className="text-[7.5px] text-white/70 text-center leading-tight truncate max-w-[100px]">
-                              {assignments[slotId]?.company}
+                              {effectiveAssignments[slotId]?.company}
                             </p>
                           </div>
                         );
@@ -1460,8 +1519,8 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                               return (
                                 <div key={s.key} className="w-[118px] shrink-0">
                                   <SectorCard
-                                    slotId={slotId} label={s.label} assigned={assignments[slotId]}
-                                    dimmed={isDimmed(slotId, "sectors", assignments[slotId]?.name)}
+                                    slotId={slotId} label={s.label} assigned={effectiveAssignments[slotId]}
+                                    dimmed={isDimmed(slotId, "sectors", effectiveAssignments[slotId]?.name)}
                                     onAssignClick={slotClickProp} showPlus={!isPreviewMode} isSuperAdmin={isSuperAdmin}
                                   />
                                 </div>
@@ -1484,7 +1543,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                         <div className="flex-1 grid grid-cols-2 px-3 py-2 gap-x-3 gap-y-1.5 content-evenly">
                           {firstPageUms.map((s) => {
                             const slotId = `ums-${s.key}`;
-                            const assigned = assignments[slotId];
+                            const assigned = effectiveAssignments[slotId];
                             return (
                               <div key={s.key} className="flex flex-col items-center min-w-0">
                                 <p className="text-[6px] font-medium text-[#b5121b] text-center mb-0.5 min-h-[10px] leading-tight truncate w-full">{s.label}</p>
@@ -1525,7 +1584,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                     wardName={currentWardName}
                     region={currentRegion}
                     categories={pageCats}
-                    assignments={assignments}
+                    assignments={effectiveAssignments}
                     onAssignClick={slotClickProp}
                     showPlus={!isPreviewMode}
                     isSuperAdmin={isSuperAdmin}
@@ -1563,6 +1622,8 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
             setSelectedPosition(null);
             if (isUcnSidePanelSlot(slotId)) {
               setSidePanelSlot({ slotId, label: role, panelType: "ucn" });
+            } else if (isUmsSidePanelSlot(slotId)) {
+              setSidePanelSlot({ slotId, label: role, panelType: "ums" });
             } else if (isChannelPartnerSlot(slotId)) {
               setSidePanelSlot({ slotId, label: role, panelType: "channelPartner" });
             } else if (isPatronSlot(slotId)) {
@@ -1583,6 +1644,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
         ucnMembers={ucnMembers}
         channelPartners={channelPartners}
         patrons={patrons}
+        umsMembers={umsMembers}
         panelType={sidePanelSlot?.panelType || "ucn"}
         onSearchBusiness={(businessName) => dispatch(fetchChannelPartners({ wardId: ward.id, businessName }))}
         onAssignMember={handleAssignMemberFromPanel}
@@ -1649,6 +1711,17 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
             </p>
           </div>
         </div>
+      )}
+      {/* ── API Error Response Modal Popup (Only for errors) ── */}
+      {activeError && (
+        <ErrorModal
+          isOpen={!!activeError}
+          error={activeError}
+          onClose={() => {
+            setErrorModalData(null);
+            dispatch(clearAreaChartError());
+          }}
+        />
       )}
     </div>
   );

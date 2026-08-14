@@ -64,7 +64,8 @@ export default function UcnMembersSidePanel({
   ucnMembers = [],
   channelPartners = [],
   patrons = [],
-  panelType = "ucn", // "ucn" | "channelPartner" | "patron"
+  umsMembers = [],
+  panelType = "ucn", // "ucn" | "channelPartner" | "patron" | "ums"
   onSearchBusiness,
   onAssignMember,
 }) {
@@ -72,9 +73,16 @@ export default function UcnMembersSidePanel({
   const [selectedMember, setSelectedMember] = useState(null);
   const [activeTab, setActiveTab] = useState("existing"); // "existing" | "invite"
 
+  const isUms = panelType === "ums" || (slotId && slotId.startsWith("ums-"));
   const isPatron = panelType === "patron" || (slotId && slotId.startsWith("patron-"));
   const isChannelPartner = panelType === "channelPartner" || (slotId && slotId.startsWith("product-"));
-  const targetMembers = isPatron ? patrons : isChannelPartner ? channelPartners : ucnMembers;
+  const targetMembers = isUms
+    ? umsMembers
+    : isPatron
+    ? patrons
+    : isChannelPartner
+    ? channelPartners
+    : ucnMembers;
 
   const targetTypes = useMemo(() => {
     if (!slotId) return [];
@@ -103,6 +111,20 @@ export default function UcnMembersSidePanel({
     if (!searchQuery.trim()) return targetMembers;
     const q = searchQuery.toLowerCase().trim();
     return targetMembers.filter((m) => {
+      if (isUms) {
+        const desName = (m.designation?.designationName || "").toLowerCase();
+        const name = (m.holder?.user?.name || m.name || m.assignedUserName || "").toLowerCase();
+        const email = (m.holder?.user?.email || m.email || "").toLowerCase();
+        const phone = (m.holder?.user?.mobileNumber || m.mobileNumber || "").toLowerCase();
+        const addr = (m.holder?.user?.profile?.homeAddress || m.address || "").toLowerCase();
+        return (
+          desName.includes(q) ||
+          name.includes(q) ||
+          email.includes(q) ||
+          phone.includes(q) ||
+          addr.includes(q)
+        );
+      }
       if (isPatron) {
         const name = (m.name || "").toLowerCase();
         const memberId = (m.memberId || "").toLowerCase();
@@ -148,10 +170,14 @@ export default function UcnMembersSidePanel({
         posName.includes(q) || assignType.includes(q) || address.includes(q)
       );
     });
-  }, [targetMembers, searchQuery, isChannelPartner, isPatron]);
+  }, [targetMembers, searchQuery, isChannelPartner, isPatron, isUms]);
 
   const isMatchingMember = (member) => {
-    if (!member || isChannelPartner || isPatron) return false; // Recoment option channel partner and patron ku vendam!
+    if (!member || isChannelPartner || isPatron) return false;
+    if (isUms) {
+      const desName = (member.designation?.designationName || "").toLowerCase();
+      return slotLabel && desName.includes(slotLabel.toLowerCase());
+    }
     const assignType = (member.assignmentType || "").toLowerCase();
     const posName = (member.positionName || "").toLowerCase();
     const memberSlot = (member.slotId || "").toLowerCase();
@@ -174,7 +200,7 @@ export default function UcnMembersSidePanel({
       setSearchQuery("");
       setActiveTab("existing");
     }
-  }, [open, slotId, targetMembers, isChannelPartner, isPatron]);
+  }, [open, slotId, targetMembers, isChannelPartner, isPatron, isUms]);
 
   if (!open) return null;
 
@@ -234,7 +260,9 @@ export default function UcnMembersSidePanel({
                   <input
                     type="text"
                     placeholder={
-                      isPatron
+                      isUms
+                        ? "Search by UMS designation, name, or email..."
+                        : isPatron
                         ? "Search by patron name, business name, or email..."
                         : isChannelPartner
                         ? "Search by business name, CP ID, or service..."
@@ -273,7 +301,9 @@ export default function UcnMembersSidePanel({
                       <UserPlus size={18} className="text-slate-400" />
                     </div>
                     <p className="text-[13px] font-semibold text-slate-600">
-                      {isPatron
+                      {isUms
+                        ? "No UMS Management members found"
+                        : isPatron
                         ? "No Patrons found"
                         : isChannelPartner
                         ? "No Channel Partners found"
@@ -282,6 +312,8 @@ export default function UcnMembersSidePanel({
                     <p className="text-[12px] text-slate-400 mt-1">
                       {searchQuery
                         ? "Try a different search term."
+                        : isUms
+                        ? "No management members returned for this ward."
                         : isPatron
                         ? "No patrons returned for this taluka."
                         : isChannelPartner
@@ -294,16 +326,23 @@ export default function UcnMembersSidePanel({
                     const isSelected =
                       selectedMember?.userId === member.userId ||
                       (selectedMember?.cpId && selectedMember?.cpId === member.cpId) ||
-                      selectedMember?.assignmentId === member.assignmentId;
+                      selectedMember?.assignmentId === member.assignmentId ||
+                      (selectedMember?.holder?.user?.userId && selectedMember?.holder?.user?.userId === member.holder?.user?.userId);
                     const isMatched = isMatchingMember(member);
                     const photo =
+                      member.holder?.user?.profile?.profileImage ||
                       member.profileImage ||
                       member.photoUrl ||
                       member.profile?.profileImage ||
                       member.profile?.photoUrl ||
                       member.profile?.businessDetails?.businessImage1 ||
                       null;
-                    const nameToUse = member.name || member.cpRegistration?.fullName || member.assignedUserName || "Unnamed";
+                    const nameToUse =
+                      member.holder?.user?.name ||
+                      member.name ||
+                      member.cpRegistration?.fullName ||
+                      member.assignedUserName ||
+                      "Unnamed";
                     const initials = (nameToUse || "?")
                       .split(" ")
                       .map((w) => w[0])
@@ -312,12 +351,20 @@ export default function UcnMembersSidePanel({
                       .toUpperCase();
 
                     const servicesStr = member.cpRegistration?.selectedServices?.join(", ");
-                    const busNameStr = servicesStr || member.profile?.businessDetails?.businessName;
-                    const busAddress = member.businessLocation || member.officeLocation || member.cpRegistration?.businessOfficeAddress || member.profile?.homeAddress || member.profile?.officeAddress;
+                    const busNameStr = member.designation?.designationName || servicesStr || member.profile?.businessDetails?.businessName;
+                    const busAddress =
+                      member.holder?.user?.profile?.homeAddress ||
+                      member.businessLocation ||
+                      member.officeLocation ||
+                      member.cpRegistration?.businessOfficeAddress ||
+                      member.profile?.homeAddress ||
+                      member.profile?.officeAddress;
+                    const emailStr = member.holder?.user?.email || member.email;
+                    const phoneStr = member.holder?.user?.mobileNumber || member.mobileNumber;
 
                     return (
                       <div
-                        key={member.assignmentId || member.cpId || member.userId || Math.random()}
+                        key={member.assignmentId || member.cpId || member.userId || member.holder?.user?.userId || Math.random()}
                         onClick={() => setSelectedMember(member)}
                         className={`
                           relative cursor-pointer rounded-2xl overflow-hidden
@@ -376,14 +423,19 @@ export default function UcnMembersSidePanel({
                                   CP: {member.cpId}
                                 </span>
                               )}
-                              {member.memberId && (
+                              {(member.memberId || member.holder?.user?.userId) && (
                                 <span className="text-[9px] font-bold text-slate-600 bg-slate-100 border border-slate-200 px-1.5 py-[1.5px] rounded uppercase">
-                                  {member.memberId}
+                                  {member.memberId || member.holder?.user?.userId?.slice(0, 8)}
                                 </span>
                               )}
                               {member.isPatron && (
                                 <span className="text-[9px] font-extrabold tracking-wider text-red-700 bg-red-50 border border-red-200 px-1.5 py-[1.5px] rounded uppercase">
                                   PATRON
+                                </span>
+                              )}
+                              {member.designation?.designationName && (
+                                <span className="text-[9px] font-extrabold tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-[1.5px] rounded uppercase truncate max-w-[140px]">
+                                  {member.designation.designationName}
                                 </span>
                               )}
                               {member.isPrime && (
@@ -410,16 +462,16 @@ export default function UcnMembersSidePanel({
 
                             {/* Contact row */}
                             <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                              {member.email && (
+                              {emailStr && (
                                 <span className="flex items-center gap-1 text-[11.5px] text-slate-600">
                                   <Mail size={11} className="text-slate-400 shrink-0" />
-                                  {member.email}
+                                  {emailStr}
                                 </span>
                               )}
-                              {member.mobileNumber && (
+                              {phoneStr && (
                                 <span className="flex items-center gap-1 text-[11.5px] text-slate-600">
                                   <Phone size={11} className="text-slate-400 shrink-0" />
-                                  {member.mobileNumber}
+                                  {phoneStr}
                                 </span>
                               )}
                             </div>

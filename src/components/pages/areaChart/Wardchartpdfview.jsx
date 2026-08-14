@@ -18,8 +18,12 @@ import {
     selectLayoutConfig,
     selectWards,
     selectWardChairmenList,
+    fetchUcnMembers,
+    fetchUmsMembers,
+    selectUcnMembers,
+    selectUmsMembers,
 } from "../../redux/slices/areaChartSlice.js";
-import { mapApiToAssignments, mergeTalukaChairmenIntoAssignments } from "./utils/Mapapitoassignments.js";
+import { mapApiToAssignments, mergeTalukaChairmenIntoAssignments, mergePatronsIntoAssignments, mergeUcnMembersIntoAssignments, mergeUmsMembersIntoAssignments } from "./utils/Mapapitoassignments.js";
 import { paginateBrandCategories } from "./utils/paginateCategories.js";
 import { HERO_IMAGE_URL } from "./chartAssets.js";
 
@@ -205,14 +209,19 @@ export default function WardChartPdfView() {
         fetchedData?.data?.taluka?.talukaId ||
         (constituencyWards[0] && constituencyWards[0].talukaId);
 
+    const ucnMembers = useSelector(selectUcnMembers);
+    const umsMembers = useSelector(selectUmsMembers);
+
     useEffect(() => {
-        if (talukaId) {
-            dispatch(getAllWardChaimansBy(talukaId));
+        if (wardId) {
+            dispatch(fetchUcnMembers(wardId));
+            dispatch(fetchUmsMembers(wardId));
         }
-    }, [dispatch, talukaId]);
+    }, [dispatch, wardId]);
 
     const effectiveAssignments = useMemo(() => {
-        return mergeTalukaChairmenIntoAssignments(assignments, wardChairmenList, constituencyWards, gCode);
+        const withChairmen = mergeTalukaChairmenIntoAssignments(assignments, wardChairmenList, constituencyWards, gCode);
+        return mergePatronsIntoAssignments(withChairmen, wardChairmenList);
     }, [assignments, wardChairmenList, constituencyWards, gCode]);
 
     const heroImageUrl = effectiveAssignments["hero-image"]?.photoUrl || HERO_IMAGE_URL;
@@ -407,7 +416,7 @@ export default function WardChartPdfView() {
                         <div style={{ display: "flex", justifyContent: "center", paddingTop: "1%" }}>
                             <MlaCard
                                 mlaLabel={`MLA - ${wardName} Assembly constituency`}
-                                assigned={assignments.mla}
+                                assigned={effectiveAssignments.mla}
                                 onAssignClick={noop}
                                 showPlus={false}
                                 isSuperAdmin={true}
@@ -426,7 +435,7 @@ export default function WardChartPdfView() {
                                             <ChartSlot
                                                 slotId={slotId} topLabel={`Official ${i + 1}`}
                                                 tone="navy" nameCase="upper"
-                                                assigned={assignments[slotId]}
+                                                assigned={effectiveAssignments[slotId]}
                                                 onAssignClick={noop} showPlus={false} isSuperAdmin={true}
                                             />
                                         </div>
@@ -538,7 +547,7 @@ export default function WardChartPdfView() {
                                                         <span style={{ fontSize: "11px", fontWeight: "bold", color: "#c8102e" }}>Advisory</span>
                                                     </div>
                                                     <ChartSlot slotId={slotId} label={`${i + 1} Advisory`} tone="navy"
-                                                        showPlaceholderName={false} assigned={assignments[slotId]}
+                                                        showPlaceholderName={false} assigned={effectiveAssignments[slotId]}
                                                         onAssignClick={noop} showPlus={false} isSuperAdmin={true} />
                                                 </div>
                                             );
@@ -559,7 +568,7 @@ export default function WardChartPdfView() {
                                                         <span style={{ fontSize: "11px", fontWeight: "bold", color: "#1B2430" }}>Mentor</span>
                                                     </div>
                                                     <ChartSlot slotId={slotId} label={`${i + 1} Mentor`} tone="navy"
-                                                        showPlaceholderName={false} assigned={assignments[slotId]}
+                                                        showPlaceholderName={false} assigned={effectiveAssignments[slotId]}
                                                         onAssignClick={noop} showPlus={false} isSuperAdmin={true} />
                                                 </div>
                                             );
@@ -575,7 +584,7 @@ export default function WardChartPdfView() {
                         <div style={{ width: "140px", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
                             <ChairmanHighlightCard
                                 wardNumber={gCode}
-                                assigned={assignments["ward-chairman"]}
+                                assigned={effectiveAssignments["ward-chairman"]}
                                 onAssignClick={noop}
                                 showPlus={false}
                                 isSuperAdmin={true}
@@ -589,8 +598,8 @@ export default function WardChartPdfView() {
                                     <div key={slotId} style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "105px", gap: "4px" }}>
                                         <p style={{ fontSize: "11px", fontWeight: "bold", color: "white", textAlign: "center", marginBottom: "4px" }}>{role}</p>
                                         <div style={{ position: "relative", width: "95px", height: "95px", borderRadius: "8px", border: "2px solid #c8102e", background: "#d32f2f", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
-                                            {assignments[slotId]?.photoUrl ? (
-                                                <img src={assignments[slotId].photoUrl} alt={assignments[slotId].name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                            {effectiveAssignments[slotId]?.photoUrl ? (
+                                                <img src={effectiveAssignments[slotId].photoUrl} alt={effectiveAssignments[slotId].name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                                             ) : (
                                                 <svg viewBox="0 0 64 64" style={{ width: "85%", height: "85%", color: "white" }} fill="currentColor">
                                                     <circle cx="32" cy="22" r="12" />
@@ -598,11 +607,11 @@ export default function WardChartPdfView() {
                                                 </svg>
                                             )}
                                         </div>
-                                        <p style={{ marginTop: "6px", fontSize: "9.5px", fontWeight: "bold", color: "white", textTransform: "uppercase", textAlign: "center", lineHeight: 1.2 }}>
-                                            {assignments[slotId]?.name || "NAME"}
+                                        <p style={{ marginTop: "6px", fontSize: "9.5px", fontWeight: "bold", color: "white", textTransform: "uppercase", textAlign: "center", lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100px" }}>
+                                            {effectiveAssignments[slotId]?.name || "NAME"}
                                         </p>
-                                        <p style={{ fontSize: "7.5px", color: "rgba(255,255,255,0.7)", textAlign: "center", lineHeight: 1.2 }}>
-                                            {assignments[slotId]?.company}
+                                        <p style={{ fontSize: "7.5px", color: "rgba(255,255,255,0.7)", textAlign: "center", lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100px" }}>
+                                            {effectiveAssignments[slotId]?.company}
                                         </p>
                                     </div>
                                 );
@@ -624,7 +633,7 @@ export default function WardChartPdfView() {
                                                 <div key={s.key} style={{ width: "118px", flexShrink: 0 }}>
                                                     <SectorCard
                                                         slotId={slotId} label={s.label}
-                                                        assigned={assignments[slotId]}
+                                                        assigned={effectiveAssignments[slotId]}
                                                         onAssignClick={noop} showPlus={false} isSuperAdmin={true}
                                                     />
                                                 </div>
@@ -645,7 +654,7 @@ export default function WardChartPdfView() {
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", padding: "8px 12px", gap: "6px 12px", alignContent: "space-around", flex: 1 }}>
                                     {firstPageUms.map((s) => {
                                         const slotId = `ums-${s.key}`;
-                                        const assigned = assignments[slotId];
+                                        const assigned = effectiveAssignments[slotId];
                                         return (
                                             <div key={s.key} style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 0 }}>
                                                 <p style={{ fontSize: "6px", fontWeight: "500", color: "#b5121b", textAlign: "center", marginBottom: "3px", minHeight: "10px", lineHeight: 1.1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}>{s.label}</p>
@@ -720,7 +729,7 @@ export default function WardChartPdfView() {
                         wardName={wardName}
                         region={constituency}
                         categories={pageCats}
-                        assignments={assignments}
+                        assignments={effectiveAssignments}
                         onAssignClick={noop}
                         showPlus={false}
                         isSuperAdmin={true}
