@@ -126,10 +126,33 @@ export function mapApiToAssignments(apiResponse) {
   }
 
   // ── WardChairman ─────────────────────────────────────────────
-  if (Array.isArray(members.WardChairman || members.wardChairman || members.ward_chairman)) {
-    (members.WardChairman || members.wardChairman || members.ward_chairman).forEach((m) => {
+  const wardChairmanList = members.WardChairman || members.wardChairman || members.ward_chairman;
+  if (Array.isArray(wardChairmanList) && wardChairmanList.length > 0) {
+    wardChairmanList.forEach((m) => {
       if (m?.name) assignments["ward-chairman"] = { ...toAssignment(m), slotLabel: "Ward Chairman" };
     });
+  } else {
+    const wardHead = apiResponse?.data?.wardHead || apiResponse?.wardHead || apiResponse?.data?.wardChart?.wardHead;
+    if (wardHead && (wardHead.name || wardHead.firstName)) {
+      const photo =
+        extractPhotoUrl(wardHead.profileImage) ||
+        extractPhotoUrl(wardHead.photoUrl) ||
+        extractPhotoUrl(wardHead.profile?.profileImage) ||
+        extractPhotoUrl(apiResponse?.data?.profileImage) ||
+        extractPhotoUrl(apiResponse?.profileImage) ||
+        null;
+
+      assignments["ward-chairman"] = {
+        name: wardHead.name || wardHead.firstName || "",
+        company: wardHead.companyName || wardHead.company || "",
+        photoUrl: photo,
+        mobileNumber: wardHead.mobileNumber || "",
+        email: wardHead.email || "",
+        memberId: wardHead.userId || wardHead.memberId || null,
+        status: "registered",
+        slotLabel: "Ward Chairman",
+      };
+    }
   }
 
   // ── Officials — index → official-1, official-2, … ────────────
@@ -343,16 +366,27 @@ export function mergeTalukaChairmenIntoAssignments(assignments, wardChairmenList
     ) || wardChairmenList[index];
 
     if (matchedApiWard && matchedApiWard.wardChart) {
-      const chartMembers = matchedApiWard.wardChart.members || [];
-      const chairmanMember = chartMembers.find(
-        (m) => m?.userType === "WardChairman" || m?.slotId === "ward-chairman"
-      ) || chartMembers[0];
+      const wardChartObj = matchedApiWard.wardChart;
+      const rawMembers = wardChartObj.members;
+      let chairmanMember = null;
+
+      if (Array.isArray(rawMembers)) {
+        chairmanMember = rawMembers.find(
+          (m) => m?.userType === "WardChairman" || m?.slotId === "ward-chairman"
+        );
+      } else if (rawMembers && typeof rawMembers === "object") {
+        const wcList = rawMembers.WardChairman || rawMembers.wardChairman || rawMembers.ward_chairman;
+        if (Array.isArray(wcList) && wcList.length > 0) {
+          chairmanMember = wcList[0];
+        }
+      }
 
       if (chairmanMember && (chairmanMember.name || chairmanMember.memberName)) {
         const photo =
-          chairmanMember.profileImage ||
-          chairmanMember.photoUrl ||
-          chairmanMember.profile?.profileImage ||
+          extractPhotoUrl(chairmanMember.profileImage) ||
+          extractPhotoUrl(chairmanMember.photoUrl) ||
+          extractPhotoUrl(chairmanMember.profile?.profileImage) ||
+          extractPhotoUrl(wardChartObj.profileImage) ||
           null;
 
         merged[slotId] = {
@@ -365,16 +399,23 @@ export function mergeTalukaChairmenIntoAssignments(assignments, wardChairmenList
           status: chairmanMember.isActive === false ? "inactive" : (chairmanMember.status || "registered"),
           slotLabel: `${wardNumber || `${gCode}.${index + 1}`} Chairman`,
         };
-      } else if (matchedApiWard.wardChart.wardHead) {
-        const head = matchedApiWard.wardChart.wardHead;
+      } else if (wardChartObj.wardHead) {
+        const head = wardChartObj.wardHead;
         if (head.firstName || head.name) {
+          const photo =
+            extractPhotoUrl(head.profileImage) ||
+            extractPhotoUrl(head.photoUrl) ||
+            extractPhotoUrl(head.profile?.profileImage) ||
+            extractPhotoUrl(wardChartObj.profileImage) ||
+            null;
+
           merged[slotId] = {
             name: head.firstName || head.name || "",
-            company: "",
-            photoUrl: null,
+            company: head.companyName || head.company || "",
+            photoUrl: (typeof photo === "string" && photo.trim()) ? photo : null,
             mobileNumber: head.mobileNumber || "",
             email: head.email || "",
-            memberId: head.userId || null,
+            memberId: head.userId || head.memberId || null,
             status: "registered",
             slotLabel: `${wardNumber || `${gCode}.${index + 1}`} Chairman`,
           };

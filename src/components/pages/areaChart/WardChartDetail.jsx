@@ -280,7 +280,21 @@ export default function WardChartDetail() {
     if (!row.memberId) { console.warn("memberId:", row); return; }
     dispatch(deleteWardChartMember(row.memberId))
       .unwrap()
-      .then(() => dispatch(getWardChartData({ userId: targetUserId, wardId: ward.id })))
+      .then(() => {
+        if (row.slotId) {
+          setAssignments((prev) => {
+            const next = { ...prev };
+            delete next[row.slotId];
+            return next;
+          });
+        }
+        if (targetUserId && ward.id) {
+          dispatch(getWardChartData({ userId: targetUserId, wardId: ward.id }));
+        }
+        if (talukaId) {
+          dispatch(getAllWardChaimansBy(talukaId));
+        }
+      })
       .catch((err) => console.error("Delete failed:", err));
   };
 
@@ -1067,7 +1081,6 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
         .filter(
           ([slotId, a]) =>
             !slotId.startsWith("chairman-") &&
-            !slotId.startsWith("patron-") &&
             slotId !== "hero-image" &&
             a &&
             a.name
@@ -1463,7 +1476,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
 
                   {/* Leadership strip */}
                   <div className="flex items-center bg-[#1a2e5e] shrink-0 px-4 gap-4 h-[150px]">
-                    <div className="flex flex-col items-center justify-center shrink-0 w-[140px] h-[120px]">
+                    <div className="flex flex-col items-center justify-center shrink-0 w-[140px] h-[142px]">
                       <ChairmanHighlightCard
                         wardNumber={currentGCode}
                         assigned={currentWardChairman}
