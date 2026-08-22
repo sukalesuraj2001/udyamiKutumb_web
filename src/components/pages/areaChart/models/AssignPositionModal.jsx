@@ -1,16 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import Cropper from "react-easy-crop";
-import { X, Search, Upload, ZoomIn, Loader2, Building2, Phone, Mail, MapPin, BadgeCheck } from "lucide-react";
+import { X, Search, Loader2, Building2, Phone, Mail, MapPin, BadgeCheck } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
 import {
-  selectAreaChartStatus,
   searchMembers,
   selectSearchResults,
   selectSearchStatus,
 } from "../../../redux/slices/areaChartSlice.js";
-import getCroppedImg from "../../../utils/cropImage.js";
-
-const isValidMobile = (mobile) => /^[6-9]\d{9}$/.test(mobile);
 
 // ── Avatar helper ─────────────────────────────────────────────────
 function Avatar({ src, name, size = 44 }) {
@@ -160,10 +155,8 @@ export default function AssignPositionModal({
   const searchStatus = useSelector(selectSearchStatus);
   const authUser = useSelector((state) => state.auth?.user);
 
-  const [tab, setTab] = useState("existing");
   const [search, setSearch] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
-  const debounceRef = useRef(null);
 
   // Animation state
   const [animate, setAnimate] = useState(false);
@@ -208,53 +201,34 @@ export default function AssignPositionModal({
     };
   }, []);
 
-  // Invite form
-  const [photoFile, setPhotoFile] = useState(null);
-  const [form, setForm] = useState({
-    name: "",
-    mobileNumber: "",
-    email: "",
-    company: "",
-  });
-
-  // Crop
-  const [rawImage, setRawImage] = useState(null);
-  const [cropModalOpen, setCropModalOpen] = useState(false);
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
-
-  // ── Initial load of all members on tab open (with Redux cache check) ──
+  // ── Initial load of all members (with Redux cache check) ──
   useEffect(() => {
-    if (tab === "existing") {
-      // Do not refetch if searchResults is already populated in Redux store
-      if (searchResults && searchResults.length > 0) {
-        return;
-      }
-
-      const isTalukaHead = role === "TalukHead" || role === "TalukaHead" || role === "taluka_head";
-      const isDistrictHead = role === "DistrictHead" || role === "district_head";
-
-      const searchPayload = {
-        query: "",
-        name: "",
-        role,
-      };
-
-      if (isTalukaHead && talukaId) {
-        searchPayload.talukaId = talukaId;
-      } else if (isDistrictHead && districtId) {
-        searchPayload.districtId = districtId;
-      } else {
-        if (wardName) searchPayload.wardName = wardName;
-        if (talukaId) searchPayload.talukaId = talukaId;
-        if (districtId) searchPayload.districtId = districtId;
-      }
-
-      dispatch(searchMembers(searchPayload));
+    // Do not refetch if searchResults is already populated in Redux store
+    if (searchResults && searchResults.length > 0) {
+      return;
     }
-  }, [tab, wardName, talukaId, districtId, role, dispatch, searchResults]);
+
+    const isTalukaHead = role === "TalukHead" || role === "TalukaHead" || role === "taluka_head";
+    const isDistrictHead = role === "DistrictHead" || role === "district_head";
+
+    const searchPayload = {
+      query: "",
+      name: "",
+      role,
+    };
+
+    if (isTalukaHead && talukaId) {
+      searchPayload.talukaId = talukaId;
+    } else if (isDistrictHead && districtId) {
+      searchPayload.districtId = districtId;
+    } else {
+      if (wardName) searchPayload.wardName = wardName;
+      if (talukaId) searchPayload.talukaId = talukaId;
+      if (districtId) searchPayload.districtId = districtId;
+    }
+
+    dispatch(searchMembers(searchPayload));
+  }, [wardName, talukaId, districtId, role, dispatch, searchResults]);
 
   // ── Local in-memory filtering for search ──
   const filteredMembers = React.useMemo(() => {
@@ -277,19 +251,6 @@ export default function AssignPositionModal({
     });
   }, [searchResults, search]);
 
-  // Cleanup blob URL
-  useEffect(() => {
-    return () => {
-      if (photoPreview) URL.revokeObjectURL(photoPreview);
-    };
-  }, [photoPreview]);
-
-  const handleField = (key) => (e) => {
-    let value = e.target.value;
-    if (key === "mobileNumber") value = value.replace(/\D/g, "").slice(0, 10);
-    setForm((f) => ({ ...f, [key]: value }));
-  };
-
   const handleAssignExisting = () => {
     if (!selectedMember || isSaving) return;
     const p = selectedMember.profile ?? {};
@@ -307,61 +268,6 @@ export default function AssignPositionModal({
       state: p.state ?? "",
       status: "Active",
     });
-  };
-
-  const handleAssignInvite = (sendInvite) => {
-    if (!form.name.trim()) return alert("Name is required");
-    if (!isValidMobile(form.mobileNumber))
-      return alert("Valid 10-digit mobile number kudu");
-    if (isSaving) return;
-
-    onAssign({
-      ...form,
-      photoUrl: photoPreview,
-      photoFile,
-      status: sendInvite ? "invited" : "registered",
-    });
-  };
-
-  const handleImageSelect = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setRawImage(reader.result);
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setCroppedAreaPixels(null);
-      setCropModalOpen(true);
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
-  };
-
-  const handleCropComplete = (_, pixels) => setCroppedAreaPixels(pixels);
-
-  // AFTER (fix)
-  const handleSaveCrop = async () => {
-    if (!rawImage || !croppedAreaPixels) return;
-    const blob = await getCroppedImg(rawImage, croppedAreaPixels);
-
-    // Blob → proper File object with filename + type
-    const file = new File([blob], "profile-photo.jpg", { type: "image/jpeg" });
-
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
-    setCropModalOpen(false);
-    setRawImage(null);
-  };
-
-  const handleCancelCrop = () => {
-    setCropModalOpen(false);
-    setRawImage(null);
-  };
-
-  // ── Get all members ──
-  const handleGetAll = () => {
-    setSearch("");
   };
 
   const isSearching = searchStatus === "loading";
@@ -399,249 +305,84 @@ export default function AssignPositionModal({
         </div>
         <p className="text-[13px] text-muted mb-6">Ward: {wardName}</p>
 
-        {/* Tabs */}
-        <div className="inline-flex w-full rounded-xl border border-hairline bg-paper p-1 mb-6">
-          <button
-            onClick={() => setTab("existing")}
-            className={`flex-1 px-3 sm:px-4 py-1.5 rounded-lg text-[12.5px] sm:text-[13px] font-semibold transition-colors ${tab === "existing" ? "bg-white text-ink shadow-sm" : "text-muted"
-              }`}
-          >
-            Existing Member
-          </button>
-          <button
-            onClick={() => setTab("invite")}
-            className={`flex-1 px-3 sm:px-4 py-1.5 rounded-lg text-[12.5px] sm:text-[13px] font-semibold transition-colors ${tab === "invite" ? "bg-white text-ink shadow-sm" : "text-muted"
-              }`}
-          >
-            Invite New
-          </button>
-        </div>
-
-        {/* ── EXISTING TAB ── */}
-        {tab === "existing" ? (
-          <div className="space-y-4">
-            {/* Search input */}
-            <div className="flex items-center gap-2 border border-hairline rounded-xl px-3.5 py-2.5">
-              {isSearching ? (
-                <Loader2 size={16} className="text-muted shrink-0 animate-spin" />
-              ) : (
-                <Search size={16} className="text-muted shrink-0" />
-              )}
-              <input
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
+        {/* Existing Member List */}
+        <div className="space-y-4">
+          {/* Search input */}
+          <div className="flex items-center gap-2 border border-hairline rounded-xl px-3.5 py-2.5">
+            {isSearching ? (
+              <Loader2 size={16} className="text-muted shrink-0 animate-spin" />
+            ) : (
+              <Search size={16} className="text-muted shrink-0" />
+            )}
+            <input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setSelectedMember(null);
+              }}
+              placeholder="Name, mobile or email…"
+              className="w-full text-[13.5px] text-ink placeholder:text-muted focus:outline-none"
+            />
+            {search && (
+              <button
+                onClick={() => {
+                  setSearch("");
                   setSelectedMember(null);
                 }}
-                placeholder="Name, mobile or email…"
-                className="w-full text-[13.5px] text-ink placeholder:text-muted focus:outline-none"
-              />
-              {search && (
-                <button
-                  onClick={() => {
-                    setSearch("");
-                    setSelectedMember(null);
-                  }}
-                  className="text-muted hover:text-ink"
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
-
-            {/* Results list */}
-            <div className="space-y-2 max-h-[calc(100vh-340px)] overflow-y-auto pr-0.5">
-              {renderSearchEmpty() ??
-                filteredMembers.map((m) => (
-                  <MemberCard
-                    key={m.userId || m.id}
-                    member={m}
-                    selected={selectedMember?.userId === m.userId}
-                    onSelect={setSelectedMember}
-                  />
-                ))}
-            </div>
-
-            {/* Selected preview strip */}
-            {selectedMember && (
-              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-amber/5 border border-amber/20">
-                <Avatar
-                  src={selectedMember.profile?.profileImage}
-                  name={selectedMember.name}
-                  size={32}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[12.5px] font-semibold text-ink truncate">
-                    {selectedMember.name}
-                  </p>
-                  <p className="text-[11px] text-muted truncate">
-                    {selectedMember.email}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setSelectedMember(null)}
-                  className="text-muted hover:text-ink shrink-0"
-                >
-                  <X size={13} />
-                </button>
-              </div>
+                className="text-muted hover:text-ink"
+              >
+                <X size={13} />
+              </button>
             )}
-
-            <button
-              onClick={handleAssignExisting}
-              disabled={!selectedMember || isSaving}
-              className="w-full bg-ink text-white text-[13.5px] font-semibold py-3 rounded-xl disabled:bg-ink/30 disabled:cursor-not-allowed hover:bg-ink/90 transition-colors"
-            >
-              {isSaving ? "Saving…" : "Assign Selected Member"}
-            </button>
           </div>
-        ) : (
-          /* ── INVITE TAB ── */
-          <div className="space-y-4">
-            <Field label="Full Name *" value={form.name} onChange={handleField("name")} />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field
-                label="Mobile *"
-                value={form.mobileNumber}
-                onChange={handleField("mobileNumber")}
-                type="tel"
-                maxLength={10}
-              />
-              <Field
-                label="Email"
-                value={form.email}
-                onChange={handleField("email")}
-                type="email"
-              />
-            </div>
-            <Field
-              label="Company Name"
-              value={form.company}
-              onChange={handleField("company")}
-            />
 
-            {/* Photo */}
-            <div>
-              <label className="text-[13px] font-medium text-ink mb-1.5 block">
-                Photo
-              </label>
-              {photoPreview ? (
-                <div className="flex items-center gap-3">
-                  <img
-                    src={photoPreview}
-                    alt="Selected"
-                    className="w-16 h-16 rounded-xl object-cover border border-hairline"
-                  />
-                  <label className="text-[13px] font-medium text-ink underline cursor-pointer">
-                    Replace photo
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleImageSelect}
-                    />
-                  </label>
-                </div>
-              ) : (
-                <label className="flex items-center justify-center gap-2 border border-dashed border-hairline rounded-xl py-3 text-[13px] font-medium text-muted cursor-pointer hover:bg-ink/5 transition-colors">
-                  <Upload size={15} /> Upload Photo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleImageSelect}
-                  />
-                </label>
-              )}
-            </div>
-
-            <button
-              onClick={() => handleAssignInvite(true)}
-              disabled={!form.name.trim() || isSaving}
-              className="w-full bg-ink text-white text-[13.5px] font-semibold py-3 rounded-xl disabled:bg-ink/30 disabled:cursor-not-allowed hover:bg-ink/90 transition-colors"
-            >
-              {isSaving ? "Saving…" : "Assign & Send Invite"}
-            </button>
-            <button
-              onClick={() => handleAssignInvite(false)}
-              disabled={!form.name.trim() || isSaving}
-              className="w-full border border-hairline text-ink text-[13.5px] font-medium py-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-ink/5 transition-colors"
-            >
-              {isSaving ? "Saving…" : "Assign Without Invite"}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ── Crop Modal ── */}
-      {cropModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-ink/60"
-            onClick={handleCancelCrop}
-          />
-          <div className="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
-            <div className="relative w-full h-72 bg-ink">
-              <Cropper
-                image={rawImage}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                cropShape="round"
-                showGrid={false}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={handleCropComplete}
-              />
-            </div>
-            <div className="p-5 space-y-4">
-              <div className="flex items-center gap-3">
-                <ZoomIn size={16} className="text-muted shrink-0" />
-                <input
-                  type="range"
-                  min={1}
-                  max={3}
-                  step={0.01}
-                  value={zoom}
-                  onChange={(e) => setZoom(Number(e.target.value))}
-                  className="w-full accent-ink"
+          {/* Results list */}
+          <div className="space-y-2 max-h-[calc(100vh-340px)] overflow-y-auto pr-0.5">
+            {renderSearchEmpty() ??
+              filteredMembers.map((m) => (
+                <MemberCard
+                  key={m.userId || m.id}
+                  member={m}
+                  selected={selectedMember?.userId === m.userId}
+                  onSelect={setSelectedMember}
                 />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleCancelCrop}
-                  className="flex-1 border border-hairline text-ink text-[13.5px] font-medium py-2.5 rounded-xl hover:bg-ink/5 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveCrop}
-                  className="flex-1 bg-ink text-white text-[13.5px] font-semibold py-2.5 rounded-xl hover:bg-ink/90 transition-colors"
-                >
-                  Save photo
-                </button>
-              </div>
-            </div>
+              ))}
           </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
-function Field({ label, value, onChange, type = "text", maxLength }) {
-  return (
-    <div>
-      <label className="text-[13px] font-medium text-ink mb-1.5 block">
-        {label}
-      </label>
-      <input
-        type={type}
-        value={value}
-        onChange={onChange}
-        maxLength={maxLength}
-        className="w-full border border-hairline rounded-xl px-3.5 py-2.5 text-[13.5px] text-ink focus:outline-none focus:ring-2 focus:ring-amber/30"
-      />
+          {/* Selected preview strip */}
+          {selectedMember && (
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-amber/5 border border-amber/20">
+              <Avatar
+                src={selectedMember.profile?.profileImage}
+                name={selectedMember.name}
+                size={32}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-[12.5px] font-semibold text-ink truncate">
+                  {selectedMember.name}
+                </p>
+                <p className="text-[11px] text-muted truncate">
+                  {selectedMember.email}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedMember(null)}
+                className="text-muted hover:text-ink shrink-0"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          )}
+
+          <button
+            onClick={handleAssignExisting}
+            disabled={!selectedMember || isSaving}
+            className="w-full bg-ink text-white text-[13.5px] font-semibold py-3 rounded-xl disabled:bg-ink/30 disabled:cursor-not-allowed hover:bg-ink/90 transition-colors"
+          >
+            {isSaving ? "Saving…" : "Assign Selected Member"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

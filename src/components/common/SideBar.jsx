@@ -357,12 +357,12 @@ const NAV = {
     ],
     TalukHead: [
         { type: "link", name: "Dashboard", icon: LayoutDashboard, path: "/taluk-head-dashboard" },
-        {
-            type: "group", key: "TH-members", name: "Members", icon: Users, children: [
-                { name: "Ward / Hobli Head", path: "/taluk-head-dashboard/ward-head" },
-                // { name: "Channel Partners", path: "/taluk-head-dashboard/members/channelPartners" },
-            ]
-        },
+        // {
+        //     type: "group", key: "TH-members", name: "Members", icon: Users, children: [
+        //         { name: "Ward / Hobli Head", path: "/taluk-head-dashboard/ward-head" },
+        //         // { name: "Channel Partners", path: "/taluk-head-dashboard/members/channelPartners" },
+        //     ]
+        // },
         // {
         //     type: "group", key: "TH-members-db", name: "Members", icon: Building2, children: [
         //         { name: "Udyami Database", path: "/taluk-head-dashboard/members" },
