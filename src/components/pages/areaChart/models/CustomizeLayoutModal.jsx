@@ -396,6 +396,12 @@ export default function CustomizeLayoutModal({
             {!isWardChairman && (
               <>
                 <DropdownRow
+                  label="Officials"
+                  value={draft.slotCounts.officials ?? 4}
+                  options={[4, 8]}
+                  onChange={(v) => updateCountDirect("officials", v)}
+                />
+                <DropdownRow
                   label="Patrons"
                   value={draft.slotCounts.patrons ?? 10}
                   options={[5, 10, 15]}

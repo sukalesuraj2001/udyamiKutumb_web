@@ -83,22 +83,22 @@ export default function ChartSlot({
   // ── DEFAULT variant ─────────────────────────────────────────────
   return (
     <div
-      className={`flex flex-col items-center gap-[4px] transition-opacity ${dimmed ? "opacity-25" : "opacity-100"
+      className={`flex flex-col items-center gap-[2px] transition-opacity ${dimmed ? "opacity-25" : "opacity-100"
       }`}
     >
       {topLabel && (
-        <span className={`text-[11.4px] font-semibold text-center leading-tight ${topLabelColor}`}>
+        <span className={`text-[10.5px] font-semibold text-center leading-tight ${topLabelColor}`}>
           {topLabel}
         </span>
       )}
 
       <div
         onClick={handleClick}
-        className={`flex flex-col items-center gap-[4px] w-full ${onAssignClick ? "cursor-pointer group" : "cursor-default"
+        className={`flex flex-col items-center gap-[2px] w-full ${onAssignClick ? "cursor-pointer group" : "cursor-default"
         }`}
       >
         <div
-          className={`relative w-[105px] h-[105px] rounded-lg border-[3px] border-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm ${tone === "brick" ? "bg-[#AE0E14]" : "bg-[#0C1757]"
+          className={`relative w-[94px] h-[94px] rounded-lg border-[2.5px] border-white flex items-center justify-center overflow-hidden shrink-0 shadow-sm ${tone === "brick" ? "bg-[#AE0E14]" : "bg-[#0C1757]"
           }`}
         >
           {assigned?.photoUrl ? (
@@ -108,7 +108,7 @@ export default function ChartSlot({
               className="w-full h-full object-cover"
             />
           ) : (
-            <User size={68} className="text-white" strokeWidth={1.4} fill="white" />
+            <User size={58} className="text-white" strokeWidth={1.4} fill="white" />
           )}
           {/* Plus icon — only in build mode (showPlus=true) */}
           {showPlus && !isSuperAdmin && (
@@ -119,14 +119,14 @@ export default function ChartSlot({
         </div>
 
         {(hasAssigned || showPlaceholderName) && (
-          <div className="text-center max-w-[92px]">
+          <div className="text-center max-w-[90px]">
             <p
               className={`text-[10px] font-bold leading-tight truncate ${nameColor} ${nameCase === "upper" ? "uppercase" : ""
               }`}
             >
               {assigned?.name || (nameCase === "upper" ? "NAME" : "Name")}
             </p>
-            <p className={`text-[6.6px] leading-tight truncate ${companyColor}`}>
+            <p className={`text-[6.5px] leading-tight truncate ${companyColor}`}>
               {assigned?.company}
             </p>
           </div>

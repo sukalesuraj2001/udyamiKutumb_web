@@ -30,6 +30,7 @@ import { HERO_IMAGE_URL } from "./chartAssets.js";
 // ─── Same DEFAULT_CONFIG as WardChartDetail ───────────────────────
 const DEFAULT_CONFIG = {
     slotCounts: {
+        officials: 4,
         patrons: 10,
         chairmenPage2: 4,
         chairmenPage3: 13,
@@ -411,9 +412,9 @@ export default function WardChartPdfView() {
                 <div style={{ display: "flex", flexDirection: "column", height: "1095px" }}>
                     <ChartHeaderBanner code={gCode} wardName={wardName} region={constituency} />
 
-                    <div style={{ padding: "2% 3%", flex: 1 }}>
+                    <div style={{ padding: "1% 3%", flex: 1 }}>
                         {/* MLA */}
-                        <div style={{ display: "flex", justifyContent: "center", paddingTop: "1%" }}>
+                        <div style={{ display: "flex", justifyContent: "center", paddingTop: "0%" }}>
                             <MlaCard
                                 mlaLabel={`MLA - ${wardName} Assembly constituency`}
                                 assigned={effectiveAssignments.mla}
@@ -424,14 +425,14 @@ export default function WardChartPdfView() {
                         </div>
 
                         {/* Horizontal line */}
-                        <div style={{ position: "relative", margin: "6px 0 4px" }}>
+                        <div style={{ position: "relative", margin: "4px 0 2px" }}>
                             <div style={{ position: "absolute", left: "10%", right: "10%", top: 0, height: "1px", background: "rgba(27,36,48,0.4)" }} />
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", paddingTop: "4px" }}>
-                                {Array.from({ length: 4 }).map((_, i) => {
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", paddingTop: "2px" }}>
+                                {Array.from({ length: config.slotCounts?.officials ?? 4 }).map((_, i) => {
                                     const slotId = `official-${i + 1}`;
                                     return (
                                         <div key={slotId} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                                            <div style={{ width: "1px", height: "8px", background: "rgba(27,36,48,0.4)", marginBottom: "2px" }} />
+                                            <div style={{ width: "1px", height: "6px", background: "rgba(27,36,48,0.4)", marginBottom: "2px" }} />
                                             <ChartSlot
                                                 slotId={slotId} topLabel={`Official ${i + 1}`}
                                                 tone="navy" nameCase="upper"
@@ -445,15 +446,15 @@ export default function WardChartPdfView() {
                         </div>
 
                         {/* Patron banner */}
-                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", margin: "6px 0", position: "relative" }}>
+                        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", margin: "4px 0", position: "relative" }}>
                             <div style={{ position: "absolute", left: 0, right: 0, top: "50%", height: "2px", background: "#1a2e5e" }} />
-                            <div style={{ position: "relative", background: "#b5121b", color: "white", fontWeight: "bold", padding: "4px 32px", fontSize: "12px", textTransform: "uppercase", borderRadius: "2px 2px 12px 12px", minWidth: "200px", textAlign: "center" }}>
+                            <div style={{ position: "relative", background: "#b5121b", color: "white", fontWeight: "bold", padding: "2px 24px", fontSize: "11px", textTransform: "uppercase", borderRadius: "2px 2px 12px 12px", minWidth: "180px", textAlign: "center" }}>
                                 UDYAMI PATRON
                             </div>
                         </div>
 
                         {/* Patrons */}
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "6px 12px", marginBottom: "6px" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "4px 10px", marginBottom: "4px" }}>
                             {Array.from({ length: config.slotCounts.patrons }).map((_, i) => {
                                 const slotId = `patron-${i + 1}`;
                                 return (
@@ -463,15 +464,15 @@ export default function WardChartPdfView() {
                             })}
                         </div>
 
-                        <div style={{ borderTop: "1px solid rgba(27,36,48,0.2)", marginBottom: "6px" }} />
+                        <div style={{ borderTop: "1px solid rgba(27,36,48,0.2)", marginBottom: "4px" }} />
 
                         {/* Chairmen P2 */}
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "6px 12px" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "4px 10px" }}>
                             {chairmenP2.map((i) => {
                                 const slotId = `chairman-${i + 1}`;
                                 return (
                                     <div key={slotId}>
-                                        <p style={{ fontSize: "8.5px", fontWeight: "bold", color: "#A23B2E", textAlign: "center", marginBottom: "2px", textTransform: "uppercase" }}>
+                                        <p style={{ fontSize: "8px", fontWeight: "bold", color: "#A23B2E", textAlign: "center", marginBottom: "1px", textTransform: "uppercase" }}>
                                             {gCode}.{i + 1} Chairman
                                         </p>
                                         <ChartSlot slotId={slotId} tone="brick" nameCase="upper"

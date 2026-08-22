@@ -26,7 +26,7 @@ export function calculateTotalLayoutCards(config, wardLength = 9) {
 
   const mlaCount = 1;
   const patronsCount = Number(slotCounts.patrons ?? 10);
-  const officialsCount = 4;
+  const officialsCount = Number(slotCounts.officials ?? 4);
   const chairmanCount = 1;
   const totalChairmenCount = Number(wardLength || 9);
   const advisoriesCount = Number(slotCounts.advisories ?? 3);

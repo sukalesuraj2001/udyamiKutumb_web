@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { UserPlus, SlidersHorizontal, Printer, Download, Search, PackageOpen, LayoutGrid, Loader2, AlertCircle, } from "lucide-react";
 import ConstituencySection from "./components/ConstituencySection.jsx";
 import PositionDetailsModal from "./models/PositionDetailsModal";
-import { getLocationByWardHeadId, selectWards, selectLocationStatus, selectLocationError} from "../../redux/slices/areaChartSlice.js";
+import { getLocationByWardHeadId, selectWards, selectLocationStatus, selectLocationError } from "../../redux/slices/areaChartSlice.js";
 import { selectUser } from "../../redux/slices/authSlice";
 
 // ─── Helpers ──────────────────────────────────────────────────────

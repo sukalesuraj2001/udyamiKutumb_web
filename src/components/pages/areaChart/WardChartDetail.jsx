@@ -62,6 +62,7 @@ import jsPDF from "jspdf";
 
 const DEFAULT_CONFIG = {
   slotCounts: {
+    officials: 4,
     patrons: 10,
     chairmenPage2: 4,
     chairmenPage3: 13,
@@ -344,19 +345,23 @@ export default function WardChartDetail() {
 
   const isPreviewMode = tab === "preview";
 
+  const lastWardIdRef = useRef(null);
+  const lastTalukaIdRef = useRef(null);
+
   useEffect(() => {
     if (targetUserId && ward.id) {
       dispatch(getWardChartData({ userId: targetUserId, wardId: ward.id }));
     }
-    if (ward.id) {
+    if (ward.id && lastWardIdRef.current !== ward.id) {
       dispatch(fetchUcnMembers(ward.id));
       dispatch(fetchUmsMembers(ward.id));
       dispatch(fetchChannelPartners({ wardId: ward.id }));
+      lastWardIdRef.current = ward.id;
     }
     if (user?.userId && (!wards || wards.length === 0)) {
       dispatch(getLocationByWardHeadId(user.userId));
     }
-  }, [dispatch, targetUserId, ward.id, user?.userId, wards]);
+  }, [dispatch, targetUserId, ward.id, user?.userId]);
 
   useEffect(() => {
     if (fetchStatus === "succeeded" && fetchedData) {
@@ -1064,9 +1069,10 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
   }, [fetchedData, ward, constituencyWards, wardFromStateOrStore]);
 
   useEffect(() => {
-    if (talukaId) {
+    if (talukaId && lastTalukaIdRef.current !== talukaId) {
       dispatch(getAllWardChaimansBy(talukaId));
       dispatch(fetchPatrons(talukaId));
+      lastTalukaIdRef.current = talukaId;
     }
   }, [dispatch, talukaId]);
 
@@ -1237,8 +1243,8 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
           <>
             {/* ══════ PAGE 2 — MLA + Officials + Patrons + Chairmen ══════ */}
             <ChartPage pageLabel={`MLA · Patrons · Chairmen (1–${p2Count})`} pageNum={2} ward={ward}>
-              <div className="px-6 py-2 space-y-1.5">
-                <div className="flex justify-center pt-0.5">
+              <div className="px-6 py-1 space-y-1">
+                <div className="flex justify-center pt-0">
                   <MlaCard
                     mlaLabel={`MLA - ${ward.ward_name} Assembly constituency`}
                     assigned={assignments.mla}
@@ -1250,14 +1256,14 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                 </div>
 
                 <div className="relative">
-                  <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-px h-2 bg-ink/40" />
+                  <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-px h-1.5 bg-ink/40" />
                   <div className="absolute left-[10%] right-[10%] top-0 h-px bg-ink/40" />
-                  <div className="grid grid-cols-4 gap-3 pt-1">
-                    {Array.from({ length: 4 }).map((_, i) => {
+                  <div className="grid grid-cols-4 gap-2 pt-0.5">
+                    {Array.from({ length: config.slotCounts?.officials ?? 4 }).map((_, i) => {
                       const slotId = `official-${i + 1}`;
                       return (
                         <div key={slotId} className="flex flex-col items-center">
-                          <div className="w-px h-2 bg-ink/40 mb-0.5" />
+                          <div className="w-px h-1.5 bg-ink/40 mb-0.5" />
                           <PdfSlot
                             slotId={slotId}
                             topLabel={`Official ${i + 1}`}
@@ -1274,16 +1280,16 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                   </div>
                 </div>
 
-                <div className="relative flex justify-center items-center py-1">
+                <div className="relative flex justify-center items-center py-0.5">
                   <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[2px] bg-[#1a2e5e]" />
                   <div className="relative z-10">
-                    <div className="relative bg-[#b5121b] text-white text-[12px] font-bold uppercase px-8 py-[4px] w-[200px] text-center rounded-t-sm rounded-b-xl">
+                    <div className="relative bg-[#b5121b] text-white text-[11px] font-bold uppercase px-6 py-[2px] w-[180px] text-center rounded-t-sm rounded-b-xl">
                       UDYAMI PATRON
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-5 gap-x-3 gap-y-1.5">
+                <div className="grid grid-cols-5 gap-x-2.5 gap-y-1">
                   {Array.from({ length: config.slotCounts.patrons }).map((_, i) => {
                     const slotId = `patron-${i + 1}`;
                     return (
@@ -1303,13 +1309,13 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
 
                 <div className="border-t border-ink/20 my-0.5" />
 
-                <div className="grid grid-cols-5 gap-x-3 gap-y-1.5">
+                <div className="grid grid-cols-5 gap-x-2.5 gap-y-1">
                   {chairmenP2.map((i) => {
                     const slotId = `chairman-${i + 1}`;
                     const label = `${constituencyWards[i]?.ward_number || `${gCode}.${i + 1}`} Chairman`;
                     return (
                       <div key={slotId}>
-                        <p className="text-[8.5px] font-bold text-brick text-center mb-0.5 uppercase truncate">{label}</p>
+                        <p className="text-[8px] font-bold text-brick text-center mb-[1px] uppercase truncate">{label}</p>
                         <PdfSlot
                           slotId={slotId}
                           tone="brick"

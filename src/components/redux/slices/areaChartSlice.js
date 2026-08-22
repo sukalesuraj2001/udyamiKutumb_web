@@ -227,7 +227,6 @@ export const createWardChartData = createAsyncThunk(
 export const searchMembers = createAsyncThunk(
   "areaChart/searchMembers",
   async (payload, { getState, dispatch, rejectWithValue }) => {
-    dispatch(showLoader());
     try {
       const token = getState().auth.token;
 
@@ -255,17 +254,14 @@ export const searchMembers = createAsyncThunk(
         // ignore
       }
 
-      // If user is Taluka Head and talukaId wasn't passed in payload, fallback to locationData
       if (!talukaId && (userRole === "TalukHead" || userRole === "TalukaHead" || userRole === "taluka_head")) {
         talukaId = locationData?.talukaId || "";
       }
 
-      // If user is District Head and districtId wasn't passed in payload, fallback to locationData
       if (!districtId && (userRole === "DistrictHead" || userRole === "district_head")) {
         districtId = locationData?.districtId || "";
       }
 
-      // Construct API payload for search-users
       const requestPayload = {
         name: query || "",
       };
@@ -292,8 +288,6 @@ export const searchMembers = createAsyncThunk(
       return rejectWithValue(
         err.response?.data?.message || err.message || "Something went wrong"
       );
-    } finally {
-      dispatch(hideLoader());
     }
   }
 );
@@ -348,7 +342,6 @@ export const deleteWardChartMember = createAsyncThunk(
 export const getAllWardChaimansBy = createAsyncThunk(
   "areaChart/getAllWardChaimansBy",
   async (talukaId, { getState, dispatch, rejectWithValue }) => {
-    dispatch(showLoader());
     try {
       const token = getState().auth.token;
       const { data } = await axios.get(
@@ -361,8 +354,6 @@ export const getAllWardChaimansBy = createAsyncThunk(
       return rejectWithValue(
         err.response?.data?.message || err.message || "Something went wrong"
       );
-    } finally {
-      dispatch(hideLoader());
     }
   }
 );
@@ -371,7 +362,6 @@ export const getAllWardChaimansBy = createAsyncThunk(
 export const fetchUcnMembers = createAsyncThunk(
   "areaChart/fetchUcnMembers",
   async (wardId, { getState, dispatch, rejectWithValue }) => {
-    dispatch(showLoader());
     try {
       const token = getState().auth.token;
       const { data } = await axios.get(
@@ -384,8 +374,6 @@ export const fetchUcnMembers = createAsyncThunk(
       return rejectWithValue(
         err.response?.data?.message || err.message || "Something went wrong"
       );
-    } finally {
-      dispatch(hideLoader());
     }
   }
 );
@@ -394,7 +382,6 @@ export const fetchUcnMembers = createAsyncThunk(
 export const fetchChannelPartners = createAsyncThunk(
   "areaChart/fetchChannelPartners",
   async (params, { getState, dispatch, rejectWithValue }) => {
-    dispatch(showLoader());
     try {
       const token = getState().auth.token;
       let wardId = "";
@@ -424,8 +411,6 @@ export const fetchChannelPartners = createAsyncThunk(
       return rejectWithValue(
         err.response?.data?.message || err.message || "Something went wrong"
       );
-    } finally {
-      dispatch(hideLoader());
     }
   }
 );
@@ -434,7 +419,6 @@ export const fetchChannelPartners = createAsyncThunk(
 export const fetchPatrons = createAsyncThunk(
   "areaChart/fetchPatrons",
   async (talukaId, { getState, dispatch, rejectWithValue }) => {
-    dispatch(showLoader());
     try {
       const token = getState().auth.token;
       const { data } = await axios.get(
@@ -447,8 +431,6 @@ export const fetchPatrons = createAsyncThunk(
       return rejectWithValue(
         err.response?.data?.message || err.message || "Something went wrong"
       );
-    } finally {
-      dispatch(hideLoader());
     }
   }
 );
@@ -457,7 +439,6 @@ export const fetchPatrons = createAsyncThunk(
 export const fetchUmsMembers = createAsyncThunk(
   "areaChart/fetchUmsMembers",
   async (wardId, { getState, dispatch, rejectWithValue }) => {
-    dispatch(showLoader());
     try {
       const token = getState().auth.token;
       const { data } = await axios.get(
@@ -470,8 +451,6 @@ export const fetchUmsMembers = createAsyncThunk(
       return rejectWithValue(
         err.response?.data?.message || err.message || "Something went wrong"
       );
-    } finally {
-      dispatch(hideLoader());
     }
   }
 );
@@ -783,4 +762,4 @@ export const selectUmsMembersError = (s) => s.areaChart.umsMembersError;
 export const selectWardInfo = (s) => s.areaChart.wardInfo;
 export const selectLayoutConfig = (s) => s.areaChart.fetchedData?.data?.layoutConfig ?? null;
 export const { clearAreaChartError, clearAreaChartState, clearLocationState } = areaChartSlice.actions;
-export default areaChartSlice.reducer;
+export default areaChartSlice.reducer;

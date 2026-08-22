@@ -225,18 +225,20 @@ export default function AssignPositionModal({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
 
-  // ── Debounced search ──
+  // ── Initial load of all members on tab open (with Redux cache check) ──
   useEffect(() => {
-    clearTimeout(debounceRef.current);
-    if (search.trim().length < 2) return;
+    if (tab === "existing") {
+      // Do not refetch if searchResults is already populated in Redux store
+      if (searchResults && searchResults.length > 0) {
+        return;
+      }
 
-    debounceRef.current = setTimeout(() => {
       const isTalukaHead = role === "TalukHead" || role === "TalukaHead" || role === "taluka_head";
       const isDistrictHead = role === "DistrictHead" || role === "district_head";
 
       const searchPayload = {
-        query: search.trim(),
-        name: search.trim(),
+        query: "",
+        name: "",
         role,
       };
 
@@ -251,10 +253,29 @@ export default function AssignPositionModal({
       }
 
       dispatch(searchMembers(searchPayload));
-    }, 400);
+    }
+  }, [tab, wardName, talukaId, districtId, role, dispatch, searchResults]);
 
-    return () => clearTimeout(debounceRef.current);
-  }, [search, wardName, talukaId, districtId, role, dispatch]);
+  // ── Local in-memory filtering for search ──
+  const filteredMembers = React.useMemo(() => {
+    if (!Array.isArray(searchResults)) return [];
+    if (!search.trim()) return searchResults;
+    const q = search.trim().toLowerCase();
+    return searchResults.filter((m) => {
+      const name = (m.name || "").toLowerCase();
+      const email = (m.email || "").toLowerCase();
+      const mobile = (m.mobileNumber || "").toLowerCase();
+      const company = (m.companyName || m.company || m.profile?.businessDetails?.businessName || "").toLowerCase();
+      const location = (m.businessLocation || m.profile?.district || "").toLowerCase();
+      return (
+        name.includes(q) ||
+        email.includes(q) ||
+        mobile.includes(q) ||
+        company.includes(q) ||
+        location.includes(q)
+      );
+    });
+  }, [searchResults, search]);
 
   // Cleanup blob URL
   useEffect(() => {
@@ -347,7 +368,7 @@ export default function AssignPositionModal({
 
   const renderSearchEmpty = () => {
     if (isSearching) return null;
-    if (searchResults.length === 0 && search.trim().length >= 2)
+    if (filteredMembers.length === 0 && search.trim())
       return (
         <p className="text-[13px] text-muted text-center py-8">
           No members found for "{search}"
@@ -356,7 +377,7 @@ export default function AssignPositionModal({
     if (searchResults.length === 0)
       return (
         <p className="text-[13px] text-muted text-center py-8">
-          Search members above
+          No members available
         </p>
       );
     return null;
@@ -431,9 +452,9 @@ export default function AssignPositionModal({
             {/* Results list */}
             <div className="space-y-2 max-h-[calc(100vh-340px)] overflow-y-auto pr-0.5">
               {renderSearchEmpty() ??
-                searchResults.map((m) => (
+                filteredMembers.map((m) => (
                   <MemberCard
-                    key={m.userId}
+                    key={m.userId || m.id}
                     member={m}
                     selected={selectedMember?.userId === m.userId}
                     onSelect={setSelectedMember}
