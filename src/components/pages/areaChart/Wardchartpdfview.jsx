@@ -364,11 +364,16 @@ export default function WardChartPdfView() {
         9
     );
 
+    const officialsCount = Number(config.slotCounts?.officials ?? 4);
+    const officialRows = Math.ceil(officialsCount / 4);
+
     const totalPatrons = Number(config.slotCounts?.patrons ?? 10);
     const patronRows = Math.ceil(totalPatrons / 5);
 
-    const patronRowsP2 = Math.min(patronRows, 3);
-    const maxChairmanRowsP2 = Math.max(1, 4 - patronRowsP2);
+    // Page 2 max capacity is 7 total rows (1 MLA + officialRows + patronRows + chairmanRows)
+    const fixedRows = 1 + officialRows + patronRows;
+    const availableChairmanRows = Math.max(0, 7 - fixedRows);
+    const maxChairmanRowsP2 = Math.min(2, availableChairmanRows);
     const maxChairmenP2 = maxChairmanRowsP2 * 5;
 
     const p2Count = Math.min(totalChairmenCount, maxChairmenP2);
