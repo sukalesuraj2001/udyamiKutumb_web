@@ -1665,6 +1665,9 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
         slotId={sidePanelSlot?.slotId}
         slotLabel={sidePanelSlot?.label}
         wardName={ward.ward_name}
+        talukaId={ward.talukaId || ward.taluka_id || ward.taluka?.talukaId}
+        districtId={ward.districtId || ward.district_id || ward.district?.districtId}
+        role={user?.role}
         ucnMembers={ucnMembers}
         channelPartners={channelPartners}
         patrons={patrons}

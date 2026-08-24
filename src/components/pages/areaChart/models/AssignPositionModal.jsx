@@ -1,11 +1,14 @@
-import React, { useEffect, useRef, useState } from "react";
-import { X, Search, Loader2, Building2, Phone, Mail, MapPin, BadgeCheck } from "lucide-react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
+import { X, Search, Loader2, Building2, Phone, Mail, MapPin, BadgeCheck, ChevronDown } from "lucide-react";
 import { useSelector, useDispatch } from "react-redux";
+import axios from "axios";
 import {
   searchMembers,
   selectSearchResults,
   selectSearchStatus,
 } from "../../../redux/slices/areaChartSlice.js";
+
+const BASE_URL = "https://backend.udyamikutumba.com";
 
 // ── Avatar helper ─────────────────────────────────────────────────
 function Avatar({ src, name, size = 44 }) {
@@ -115,12 +118,24 @@ function MemberCard({ member, selected, onSelect }) {
           </div>
 
           {/* Location + business */}
-          {(member.businessLocation || member.profile?.district) && (
+          {(member.profile?.district || member.profile?.assembly || member.profile?.ward || member.profile?.businessDetails?.businessName) && (
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-              {member.businessLocation && (
+              {member.profile?.district && (
                 <span className="flex items-center gap-1 text-[11.5px] text-muted">
                   <MapPin size={10} className="shrink-0" />
-                  {member.businessLocation}
+                  {member.profile.district}
+                </span>
+              )}
+              {member.profile?.assembly && (
+                <span className="flex items-center gap-1 text-[11.5px] text-muted">
+                  <MapPin size={10} className="shrink-0 opacity-60" />
+                  {member.profile.assembly}
+                </span>
+              )}
+              {member.profile?.ward && (
+                <span className="flex items-center gap-1 text-[11.5px] text-muted">
+                  <MapPin size={10} className="shrink-0 opacity-40" />
+                  {member.profile.ward}
                 </span>
               )}
               {member.profile?.businessDetails?.businessName && (
@@ -154,6 +169,7 @@ export default function AssignPositionModal({
   const searchResults = useSelector(selectSearchResults);
   const searchStatus = useSelector(selectSearchStatus);
   const authUser = useSelector((state) => state.auth?.user);
+  const token = useSelector((state) => state.auth?.token);
 
   const [search, setSearch] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
@@ -162,7 +178,7 @@ export default function AssignPositionModal({
   const [animate, setAnimate] = useState(false);
 
   // Location data fallback
-  const locationData = React.useMemo(() => {
+  const locationData = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem("locationData") || "{}");
     } catch {
@@ -170,9 +186,24 @@ export default function AssignPositionModal({
     }
   }, []);
 
-  const role = propsRole || authUser?.role;
-  const talukaId = propsTalukaId || locationData?.talukaId;
-  const districtId = propsDistrictId || locationData?.districtId;
+  const userRole = (propsRole || authUser?.role || "").toString();
+  const roleNorm = userRole.toLowerCase().replace(/[\s_]/g, "");
+
+  const isSuperAdmin = roleNorm === "superadmin";
+  const isDistrictHead = roleNorm === "districthead";
+  const isTalukaHead = roleNorm === "talukhead" || roleNorm === "talukahead";
+
+  const [selectedDistrict, setSelectedDistrict] = useState(propsDistrictId || locationData?.districtId || "");
+  const [selectedTaluka, setSelectedTaluka] = useState(propsTalukaId || locationData?.talukaId || "");
+  const [selectedWard, setSelectedWard] = useState(wardName || locationData?.wardName || "");
+
+  const [districtsList, setDistrictsList] = useState([]);
+  const [talukasList, setTalukasList] = useState([]);
+  const [wardsList, setWardsList] = useState([]);
+
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingTalukas, setLoadingTalukas] = useState(false);
+  const [loadingWards, setLoadingWards] = useState(false);
 
   useEffect(() => {
     const timer = requestAnimationFrame(() => setAnimate(true));
@@ -201,34 +232,126 @@ export default function AssignPositionModal({
     };
   }, []);
 
-  // ── Initial load of all members (with Redux cache check) ──
+  // ── Fetch Districts for SuperAdmin ──
   useEffect(() => {
-    // Do not refetch if searchResults is already populated in Redux store
-    if (searchResults && searchResults.length > 0) {
+    if (!isSuperAdmin) return;
+    let isMounted = true;
+    setLoadingDistricts(true);
+    axios
+      .get(`${BASE_URL}/district/getAllDistricts`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        if (isMounted && res.data?.success) {
+          setDistrictsList(res.data.data || []);
+        }
+      })
+      .catch((err) => console.error("Error fetching districts:", err))
+      .finally(() => {
+        if (isMounted) setLoadingDistricts(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [isSuperAdmin, token]);
+
+  // ── Fetch Talukas for SuperAdmin & DistrictHead ──
+  useEffect(() => {
+    const activeDistrictId = isDistrictHead ? (propsDistrictId || locationData?.districtId || selectedDistrict) : selectedDistrict;
+    if (!activeDistrictId) {
+      setTalukasList([]);
       return;
     }
-
-    const isTalukaHead = role === "TalukHead" || role === "TalukaHead" || role === "taluka_head";
-    const isDistrictHead = role === "DistrictHead" || role === "district_head";
-
-    const searchPayload = {
-      query: "",
-      name: "",
-      role,
+    let isMounted = true;
+    setLoadingTalukas(true);
+    axios
+      .get(`${BASE_URL}/district/getAllDistricts?districtId=${activeDistrictId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        if (isMounted && res.data?.success) {
+          setTalukasList(res.data.data || []);
+        }
+      })
+      .catch((err) => console.error("Error fetching talukas:", err))
+      .finally(() => {
+        if (isMounted) setLoadingTalukas(false);
+      });
+    return () => {
+      isMounted = false;
     };
+  }, [selectedDistrict, isDistrictHead, propsDistrictId, locationData?.districtId, token]);
 
-    if (isTalukaHead && talukaId) {
-      searchPayload.talukaId = talukaId;
-    } else if (isDistrictHead && districtId) {
-      searchPayload.districtId = districtId;
-    } else {
-      if (wardName) searchPayload.wardName = wardName;
-      if (talukaId) searchPayload.talukaId = talukaId;
-      if (districtId) searchPayload.districtId = districtId;
+  // ── Fetch Wards for SuperAdmin, DistrictHead & TalukaHead ──
+  useEffect(() => {
+    const activeTalukaId = isTalukaHead ? (propsTalukaId || locationData?.talukaId || selectedTaluka) : selectedTaluka;
+    if (!activeTalukaId) {
+      setWardsList([]);
+      return;
     }
+    let isMounted = true;
+    setLoadingWards(true);
+    axios
+      .get(`${BASE_URL}/ward/getWardBy/${activeTalukaId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        if (isMounted && res.data?.success) {
+          setWardsList(res.data.data || []);
+        }
+      })
+      .catch((err) => console.error("Error fetching wards:", err))
+      .finally(() => {
+        if (isMounted) setLoadingWards(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedTaluka, isTalukaHead, propsTalukaId, locationData?.talukaId, token]);
 
-    dispatch(searchMembers(searchPayload));
-  }, [wardName, talukaId, districtId, role, dispatch, searchResults]);
+  // ── Dispatch searchMembers API ──
+  const executeSearch = (overrides = {}) => {
+    const dId = "districtId" in overrides ? overrides.districtId : (isDistrictHead || isTalukaHead ? (propsDistrictId || locationData?.districtId) : selectedDistrict);
+    const tId = "talukaId" in overrides ? overrides.talukaId : (isTalukaHead ? (propsTalukaId || locationData?.talukaId) : selectedTaluka);
+    const wName = "wardName" in overrides ? overrides.wardName : selectedWard;
+    const q = "query" in overrides ? overrides.query : search;
+
+    const payload = {
+      name: q || "",
+      query: q || "",
+      role: userRole,
+    };
+    if (dId) payload.districtId = dId;
+    if (tId) payload.talukaId = tId;
+    if (wName) payload.wardName = wName;
+
+    dispatch(searchMembers(payload));
+  };
+
+  useEffect(() => {
+    executeSearch();
+  }, [userRole]);
+
+  const handleDistrictChange = (e) => {
+    const val = e.target.value;
+    setSelectedDistrict(val);
+    setSelectedTaluka("");
+    setSelectedWard("");
+    executeSearch({ districtId: val, talukaId: "", wardName: "" });
+  };
+
+  const handleTalukaChange = (e) => {
+    const val = e.target.value;
+    setSelectedTaluka(val);
+    setSelectedWard("");
+    executeSearch({ talukaId: val, wardName: "" });
+  };
+
+  const handleWardChange = (e) => {
+    const val = e.target.value;
+    setSelectedWard(val);
+    executeSearch({ wardName: val });
+  };
 
   // ── Local in-memory filtering for search ──
   const filteredMembers = React.useMemo(() => {
@@ -317,8 +440,10 @@ export default function AssignPositionModal({
             <input
               value={search}
               onChange={(e) => {
-                setSearch(e.target.value);
+                const val = e.target.value;
+                setSearch(val);
                 setSelectedMember(null);
+                executeSearch({ query: val });
               }}
               placeholder="Name, mobile or email…"
               className="w-full text-[13.5px] text-ink placeholder:text-muted focus:outline-none"
@@ -328,6 +453,7 @@ export default function AssignPositionModal({
                 onClick={() => {
                   setSearch("");
                   setSelectedMember(null);
+                  executeSearch({ query: "" });
                 }}
                 className="text-muted hover:text-ink"
               >
@@ -335,6 +461,74 @@ export default function AssignPositionModal({
               </button>
             )}
           </div>
+
+          {/* Location Filters below Search */}
+          {(isSuperAdmin || isDistrictHead || isTalukaHead) && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+              {/* District Filter (Super Admin only) */}
+              {isSuperAdmin && (
+                <div className="relative">
+                  <select
+                    value={selectedDistrict}
+                    onChange={handleDistrictChange}
+                    disabled={loadingDistricts}
+                    className="w-full text-[12px] bg-slate-50 border border-hairline rounded-lg px-2.5 py-1.5 text-ink focus:outline-none focus:border-amber appearance-none pr-6 cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="">All Districts</option>
+                    {districtsList.map((d) => (
+                      <option key={d.districtId} value={d.districtId}>
+                        {d.districtName}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+                </div>
+              )}
+
+              {/* Taluka Filter (Super Admin & District Head) */}
+              {(isSuperAdmin || isDistrictHead) && (
+                <div className="relative">
+                  <select
+                    value={selectedTaluka}
+                    onChange={handleTalukaChange}
+                    disabled={loadingTalukas || (isSuperAdmin && !selectedDistrict)}
+                    className="w-full text-[12px] bg-slate-50 border border-hairline rounded-lg px-2.5 py-1.5 text-ink focus:outline-none focus:border-amber appearance-none pr-6 cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="">All Talukas</option>
+                    {talukasList.map((t) => (
+                      <option key={t.talukaId} value={t.talukaId}>
+                        {t.talukaName}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+                </div>
+              )}
+
+              {/* Ward Filter (Super Admin, District Head & Taluka Head) */}
+              {(isSuperAdmin || isDistrictHead || isTalukaHead) && (
+                <div className="relative">
+                  <select
+                    value={selectedWard}
+                    onChange={handleWardChange}
+                    disabled={loadingWards || ((isSuperAdmin || isDistrictHead) && !selectedTaluka && wardsList.length === 0)}
+                    className="w-full text-[12px] bg-slate-50 border border-hairline rounded-lg px-2.5 py-1.5 text-ink focus:outline-none focus:border-amber appearance-none pr-6 cursor-pointer disabled:opacity-50"
+                  >
+                    <option value="">All Wards</option>
+                    {wardsList.map((w) => {
+                      const wName = w.wardName || w.ward_name || w.ward;
+                      return (
+                        <option key={w.wardId || wName} value={wName}>
+                          {wName} {w.wardNumber ? `(#${w.wardNumber})` : ""}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Results list */}
           <div className="space-y-2 max-h-[calc(100vh-340px)] overflow-y-auto pr-0.5">

@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import axios from "axios";
 import {
   X,
   Search,
@@ -10,7 +12,11 @@ import {
   UserPlus,
   CheckCircle2,
   Sparkles,
+  ChevronDown,
 } from "lucide-react";
+import { searchMembers } from "../../../redux/slices/areaChartSlice.js";
+
+const BASE_URL = "https://backend.udyamikutumba.com";
 
 const SLOT_TO_UCN_TYPE_MAP = {
   "core-president": ["circle_leader", "circle-leader", "president"],
@@ -27,6 +33,9 @@ export default function UcnMembersSidePanel({
   slotId,
   slotLabel,
   wardName,
+  talukaId: propsTalukaId,
+  districtId: propsDistrictId,
+  role: propsRole,
   ucnMembers = [],
   channelPartners = [],
   patrons = [],
@@ -35,8 +44,135 @@ export default function UcnMembersSidePanel({
   onSearchBusiness,
   onAssignMember,
 }) {
+  const dispatch = useDispatch();
+  const authUser = useSelector((state) => state.auth?.user);
+  const token = useSelector((state) => state.auth?.token);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
+
+  // Location data fallback
+  const locationData = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("locationData") || "{}");
+    } catch {
+      return {};
+    }
+  }, []);
+
+  const userRole = (propsRole || authUser?.role || "").toString();
+  const roleNorm = userRole.toLowerCase().replace(/[\s_]/g, "");
+
+  const isSuperAdmin = roleNorm === "superadmin";
+  const isDistrictHead = roleNorm === "districthead";
+  const isTalukaHead = roleNorm === "talukhead" || roleNorm === "talukahead";
+
+  const [selectedDistrict, setSelectedDistrict] = useState(propsDistrictId || locationData?.districtId || "");
+  const [selectedTaluka, setSelectedTaluka] = useState(propsTalukaId || locationData?.talukaId || "");
+  const [selectedWard, setSelectedWard] = useState(wardName || locationData?.wardName || "");
+
+  const [districtsList, setDistrictsList] = useState([]);
+  const [talukasList, setTalukasList] = useState([]);
+  const [wardsList, setWardsList] = useState([]);
+
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingTalukas, setLoadingTalukas] = useState(false);
+  const [loadingWards, setLoadingWards] = useState(false);
+
+  // ── Fetch Districts for SuperAdmin ──
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    let isMounted = true;
+    setLoadingDistricts(true);
+    axios
+      .get(`${BASE_URL}/district/getAllDistricts`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        if (isMounted && res.data?.success) {
+          setDistrictsList(res.data.data || []);
+        }
+      })
+      .catch((err) => console.error("Error fetching districts:", err))
+      .finally(() => {
+        if (isMounted) setLoadingDistricts(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [isSuperAdmin, token]);
+
+  // ── Fetch Talukas for SuperAdmin & DistrictHead ──
+  useEffect(() => {
+    const activeDistrictId = isDistrictHead ? (propsDistrictId || locationData?.districtId || selectedDistrict) : selectedDistrict;
+    if (!activeDistrictId) {
+      setTalukasList([]);
+      return;
+    }
+    let isMounted = true;
+    setLoadingTalukas(true);
+    axios
+      .get(`${BASE_URL}/district/getAllDistricts?districtId=${activeDistrictId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        if (isMounted && res.data?.success) {
+          setTalukasList(res.data.data || []);
+        }
+      })
+      .catch((err) => console.error("Error fetching talukas:", err))
+      .finally(() => {
+        if (isMounted) setLoadingTalukas(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedDistrict, isDistrictHead, propsDistrictId, locationData?.districtId, token]);
+
+  // ── Fetch Wards for SuperAdmin, DistrictHead & TalukaHead ──
+  useEffect(() => {
+    const activeTalukaId = isTalukaHead ? (propsTalukaId || locationData?.talukaId || selectedTaluka) : selectedTaluka;
+    if (!activeTalukaId) {
+      setWardsList([]);
+      return;
+    }
+    let isMounted = true;
+    setLoadingWards(true);
+    axios
+      .get(`${BASE_URL}/ward/getWardBy/${activeTalukaId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        if (isMounted && res.data?.success) {
+          setWardsList(res.data.data || []);
+        }
+      })
+      .catch((err) => console.error("Error fetching wards:", err))
+      .finally(() => {
+        if (isMounted) setLoadingWards(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedTaluka, isTalukaHead, propsTalukaId, locationData?.talukaId, token]);
+
+  const handleDistrictChange = (e) => {
+    const val = e.target.value;
+    setSelectedDistrict(val);
+    setSelectedTaluka("");
+    setSelectedWard("");
+  };
+
+  const handleTalukaChange = (e) => {
+    const val = e.target.value;
+    setSelectedTaluka(val);
+    setSelectedWard("");
+  };
+
+  const handleWardChange = (e) => {
+    const val = e.target.value;
+    setSelectedWard(val);
+  };
 
   const isUms = panelType === "ums" || (slotId && slotId.startsWith("ums-"));
   const isPatron = panelType === "patron" || (slotId && slotId.startsWith("patron-"));
@@ -44,10 +180,10 @@ export default function UcnMembersSidePanel({
   const targetMembers = isUms
     ? umsMembers
     : isPatron
-    ? patrons
-    : isChannelPartner
-    ? channelPartners
-    : ucnMembers;
+      ? patrons
+      : isChannelPartner
+        ? channelPartners
+        : ucnMembers;
 
   const targetTypes = useMemo(() => {
     if (!slotId) return [];
@@ -209,7 +345,7 @@ export default function UcnMembersSidePanel({
           </div>
 
           {/* Search */}
-          <div className="px-5 py-3.5 border-b border-slate-100 shrink-0">
+          <div className="px-5 py-3.5 border-b border-slate-100 shrink-0 space-y-2.5">
             <div className="relative">
               <Search
                 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
@@ -221,10 +357,10 @@ export default function UcnMembersSidePanel({
                   isUms
                     ? "Search by UMS designation, name, or email..."
                     : isPatron
-                    ? "Search by patron name, business name, or email..."
-                    : isChannelPartner
-                    ? "Search by business name, CP ID, or service..."
-                    : "Search by name, email, phone..."
+                      ? "Search by patron name, business name, or email..."
+                      : isChannelPartner
+                        ? "Search by business name, CP ID, or service..."
+                        : "Search by name, email, phone..."
                 }
                 value={searchQuery}
                 onChange={handleSearchChange}
@@ -249,6 +385,74 @@ export default function UcnMembersSidePanel({
                 </button>
               )}
             </div>
+
+            {/* Location Filters below Search */}
+            {(isSuperAdmin || isDistrictHead || isTalukaHead) && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {/* District Filter (Super Admin only) */}
+                {isSuperAdmin && (
+                  <div className="relative">
+                    <select
+                      value={selectedDistrict}
+                      onChange={handleDistrictChange}
+                      disabled={loadingDistricts}
+                      className="w-full text-[12px] bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:border-slate-400 appearance-none pr-6 cursor-pointer disabled:opacity-50"
+                    >
+                      <option value="">All Districts</option>
+                      {districtsList.map((d) => (
+                        <option key={d.districtId} value={d.districtId}>
+                          {d.districtName}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                )}
+
+                {/* Taluka Filter (Super Admin & District Head) */}
+                {(isSuperAdmin || isDistrictHead) && (
+                  <div className="relative">
+                    <select
+                      value={selectedTaluka}
+                      onChange={handleTalukaChange}
+                      disabled={loadingTalukas || (isSuperAdmin && !selectedDistrict)}
+                      className="w-full text-[12px] bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:border-slate-400 appearance-none pr-6 cursor-pointer disabled:opacity-50"
+                    >
+                      <option value="">All Talukas</option>
+                      {talukasList.map((t) => (
+                        <option key={t.talukaId} value={t.talukaId}>
+                          {t.talukaName}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                )}
+
+                {/* Ward Filter (Super Admin, District Head & Taluka Head) */}
+                {(isSuperAdmin || isDistrictHead || isTalukaHead) && (
+                  <div className="relative">
+                    <select
+                      value={selectedWard}
+                      onChange={handleWardChange}
+                      disabled={loadingWards || ((isSuperAdmin || isDistrictHead) && !selectedTaluka && wardsList.length === 0)}
+                      className="w-full text-[12px] bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:border-slate-400 appearance-none pr-6 cursor-pointer disabled:opacity-50"
+                    >
+                      <option value="">All Wards</option>
+                      {wardsList.map((w) => {
+                        const wName = w.wardName || w.ward_name || w.ward;
+                        return (
+                          <option key={w.wardId || wName} value={wName}>
+                            {wName} {w.wardNumber ? `(#${w.wardNumber})` : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Members List */}
@@ -262,21 +466,21 @@ export default function UcnMembersSidePanel({
                   {isUms
                     ? "No UMS Management members found"
                     : isPatron
-                    ? "No Patrons found"
-                    : isChannelPartner
-                    ? "No Channel Partners found"
-                    : "No members found"}
+                      ? "No Patrons found"
+                      : isChannelPartner
+                        ? "No Channel Partners found"
+                        : "No members found"}
                 </p>
                 <p className="text-[12px] text-slate-400 mt-1">
                   {searchQuery
                     ? "Try a different search term."
                     : isUms
-                    ? "No management members returned for this ward."
-                    : isPatron
-                    ? "No patrons returned for this taluka."
-                    : isChannelPartner
-                    ? "No channel partners returned for this ward."
-                    : "No members for this ward."}
+                      ? "No management members returned for this ward."
+                      : isPatron
+                        ? "No patrons returned for this taluka."
+                        : isChannelPartner
+                          ? "No channel partners returned for this ward."
+                          : "No members for this ward."}
                 </p>
               </div>
             ) : (
@@ -310,13 +514,21 @@ export default function UcnMembersSidePanel({
 
                 const servicesStr = member.cpRegistration?.selectedServices?.join(", ");
                 const busNameStr = member.designation?.designationName || servicesStr || member.profile?.businessDetails?.businessName;
+                // Structured district → assembly → ward location
+                const profileRef = member.holder?.user?.profile || member.profile || {};
+                const locationParts = [
+                  profileRef.district,
+                  profileRef.assembly,
+                  profileRef.ward,
+                ].filter(Boolean);
+                const structuredLocation = locationParts.length > 0 ? locationParts.join(" · ") : null;
+
                 const busAddress =
-                  member.holder?.user?.profile?.homeAddress ||
+                  structuredLocation ||
                   member.businessLocation ||
                   member.officeLocation ||
                   member.cpRegistration?.businessOfficeAddress ||
-                  member.profile?.homeAddress ||
-                  member.profile?.officeAddress;
+                  null;
                 const emailStr = member.holder?.user?.email || member.email;
                 const phoneStr = member.holder?.user?.mobileNumber || member.mobileNumber;
 
@@ -327,14 +539,13 @@ export default function UcnMembersSidePanel({
                     className={`
                       relative cursor-pointer rounded-2xl overflow-hidden
                       border-2 transition-all duration-150 p-4 shadow-xs
-                      ${
-                        isSelected && isMatched
-                          ? "border-[#d97706] bg-[#fefce8] ring-2 ring-[#f59e0b]/40 shadow-md"
-                          : isSelected
+                      ${isSelected && isMatched
+                        ? "border-[#d97706] bg-[#fefce8] ring-2 ring-[#f59e0b]/40 shadow-md"
+                        : isSelected
                           ? "border-slate-800 bg-slate-50 ring-2 ring-slate-800/10 shadow-md"
                           : isMatched
-                          ? "border-[#fde68a] bg-[#fffbeb] hover:border-[#f59e0b]/60 hover:bg-[#fef3c7]"
-                          : "border-slate-100 bg-white hover:border-slate-300 hover:shadow-sm"
+                            ? "border-[#fde68a] bg-[#fffbeb] hover:border-[#f59e0b]/60 hover:bg-[#fef3c7]"
+                            : "border-slate-100 bg-white hover:border-slate-300 hover:shadow-sm"
                       }
                     `}
                   >
@@ -445,11 +656,10 @@ export default function UcnMembersSidePanel({
                           <div className="flex items-center gap-1 mt-2">
                             <Building2 size={11} className={isMatched ? "text-[#d97706] shrink-0" : "text-slate-400 shrink-0"} />
                             <span
-                              className={`text-[11px] font-bold px-2 py-0.5 rounded-md border truncate ${
-                                isMatched
+                              className={`text-[11px] font-bold px-2 py-0.5 rounded-md border truncate ${isMatched
                                   ? "bg-[#fef3c7] text-[#b45309] border-[#fde68a]"
                                   : "bg-slate-100 text-slate-600 border-slate-200"
-                              }`}
+                                }`}
                             >
                               {member.positionName || member.assignmentType?.replace(/_/g, " ")}
                             </span>
