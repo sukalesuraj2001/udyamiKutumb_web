@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
-const API_BASE = "https://udyami-circle-db.onrender.com";
+const API_BASE = "https://backend.udyamikutumba.com";
 // const API_BASE = "http://192.168.0.70:3000";
 
 const authHeaders = (getState) => ({

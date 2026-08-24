@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { selectToken, selectUser } from "../../../redux/slices/authSlice.js";
 
-const API_BASE = "https://udyami-circle-db.onrender.com";
+const API_BASE = "https://backend.udyamikutumba.com";
 
 function formatDate(str) {
     if (!str) return "—";

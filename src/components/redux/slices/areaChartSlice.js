@@ -3,7 +3,7 @@ import axios from "axios";
 import { showLoader, hideLoader } from "./globalLoaderSlice";
 
 // const BASE_URL = "http://192.168.0.70:3000";
-const BASE_URL = "https://udyami-circle-db.onrender.com";
+const BASE_URL = "https://backend.udyamikutumba.com";
 
 const mapToWardShape = (entry, constituencyWardCount = 9) => {
   const rawTotalMembers =

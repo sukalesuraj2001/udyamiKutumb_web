@@ -71,7 +71,7 @@ async function fetchWardBoundaryGeoJson(wardName, talukaName, districtName, toke
   // 1. Try Backend Ward Map endpoint
   if (wardName) {
     try {
-      const url = `https://udyami-circle-db.onrender.com/ward/map/${encodeURIComponent(wardName)}?type=ward`;
+      const url = `https://backend.udyamikutumba.com/ward/map/${encodeURIComponent(wardName)}?type=ward`;
       const res = await fetch(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
