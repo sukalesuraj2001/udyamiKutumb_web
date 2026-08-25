@@ -19,6 +19,7 @@ import newsReducer from "./slices/newsSlice.js";
 import routeTrackingReducer from "./slices/Routetrackingslice.js";
 import cpOnboardingReducer from "./slices/Cponboardingslice.js";
 import cpFormReducer from "./slices/cpFormSlice";
+import businessCircleReducer from "./slices/businessCircleSlice.js";
 import { injectStore } from "../service/api.js";
 
 export const store = configureStore({
@@ -43,6 +44,7 @@ export const store = configureStore({
         news: newsReducer,
         cpOnboarding: cpOnboardingReducer,
         cpForm: cpFormReducer,
+        businessCircle: businessCircleReducer,
     }
 });
 
