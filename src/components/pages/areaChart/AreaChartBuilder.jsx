@@ -111,12 +111,6 @@ export default function AreaChartBuilder() {
               </option>
             ))}
           </select>
-          <select className="h-8 text-[12.5px] font-medium text-gray-400 border border-gray-200 rounded-lg px-3 pr-7 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-400 transition-all appearance-none cursor-pointer w-full xs:w-auto min-w-[130px]">
-            <option>All Wards</option>
-          </select>
-          <select className="h-8 text-[12.5px] font-medium text-gray-400 border border-gray-200 rounded-lg px-3 pr-7 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/25 focus:border-blue-400 transition-all appearance-none cursor-pointer w-full xs:w-auto min-w-[130px]">
-            <option>Pick a Hobli (Rural)</option>
-          </select>
         </div>
       </div>
 

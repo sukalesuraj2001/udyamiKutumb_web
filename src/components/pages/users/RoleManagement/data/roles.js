@@ -1,30 +1,26 @@
-// ═══════════════════════════════════════════════════════════════════════════════
-// SINGLE SOURCE OF TRUTH — UDYAMI ROLE HIERARCHY
-// Permissions: "write" | "read" | "none"
-// ═══════════════════════════════════════════════════════════════════════════════
 
 export const ROLES = [
-  {
-    id: "national-head",
-    name: "National Head",
-    subtitle: "Super Admin",
-    level: 1,
-    scope: "National",
-    users: 1,
-    description: "Top-level super admin with full platform access across all states, districts, and modules.",
-    scopeColor: "text-violet-700 bg-violet-50 border-violet-200",
-    borderColor: "border-l-violet-600",
-    textColor: "text-violet-700",
-    bgColor: "bg-violet-50/60",
-    userColor: "text-violet-600",
-    nodeColor: "#6d28d9",
-    nodeBg: "#ede9fe",
-    permissions: {
-      dashboard: "write", users: "write", roles: "write", assignRoles: "write",
-      reports: "write", settings: "write", leads: "write", messages: "write",
-      payments: "write", fieldOps: "write", geoFencing: "write",
-    },
-  },
+  // {
+  //   id: "national-head",
+  //   name: "National Head",
+  //   subtitle: "Super Admin",
+  //   level: 1,
+  //   scope: "National",
+  //   users: 1,
+  //   description: "Top-level super admin with full platform access across all states, districts, and modules.",
+  //   scopeColor: "text-violet-700 bg-violet-50 border-violet-200",
+  //   borderColor: "border-l-violet-600",
+  //   textColor: "text-violet-700",
+  //   bgColor: "bg-violet-50/60",
+  //   userColor: "text-violet-600",
+  //   nodeColor: "#6d28d9",
+  //   nodeBg: "#ede9fe",
+  //   permissions: {
+  //     dashboard: "write", users: "write", roles: "write", assignRoles: "write",
+  //     reports: "write", settings: "write", leads: "write", messages: "write",
+  //     payments: "write", fieldOps: "write", geoFencing: "write",
+  //   },
+  // },
   {
     id: "state-head",
     name: "State Head",

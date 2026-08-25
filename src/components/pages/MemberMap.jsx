@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { selectUser } from "../redux/slices/authSlice.js";
 import {
@@ -12,23 +12,26 @@ import {
   selectWardLoading,
   selectWardError,
 } from "../redux/slices/wardMapSlice.js";
+import { fetchDistricts, selectDistricts } from "../redux/slices/wardSlice.js";
 
 import {
   MapPin, Search, X, ArrowLeft,
   Phone, Mail, Globe, Users, Calendar,
   Hash, FileText, IndianRupee, ChevronRight,
   MapPinned, Landmark, ChevronLeft, ExternalLink,
-  Building2, Layers,
+  Building2, Layers, Filter, SlidersHorizontal,
+  RotateCcw, Check, ChevronDown, Eye, EyeOff
 } from "lucide-react";
 import GlobeIntro from "./memberMap/GlobeIntro.jsx";
 import SatelliteMap from "./memberMap/SatelliteMap.jsx";
 
 // ── Role resolution ──
 function resolveRole(user) {
-  const roleStr = (user?.role || "").toLowerCase();
-  if (roleStr.includes("district")) return "district";
-  if (roleStr.includes("taluk"))    return "taluka";
-  return "ward";
+  const roleStr = (user?.role || user?.roleName || "").toLowerCase();
+  if (roleStr.includes("superadmin") || roleStr === "admin" || roleStr === "super_admin") return "superadmin";
+  if (roleStr.includes("district")) return "districthead";
+  if (roleStr.includes("taluk"))    return "talukahead";
+  return "wardhead";
 }
 
 function getLocationData() {
@@ -41,8 +44,8 @@ function getLocationData() {
 
 function resolveLocationName(user, roleType) {
   const loc = getLocationData();
-  if (roleType === "district") return loc.districtName || "";
-  if (roleType === "taluka")   return loc.talukaName   || "";
+  if (roleType === "districthead") return loc.districtName || "";
+  if (roleType === "talukahead")   return loc.talukaName   || "";
   return loc.wardName || "";
 }
 
@@ -57,32 +60,120 @@ export default function MemberMap() {
   const fetchType   = useSelector(selectFetchType);
   const loading     = useSelector(selectWardLoading);
   const error       = useSelector(selectWardError);
+  const districts   = useSelector(selectDistricts) || [];
 
   const roleType     = resolveRole(user);
   const locationName = resolveLocationName(user, roleType);
-  const isAutoRole   = roleType === "district" || roleType === "taluka";
+  const isAutoRole   = roleType === "districthead" || roleType === "talukahead";
 
+  // Location filter state
+  const [selectedDistrict, setSelectedDistrict] = useState("");
+  const [selectedTaluka,   setSelectedTaluka]   = useState("");
+  const [selectedWard,     setSelectedWard]     = useState("");
   const [wardInput,        setWardInput]        = useState("");
+
+  // Preserved master dropdown lists
+  const [allAvailableTalukas, setAllAvailableTalukas] = useState([]);
+  const [allAvailableWards,   setAllAvailableWards]   = useState([]);
+
+  // Business Search filter
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Map Layer Toggles
+  const [showDistrictLayer,   setShowDistrictLayer]   = useState(true);
+  const [showTalukaLayer,     setShowTalukaLayer]     = useState(true);
+  const [showWardLayer,       setShowWardLayer]       = useState(true);
+  const [showBusinessMarkers, setShowBusinessMarkers] = useState(true);
+
+  // UI State
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [phase,            setPhase]            = useState("idle");
   const [imageIdx,         setImageIdx]         = useState(0);
 
-  // ── Auto-fetch for district / taluka heads ──
+  // Fetch districts list for SuperAdmin
   useEffect(() => {
-    if (isAutoRole && locationName) {
-      dispatch(fetchWardMap({ name: locationName, type: roleType }))
+    if (roleType === "superadmin") {
+      dispatch(fetchDistricts());
+    }
+  }, [roleType, dispatch]);
+
+  // Initial Auto-fetch on mount based on user role
+  useEffect(() => {
+    if (roleType === "superadmin") {
+      dispatch(fetchWardMap({ name: "Malleshwaram", type: "taluka" }))
+        .unwrap()
+        .then(() => setPhase("flying"))
+        .catch(() => setPhase("idle"));
+    } else if (isAutoRole && locationName) {
+      const type = roleType === "districthead" ? "district" : "taluka";
+      dispatch(fetchWardMap({ name: locationName, type }))
         .unwrap()
         .then(() => setPhase("flying"))
         .catch(() => setPhase("idle"));
     }
-  }, [isAutoRole, locationName, roleType]);
+  }, [roleType, isAutoRole, locationName, dispatch]);
 
-  // ── Derived ──
-  // For center calculation — use district > taluka > ward
-  const primaryGeo = districtGeo || talukaGeos || wardGeos;
+  // Update master Taluka list whenever a broader GeoJSON with multiple talukas is loaded
+  useEffect(() => {
+    if (talukaGeos?.features?.length > 0) {
+      const set = new Set();
+      talukaGeos.features.forEach((f) => {
+        const name = f.properties?.name || f.properties?.talukaName;
+        if (name) set.add(name);
+      });
+      if (set.size > 0) {
+        setAllAvailableTalukas(Array.from(set).sort());
+      }
+    }
+  }, [talukaGeos]);
 
-  const mapCenter = (() => {
-    // Search all layers for a polygon — district > taluka > ward
+  // Update master Ward list whenever a broader GeoJSON with multiple wards is loaded
+  useEffect(() => {
+    if (wardGeos?.features?.length > 1) {
+      const set = new Set();
+      wardGeos.features.forEach((f) => {
+        const name = f.properties?.name || f.properties?.ward_name || f.properties?.Ward_Name;
+        if (name) set.add(name);
+      });
+      if (set.size > 0) {
+        setAllAvailableWards(Array.from(set).sort());
+      }
+    } else if (wardGeos?.features?.length === 1 && allAvailableWards.length === 0) {
+      const name = wardGeos.features[0].properties?.name || wardGeos.features[0].properties?.ward_name || wardGeos.features[0].properties?.Ward_Name;
+      if (name) setAllAvailableWards([name]);
+    }
+  }, [wardGeos]);
+
+  // Filter businesses array based on search input
+  const filteredBusinesses = useMemo(() => {
+    return businesses.filter((b) => {
+      const props = b.properties || {};
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchName   = (props.businessName || "").toLowerCase().includes(q);
+        const matchOwner  = (props.ownerName || "").toLowerCase().includes(q);
+        const matchMobile = (props.businessMobile || props.mobile || "").includes(q);
+        const matchCity   = (props.city || props.address || "").toLowerCase().includes(q);
+        if (!matchName && !matchOwner && !matchMobile && !matchCity) return false;
+      }
+      return true;
+    });
+  }, [businesses, searchQuery]);
+
+  // Active filter counter
+  const activeFilterCount = [
+    selectedDistrict,
+    selectedTaluka,
+    selectedWard,
+    searchQuery,
+    !showDistrictLayer,
+    !showTalukaLayer,
+    !showWardLayer,
+    !showBusinessMarkers,
+  ].filter(Boolean).length;
+
+  // Center calculation
+  const mapCenter = useMemo(() => {
     const candidates = [
       ...(districtGeo?.features || []),
       ...(talukaGeos?.features  || []),
@@ -93,55 +184,112 @@ export default function MemberMap() {
     );
     if (!poly) return null;
 
-    // Handle both 2D [lng,lat] and 3D [lng,lat,alt] coordinate arrays
     const rawCoords =
       poly.geometry.type === "Polygon"
         ? poly.geometry.coordinates[0]
         : poly.geometry.coordinates[0][0];
 
     const lngs = rawCoords.map((c) => c[0]);
-    const lats  = rawCoords.map((c) => c[1]);
+    const lats = rawCoords.map((c) => c[1]);
     const lat = (Math.min(...lats) + Math.max(...lats)) / 2;
     const lng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
 
     if (!isFinite(lat) || !isFinite(lng)) return null;
-    return { lat, lng, name: locationName || wardInput };
-  })();
+    return { lat, lng, name: selectedWard || selectedTaluka || selectedDistrict || locationName || wardInput };
+  }, [districtGeo, talukaGeos, wardGeos, selectedWard, selectedTaluka, selectedDistrict, locationName, wardInput]);
 
   const getBusinessImages = (props) => {
     const imgs = [];
     ["businessImage1", "businessImage2", "businessImage3"].forEach((key) => {
       if (props?.[key]?.image) imgs.push(props[key].image);
+      else if (typeof props?.[key] === "string" && props[key]) imgs.push(props[key]);
     });
     return imgs;
   };
 
-  // ── Handlers ──
-  const handleFetch = () => {
-    const trimmed = wardInput.trim();
-    if (!trimmed) return;
+  // Location Change Handlers
+  const handleDistrictSelect = (name) => {
+    setSelectedDistrict(name);
+    setSelectedTaluka("");
+    setSelectedWard("");
     setSelectedBusiness(null);
-    setPhase("idle");
-    setImageIdx(0);
-    dispatch(fetchWardMap({ name: trimmed, type: roleType }))
+    if (!name) return;
+    dispatch(fetchWardMap({ name, type: "district" }))
       .unwrap()
       .then(() => setPhase("flying"))
       .catch(() => setPhase("idle"));
   };
 
-  const handleReset = () => {
-    dispatch(clearWardMap());
+  const handleTalukaSelect = (name) => {
+    setSelectedTaluka(name);
+    setSelectedWard("");
     setSelectedBusiness(null);
-    setPhase("idle");
-    setWardInput("");
-    setImageIdx(0);
-    // Re-fetch for auto-roles
-    if (isAutoRole && locationName) {
-      dispatch(fetchWardMap({ name: locationName, type: roleType }))
+    if (name) {
+      dispatch(fetchWardMap({ name, type: "taluka" }))
+        .unwrap()
+        .then(() => setPhase("flying"))
+        .catch(() => setPhase("idle"));
+    } else {
+      const parentName = selectedDistrict || locationName || "Malleshwaram";
+      const parentType = selectedDistrict ? "district" : (roleType === "districthead" ? "district" : "taluka");
+      dispatch(fetchWardMap({ name: parentName, type: parentType }))
         .unwrap()
         .then(() => setPhase("flying"))
         .catch(() => setPhase("idle"));
     }
+  };
+
+  const handleWardSelect = (name) => {
+    setSelectedWard(name);
+    setSelectedBusiness(null);
+    if (name) {
+      dispatch(fetchWardMap({ name, type: "ward" }))
+        .unwrap()
+        .then(() => setPhase("flying"))
+        .catch(() => setPhase("idle"));
+    } else {
+      // When clearing ward filter (selecting "All Wards"), re-fetch parent taluka/district map to restore all wards
+      const parentName = selectedTaluka || selectedDistrict || locationName || "Malleshwaram";
+      const parentType = selectedTaluka ? "taluka" : selectedDistrict ? "district" : (isAutoRole ? (roleType === "districthead" ? "district" : "taluka") : "taluka");
+      dispatch(fetchWardMap({ name: parentName, type: parentType }))
+        .unwrap()
+        .then(() => setPhase("flying"))
+        .catch(() => setPhase("idle"));
+    }
+  };
+
+  const handleWardSearchFetch = () => {
+    const trimmed = wardInput.trim();
+    if (!trimmed) return;
+    setSelectedBusiness(null);
+    setPhase("idle");
+    setImageIdx(0);
+    dispatch(fetchWardMap({ name: trimmed, type: "ward" }))
+      .unwrap()
+      .then(() => setPhase("flying"))
+      .catch(() => setPhase("idle"));
+  };
+
+  const handleResetFilters = () => {
+    setSelectedDistrict("");
+    setSelectedTaluka("");
+    setSelectedWard("");
+    setWardInput("");
+    setSearchQuery("");
+    setShowDistrictLayer(true);
+    setShowTalukaLayer(true);
+    setShowWardLayer(true);
+    setShowBusinessMarkers(true);
+    setSelectedBusiness(null);
+
+    // Re-fetch parent area so all wards show back up
+    const defaultName = (isAutoRole && locationName) ? locationName : "Malleshwaram";
+    const defaultType = (roleType === "districthead") ? "district" : "taluka";
+
+    dispatch(fetchWardMap({ name: defaultName, type: defaultType }))
+      .unwrap()
+      .then(() => setPhase("flying"))
+      .catch(() => setPhase("idle"));
   };
 
   const handleSelectBusiness = (props) => {
@@ -149,27 +297,22 @@ export default function MemberMap() {
     setImageIdx(0);
   };
 
-  const handleBackToSearch = () => {
-    setPhase(isAutoRole ? "arrived" : "idle");
-    setSelectedBusiness(null);
-  };
-
   // Stats summary
-  const talukaCount  = talukaGeos?.features?.length || 0;
-  const wardCount    = wardGeos?.features?.length   || 0;
-  const bizCount     = businesses.length;
+  const talukaCount = talukaGeos?.features?.length || 0;
+  const wardCount   = wardGeos?.features?.length   || 0;
+  const bizCount    = filteredBusinesses.length;
 
-  // ── Sidebar ──
+  // ── Sidebar Renderer ──
   const renderSidebar = () => {
     // DETAIL VIEW
     if (selectedBusiness) {
-      const imgs   = getBusinessImages(selectedBusiness);
+      const imgs    = getBusinessImages(selectedBusiness);
       const mobile  = selectedBusiness.businessMobile || selectedBusiness.mobile;
       const website = selectedBusiness.website?.replace(/^https?:\/\//, "");
 
       return (
         <>
-          <div className="sticky top-0 z-10 bg-white border-b border-hairline px-4 py-3 flex items-center gap-3">
+          <div className="sticky top-0 z-10 bg-white border-b border-hairline px-4 py-3 flex items-center gap-3 shadow-sm">
             <button
               onClick={() => setSelectedBusiness(null)}
               className="w-8 h-8 rounded-xl bg-ink/[0.05] hover:bg-ink/10 flex items-center justify-center transition-colors shrink-0"
@@ -227,7 +370,6 @@ export default function MemberMap() {
                 </div>
               </div>
 
-              {/* Action buttons */}
               {(mobile || selectedBusiness.email || website) && (
                 <div className={`grid gap-2 ${[mobile, selectedBusiness.email, website].filter(Boolean).length === 3 ? "grid-cols-3" : "grid-cols-2"}`}>
                   {mobile && <ActionBtn href={`tel:${mobile}`} icon={Phone} label="Call" color="green" />}
@@ -256,152 +398,307 @@ export default function MemberMap() {
       );
     }
 
-    // MAIN SIDEBAR VIEW
+    // MAIN SIDEBAR & FILTER VIEW
     return (
-      <>
-        {/* Header */}
-        <div className="px-4 pt-4 pb-3 border-b border-hairline">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
-              <Layers size={14} className="text-white" />
-            </div>
-            <div>
-              <p className="text-[13px] font-semibold text-ink capitalize">{roleType} Map</p>
-              {locationName && (
-                <p className="text-[11px] text-muted truncate">{locationName}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Search — only for ward heads */}
-          {!isAutoRole && (
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
-                <input
-                  value={wardInput}
-                  onChange={(e) => setWardInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleFetch()}
-                  placeholder="Enter ward name…"
-                  className="w-full pl-8 pr-3 py-2 text-[12.5px] border border-hairline rounded-xl focus:outline-none focus:border-blue-400 bg-ink/[0.02]"
-                />
+      <div className="flex flex-col h-full overflow-hidden bg-white">
+        {/* Top Header */}
+        <div className="px-4 py-3 border-b border-hairline bg-slate-50/80">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-sm shrink-0">
+                <Filter size={15} />
               </div>
-              <button
-                onClick={handleFetch}
-                disabled={loading || !wardInput.trim()}
-                className="px-3.5 py-2 bg-blue-600 text-white text-[12px] font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-40 transition-colors"
-              >
-                Go
-              </button>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-[13px] font-bold text-ink tracking-tight uppercase">Member Map Filters</p>
+                  {activeFilterCount > 0 && (
+                    <span className="bg-blue-600 text-white text-[10px] font-bold rounded-full px-1.5 py-0.2">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted capitalize font-medium">
+                  {roleType === "superadmin" ? "SuperAdmin Mode" : `${roleType.replace("head", " Head")} View`}
+                </p>
+              </div>
             </div>
-          )}
+
+            {activeFilterCount > 0 && (
+              <button
+                onClick={handleResetFilters}
+                className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors"
+                title="Clear all filters and reset map"
+              >
+                <RotateCcw size={11} /> Reset
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Loading */}
-        {loading && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8 text-center">
-            <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            <p className="text-[12.5px] text-muted">Loading {roleType} boundaries…</p>
-          </div>
-        )}
-
-        {/* Error */}
-        {error && !loading && (
-          <div className="mx-4 mt-4 p-3 bg-red-50 border border-red-100 rounded-xl text-[12px] text-red-600">
-            {error}
-          </div>
-        )}
-
-        {/* Stats cards — after data loaded */}
-        {!loading && (districtGeo || talukaGeos || wardGeos) && (
-          <div className="px-4 pt-4 pb-2">
-            <div className={`grid gap-2 ${roleType === "district" ? "grid-cols-3" : "grid-cols-2"}`}>
-              {roleType === "district" && (
-                <StatCard icon={Landmark} value={talukaCount} label="Talukas" color="orange" />
-              )}
-              <StatCard icon={MapPinned} value={wardCount} label="Wards" color="green" />
-              <StatCard icon={Building2} value={bizCount} label="Businesses" color="amber" />
+        {/* Scrollable Filters Container */}
+        <div className="flex-1 overflow-y-auto divide-y divide-hairline">
+          
+          {/* SECTION 1: ROLE-BASED LOCATION FILTERS */}
+          <div className="p-4 space-y-3 bg-white">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold tracking-wider uppercase text-slate-500 flex items-center gap-1.5">
+                <MapPin size={12} className="text-blue-600" /> Area Filter
+              </span>
             </div>
 
-            {/* Layer legend strip */}
-            <div className="mt-3 flex flex-wrap gap-2">
-              {roleType === "district" && (
-                <LegendPill color="#003366" label="District" />
-              )}
-              {(roleType === "district" || roleType === "taluka") && (
-                <LegendPill color="#EA580C" label="Taluka" />
-              )}
-              <LegendPill color="#16A34A" label="Ward" />
-            </div>
-          </div>
-        )}
-
-        {/* Reset */}
-        {!loading && (districtGeo || talukaGeos || wardGeos) && !isAutoRole && (
-          <div className="px-4 pb-2">
-            <button
-              onClick={handleReset}
-              className="flex items-center gap-1.5 text-[11.5px] text-muted hover:text-red-500 transition-colors"
-            >
-              <X size={12} /> Clear &amp; Reset
-            </button>
-          </div>
-        )}
-
-        {/* Business list */}
-        {businesses.length > 0 && !loading && (
-          <div className="p-4 flex-1 overflow-y-auto">
-            <p className="text-[10.5px] font-semibold tracking-widest uppercase text-muted mb-3">
-              Businesses ({bizCount})
-            </p>
-            <div className="space-y-2">
-              {businesses.map((b, i) => (
-                <button
-                  key={b.properties.profileId || i}
-                  onClick={() => handleSelectBusiness(b.properties)}
-                  className="w-full text-left border border-hairline rounded-xl p-3.5 transition-all hover:border-amber/50 hover:bg-amber/[0.03] hover:shadow-sm group"
+            {/* SuperAdmin: District Select */}
+            {roleType === "superadmin" && (
+              <div>
+                <label className="text-[11px] font-semibold text-slate-600 mb-1 block">District</label>
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => handleDistrictSelect(e.target.value)}
+                  className="w-full text-[12px] font-medium border border-hairline rounded-xl px-3 py-2 bg-slate-50 focus:outline-none focus:border-blue-500 transition-colors"
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-semibold text-ink truncate">{b.properties.businessName}</p>
-                      <p className="text-[11.5px] text-muted mt-0.5 truncate">
-                        {b.properties.ownerName} · {b.properties.businessMobile || b.properties.mobile}
-                      </p>
-                      {b.properties.sector && (
-                        <span className="inline-block mt-1.5 text-[10px] font-medium bg-ink/[0.06] text-ink/60 rounded-full px-2 py-0.5">
-                          {b.properties.sector}
-                        </span>
-                      )}
-                    </div>
-                    <ChevronRight size={14} className="text-muted/40 group-hover:text-amber shrink-0 mt-0.5 transition-colors" />
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+                  <option value="">Select District…</option>
+                  {districts.length > 0
+                    ? districts.map((d) => {
+                        const name = d.districtName || d.name || d;
+                        return <option key={d._id || d.districtId || name} value={name}>{name}</option>;
+                      })
+                    : [
+                        "Bengaluru Urban", "Bengaluru Rural", "Mysuru", "Hubballi-Dharwad",
+                        "Belagavi", "Mangaluru", "Tumakuru", "Shivamogga", "Ballari", "Kalaburagi"
+                      ].map((name) => <option key={name} value={name}>{name}</option>)}
+                </select>
+              </div>
+            )}
 
-        {/* Empty state */}
-        {phase === "idle" && !districtGeo && !talukaGeos && !wardGeos && !loading && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted p-8 text-center">
-            <div className="w-12 h-12 rounded-2xl bg-ink/[0.04] flex items-center justify-center">
-              <Search size={20} className="opacity-40" />
-            </div>
-            <div>
-              <p className="text-[13px] font-medium text-ink/50">No ward selected</p>
-              <p className="text-[11.5px] text-muted mt-0.5">Search by name above</p>
+            {/* District Head Badge */}
+            {roleType === "districthead" && locationName && (
+              <div className="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 text-[12px] font-semibold text-blue-800 flex items-center justify-between">
+                <span className="text-[11px] text-blue-600 font-medium uppercase">District:</span>
+                <span>{locationName}</span>
+              </div>
+            )}
+
+            {/* SuperAdmin & District Head: Taluka Select */}
+            {(roleType === "superadmin" || roleType === "districthead") && (
+              <div>
+                <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Taluka</label>
+                <select
+                  value={selectedTaluka}
+                  onChange={(e) => handleTalukaSelect(e.target.value)}
+                  className="w-full text-[12px] font-medium border border-hairline rounded-xl px-3 py-2 bg-slate-50 focus:outline-none focus:border-blue-500 transition-colors"
+                >
+                  <option value="">
+                    {allAvailableTalukas.length > 0 ? "All Talukas" : "Select Taluka…"}
+                  </option>
+                  {allAvailableTalukas.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Taluka Head Badge */}
+            {roleType === "talukahead" && locationName && (
+              <div className="bg-orange-50 border border-orange-100 rounded-xl px-3 py-2 text-[12px] font-semibold text-orange-800 flex items-center justify-between">
+                <span className="text-[11px] text-orange-600 font-medium uppercase">Taluka:</span>
+                <span>{locationName}</span>
+              </div>
+            )}
+
+            {/* Ward Select Dropdown (SuperAdmin, District Head, Taluka Head) */}
+            {roleType !== "wardhead" && (
+              <div>
+                <label className="text-[11px] font-semibold text-slate-600 mb-1 block">Ward</label>
+                <select
+                  value={selectedWard}
+                  onChange={(e) => handleWardSelect(e.target.value)}
+                  className="w-full text-[12px] font-medium border border-hairline rounded-xl px-3 py-2 bg-slate-50 focus:outline-none focus:border-blue-500 transition-colors"
+                >
+                  <option value="">
+                    {allAvailableWards.length > 0 ? "All Wards" : "Select Ward…"}
+                  </option>
+                  {allAvailableWards.map((w) => (
+                    <option key={w} value={w}>{w}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Ward Head text search */}
+            {roleType === "wardhead" && (
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+                  <input
+                    value={wardInput}
+                    onChange={(e) => setWardInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleWardSearchFetch()}
+                    placeholder="Enter ward name…"
+                    className="w-full pl-8 pr-3 py-2 text-[12.5px] border border-hairline rounded-xl focus:outline-none focus:border-blue-400 bg-slate-50"
+                  />
+                </div>
+                <button
+                  onClick={handleWardSearchFetch}
+                  disabled={loading || !wardInput.trim()}
+                  className="px-3.5 py-2 bg-blue-600 text-white text-[12px] font-semibold rounded-xl hover:bg-blue-700 disabled:opacity-40 transition-colors"
+                >
+                  Go
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* SECTION 2: SEARCH BUSINESS FILTER */}
+          <div className="p-4 space-y-2.5 bg-white">
+            <span className="text-[11px] font-bold tracking-wider uppercase text-slate-500 flex items-center gap-1.5">
+              <Building2 size={12} className="text-amber-600" /> Search Business
+            </span>
+
+            <div className="relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search name, owner, phone…"
+                className="w-full pl-8 pr-8 py-2 text-[12px] border border-hairline rounded-xl focus:outline-none focus:border-blue-400 bg-slate-50"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink"
+                >
+                  <X size={13} />
+                </button>
+              )}
             </div>
           </div>
-        )}
-      </>
+
+          {/* SECTION 3: MAP LAYER TOGGLES */}
+          <div className="p-4 space-y-2.5 bg-white">
+            <span className="text-[11px] font-bold tracking-wider uppercase text-slate-500 flex items-center gap-1.5">
+              <Layers size={12} className="text-purple-600" /> Layer Visibility
+            </span>
+
+            <div className="grid grid-cols-2 gap-2 text-[11.5px]">
+              <label className="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg border border-hairline hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={showDistrictLayer}
+                  onChange={(e) => setShowDistrictLayer(e.target.checked)}
+                  className="rounded text-blue-600 focus:ring-blue-500"
+                />
+                <span className="font-medium text-slate-700">District Boundary</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg border border-hairline hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={showTalukaLayer}
+                  onChange={(e) => setShowTalukaLayer(e.target.checked)}
+                  className="rounded text-orange-600 focus:ring-orange-500"
+                />
+                <span className="font-medium text-slate-700">Taluka Borders</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg border border-hairline hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={showWardLayer}
+                  onChange={(e) => setShowWardLayer(e.target.checked)}
+                  className="rounded text-emerald-600 focus:ring-emerald-500"
+                />
+                <span className="font-medium text-slate-700">Ward Borders</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg border border-hairline hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={showBusinessMarkers}
+                  onChange={(e) => setShowBusinessMarkers(e.target.checked)}
+                  className="rounded text-amber-600 focus:ring-amber-500"
+                />
+                <span className="font-medium text-slate-700">Business Pins</span>
+              </label>
+            </div>
+          </div>
+
+          {/* SECTION 4: STATS SUMMARY & BUSINESS LIST */}
+          <div className="p-4 bg-slate-50/50 space-y-3">
+            {/* Stats Cards */}
+            {!loading && (districtGeo || talukaGeos || wardGeos) && (
+              <div className={`grid gap-2 ${roleType === "superadmin" || roleType === "districthead" ? "grid-cols-3" : "grid-cols-2"}`}>
+                {(roleType === "superadmin" || roleType === "districthead") && (
+                  <StatCard icon={Landmark} value={talukaCount} label="Talukas" color="orange" />
+                )}
+                <StatCard icon={MapPinned} value={wardCount} label="Wards" color="green" />
+                <StatCard icon={Building2} value={bizCount} label="Businesses" color="amber" />
+              </div>
+            )}
+
+            {/* Businesses Header & Items */}
+            {loading ? (
+              <div className="py-8 text-center text-muted">
+                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                <p className="text-[12px]">Loading map data…</p>
+              </div>
+            ) : filteredBusinesses.length > 0 ? (
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10.5px] font-bold tracking-widest uppercase text-muted">
+                    Businesses ({filteredBusinesses.length})
+                  </p>
+                  {filteredBusinesses.length < businesses.length && (
+                    <span className="text-[10px] text-amber-600 font-medium">
+                      Filtered from {businesses.length}
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {filteredBusinesses.map((b, i) => (
+                    <button
+                      key={b.properties.profileId || i}
+                      onClick={() => handleSelectBusiness(b.properties)}
+                      className="w-full text-left bg-white border border-hairline rounded-xl p-3 transition-all hover:border-amber/50 hover:bg-amber/[0.03] hover:shadow-sm group"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-[12.5px] font-semibold text-ink truncate">{b.properties.businessName}</p>
+                          <p className="text-[11px] text-muted mt-0.5 truncate">
+                            {b.properties.ownerName} · {b.properties.businessMobile || b.properties.mobile || "No Mobile"}
+                          </p>
+                          {b.properties.sector && (
+                            <span className="inline-block mt-1 text-[9.5px] font-medium bg-slate-100 text-slate-600 rounded-full px-2 py-0.5">
+                              {b.properties.sector}
+                            </span>
+                          )}
+                        </div>
+                        <ChevronRight size={14} className="text-muted/40 group-hover:text-amber shrink-0 mt-0.5 transition-colors" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : businesses.length > 0 ? (
+              <div className="p-4 bg-amber-50/60 border border-amber-100 rounded-xl text-center text-[12px] text-amber-800">
+                <p className="font-semibold">No businesses match search query</p>
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="mt-1.5 text-[11px] font-semibold text-blue-600 underline"
+                >
+                  Clear Search
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
     );
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-0 h-[calc(100vh-140px)] -m-6">
+    <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-0 h-[calc(100vh-140px)] -m-6">
 
       {/* Sidebar */}
-      <div className="border-r border-hairline bg-white flex flex-col overflow-hidden">
+      <div className="border-r border-hairline bg-white flex flex-col overflow-hidden shadow-sm">
         {renderSidebar()}
       </div>
 
@@ -423,41 +720,37 @@ export default function MemberMap() {
 
         {phase === "arrived" && mapCenter && (
           <div className="absolute inset-0 animate-[fadeIn_1000ms_ease-out]">
-            {/* Top bar */}
+            {/* Top Bar Overlay */}
             <div className="absolute top-4 left-4 z-[1000] flex items-center gap-2">
-              {!isAutoRole && (
-                <button
-                  onClick={handleBackToSearch}
-                  className="flex items-center gap-1.5 bg-ink/90 backdrop-blur text-white rounded-xl px-3.5 py-2.5 text-[12.5px] font-semibold hover:bg-ink transition-colors shadow-lg"
-                >
-                  <ArrowLeft size={13} /> Back
-                </button>
-              )}
-              <div className="bg-ink/90 backdrop-blur text-white rounded-xl px-4 py-2.5 text-[12.5px] shadow-lg">
-                <p className="font-semibold capitalize">
-                  {locationName || wardInput}
-                  {roleType === "district" && talukaCount > 0 && ` · ${talukaCount} talukas`}
-                  {wardCount > 0 && ` · ${wardCount} wards`}
-                </p>
-                <p className="text-white/55 text-[11px]">
-                  {bizCount} business{bizCount !== 1 ? "es" : ""}
-                </p>
+              <div className="bg-ink/90 backdrop-blur text-white rounded-xl px-4 py-2.5 text-[12.5px] shadow-lg flex items-center gap-3">
+                <div>
+                  <p className="font-semibold capitalize flex items-center gap-1.5">
+                    <MapPin size={13} className="text-blue-400" />
+                    {selectedWard || selectedTaluka || selectedDistrict || locationName || wardInput || "Map Area"}
+                    {roleType === "superadmin" || roleType === "districthead" ? (talukaCount > 0 && ` · ${talukaCount} talukas`) : ""}
+                    {wardCount > 0 && ` · ${wardCount} wards`}
+                  </p>
+                  <p className="text-white/60 text-[11px] mt-0.5">
+                    Showing {bizCount} of {businesses.length} business{businesses.length !== 1 ? "es" : ""}
+                  </p>
+                </div>
               </div>
             </div>
 
             <SatelliteMap
               location={mapCenter}
-              // Legacy prop
               wardPolygon={null}
-              // Layered props
               districtGeo={districtGeo}
               talukaGeos={talukaGeos}
               wardGeos={wardGeos}
-              fetchType={fetchType || roleType}
-              businesses={businesses}
+              fetchType={fetchType || (roleType === "superadmin" ? "district" : roleType.replace("head", ""))}
+              businesses={filteredBusinesses}
               selectedBusiness={selectedBusiness}
               onSelectBusiness={handleSelectBusiness}
-              onZoomOutToGlobe={!isAutoRole ? handleBackToSearch : undefined}
+              showDistrictLayer={showDistrictLayer}
+              showTalukaLayer={showTalukaLayer}
+              showWardLayer={showWardLayer}
+              showBusinessMarkers={showBusinessMarkers}
             />
           </div>
         )}
@@ -468,10 +761,8 @@ export default function MemberMap() {
               <MapPin size={28} className="opacity-40" />
             </div>
             <div className="text-center">
-              <p className="text-[14px] font-medium">
-                {isAutoRole ? "Loading your area…" : "Enter a ward to begin"}
-              </p>
-              <p className="text-[12px] mt-0.5 opacity-70">Name or number both work</p>
+              <p className="text-[14px] font-medium">Select location filters to view area map</p>
+              <p className="text-[12px] mt-0.5 opacity-70">Use the left side filter panel</p>
             </div>
           </div>
         )}
@@ -546,21 +837,12 @@ function StatCard({ icon: Icon, value, label, color }) {
     amber: "text-amber-700 bg-amber-50",
   };
   return (
-    <div className="border border-hairline rounded-xl p-3 bg-ink/[0.015]">
-      <div className={`w-6 h-6 rounded-lg flex items-center justify-center mb-1.5 ${colors[color]}`}>
-        <Icon size={12} />
+    <div className="border border-hairline rounded-xl p-2.5 bg-white shadow-xs">
+      <div className={`w-5 h-5 rounded-md flex items-center justify-center mb-1 ${colors[color]}`}>
+        <Icon size={11} />
       </div>
-      <p className="text-[15px] font-semibold text-ink">{value}</p>
-      <p className="text-[10px] text-muted uppercase tracking-wide">{label}</p>
-    </div>
-  );
-}
-
-function LegendPill({ color, label }) {
-  return (
-    <div className="flex items-center gap-1.5 text-[10.5px] text-muted">
-      <span className="w-3 h-3 rounded-sm inline-block" style={{ background: color, opacity: 0.8 }} />
-      {label}
+      <p className="text-[14px] font-bold text-ink leading-tight">{value}</p>
+      <p className="text-[9.5px] text-muted uppercase tracking-wide font-medium">{label}</p>
     </div>
   );
 }

@@ -50,7 +50,7 @@ const NAV = {
                 { name: "Geo-Fencing", path: "/register" },
                 { name: "Member Map", path: "/admin-dashboard/member-map" },
                 { name: "Area Chart", path: "/area-chart" },
-                { name: "Business Circle", path: "/admin-dashboard/business-circle" },
+                { name: "UCN", path: "/admin-dashboard/business-circle" },
                 { name: "Networking", path: "/register" },
             ]
         },
@@ -121,7 +121,7 @@ const NAV = {
                 // { name: "Field Operations", path: "/register" },
                 // { name: "Geo-Fencing", path: "/register" },
                 { name: "Member Map", path: "/super-admin-dashboard/member-map" },
-                { name: "Business Circle", path: "/super-admin-dashboard/business-circle" },
+                { name: "UCN", path: "/super-admin-dashboard/business-circle" },
                 // { name: "Networking", path: "/register" },
             ]
         },
@@ -186,7 +186,7 @@ const NAV = {
             children: [
                 { name: "Send Messages", path: "/national-head-dashboard/communications" },
                 { name: "Member Map", path: "/national-head-dashboard/member-map" },
-                { name: "Business Circle", path: "/national-head-dashboard/business-circle" },
+                { name: "UCN", path: "/national-head-dashboard/business-circle" },
             ],
         },
         {
@@ -246,7 +246,7 @@ const NAV = {
                 { name: "Geo-Fencing", path: "/register" },
                 { name: "Member Map", path: "/state-head-dashboard/member-map" },
                 { name: "Area Chart", path: "/state-head-dashboard/area-chart" },
-                { name: "Business Circle", path: "/state-head-dashboard/business-circle" },
+                { name: "UCN", path: "/state-head-dashboard/business-circle" },
                 { name: "Networking", path: "/register" },
             ]
         },
@@ -310,7 +310,7 @@ const NAV = {
                 // { name: "Geo-Fencing", path: "/register" },
                 { name: "Member Map", path: "/district-head-dashboard/member-map" },
                 { name: "Area Chart", path: "/district-head-dashboard/area-chart" },
-                { name: "Business Circle", path: "/district-head-dashboard/business-circle" },
+                { name: "UCN", path: "/district-head-dashboard/business-circle" },
                 // { name: "Networking", path: "/register" },
             ]
         },
@@ -380,7 +380,7 @@ const NAV = {
                 // { name: "Geo-Fencing", path: "/register" },
                 { name: "Member Map", path: "/taluk-head-dashboard/member-map" },
                 { name: "Area Chart", path: "/taluk-head-dashboard/area-chart" },
-                { name: "Business Circle", path: "/taluk-head-dashboard/business-circle" },
+                { name: "UCN", path: "/taluk-head-dashboard/business-circle" },
                 // { name: "Networking", path: "/register" },
             ]
         },
@@ -449,7 +449,7 @@ const NAV = {
                 // { name: "Geo-Fencing", path: "/register" },
                 { name: "Member Map", path: "/wardChairman-head-dashboard/member-map" },
                 { name: "Area Chart", path: "/wardChairman/area-chart" },
-                // { name: "Business Circle", path: "/wardChairman-head-dashboard/business-circle" },
+                // { name: "UCN", path: "/wardChairman-head-dashboard/business-circle" },
                 // { name: "Networking", path: "/register" },
             ]
         },
@@ -529,7 +529,7 @@ const NAV = {
                 { name: "Geo-Fencing", path: "/register" },
                 { name: "Member Map", path: "/channelPartner-dashboard/member-map" },
                 { name: "Area Chart", path: "/channelPartner-dashboard/area-chart" },
-                { name: "Business Circle", path: "/channelPartner-dashboard/business-circle" },
+                { name: "UCN", path: "/channelPartner-dashboard/business-circle" },
                 { name: "Networking", path: "/register" },
             ]
         },
@@ -573,7 +573,7 @@ const NAV = {
                 { name: "Send Messages", path: "/member/communications" },
                 { name: "Member Map", path: "/member-dashboard/member-map" },
                 // { name: "Area Chart", path: "/member/area-chart" },
-                // { name: "Business Circle", path: "/member/business-circle" },
+                // { name: "UCN", path: "/member/business-circle" },
             ]
         },
         // {
