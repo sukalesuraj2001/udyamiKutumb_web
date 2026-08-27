@@ -1251,7 +1251,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
               <div className="px-6 py-1 space-y-1">
                 <div className="flex justify-center pt-0">
                   <MlaCard
-                    mlaLabel={`MLA - ${ward.ward_name} Assembly constituency`}
+                    mlaLabel={`${ward.ward_name} Assembly constituency`}
                     assigned={assignments.mla}
                     dimmed={isDimmed("mla", "core", assignments.mla?.name)}
                     onAssignClick={slotClickProp}
