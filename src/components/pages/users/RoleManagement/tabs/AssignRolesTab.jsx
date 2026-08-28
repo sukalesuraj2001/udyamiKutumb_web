@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   UserCheck, Search, Check, X, ChevronDown,
   AlertCircle, Loader2, MapPin,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
 } from "lucide-react";
 import { fetchRoles, assignRole, clearAssignSuccess } from "../../../../redux/slices/rolesSlice";
 import { fetchDashboard } from "../../../../redux/slices/dashboardSlice";
@@ -51,6 +52,14 @@ export default function AssignRolesTab() {
   const [filterTaluka, setFilterTaluka] = useState("");
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingFilterTalukas, setLoadingFilterTalukas] = useState(false);
+
+  // ── Pagination state ────────────────────────────────────────────────────────
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterDistrict, filterTaluka, pageSize]);
 
   // ── Inline-edit base ─────────────────────────────────────────────────────────
   const [selectedUser, setSelectedUser] = useState(null);
@@ -393,18 +402,77 @@ export default function AssignRolesTab() {
     });
   };
 
+  // ── Location Helper ─────────────────────────────────────────────────────────
+  const getUserLocationInfo = (u) => {
+    const profileRef = u.holder?.user?.profile || u.profile || {};
+    const districtName = u.districtName ?? u.district ?? profileRef.district ?? "";
+    const talukaName = u.talukaName ?? u.taluka ?? u.taluk ?? profileRef.taluka ?? profileRef.taluk ?? profileRef.assembly ?? "";
+    const wardName = u.wardName ?? u.ward ?? profileRef.ward ?? "";
+    const rawLocation = u.businessLocation || u.officeLocation || u.address || "";
+
+    const parts = [districtName, talukaName, wardName].filter(Boolean);
+    const displayLocation = parts.length > 0 ? parts.join(" · ") : (rawLocation || "—");
+
+    return {
+      districtId: u.districtId ?? u.district_id ?? profileRef.districtId ?? profileRef.district_id ?? null,
+      districtName,
+      talukaId: u.talukaId ?? u.taluka_id ?? u.talukId ?? profileRef.talukaId ?? profileRef.talukId ?? null,
+      talukaName,
+      wardId: u.wardId ?? u.ward_id ?? profileRef.wardId ?? profileRef.ward_id ?? null,
+      wardName,
+      rawLocation,
+      displayLocation,
+    };
+  };
+
   // ── Filter logic ─────────────────────────────────────────────────────────────
-  const filterDistrictName = districts.find((d) => d.districtId === filterDistrict)?.districtName?.toLowerCase() || "";
-  const filterTalukaName = filterTalukas.find((t) => t.talukaId === filterTaluka)?.talukaName?.toLowerCase() || "";
+  const selectedDistrictObj = districts.find((d) => String(d.districtId) === String(filterDistrict));
+  const filterDistrictName = selectedDistrictObj?.districtName?.toLowerCase() || "";
+
+  const selectedTalukaObj = filterTalukas.find((t) => String(t.talukaId) === String(filterTaluka));
+  const filterTalukaName = selectedTalukaObj?.talukaName?.toLowerCase() || "";
 
   const filteredUsers = users.filter((u) => {
-    const loc = u.businessLocation?.toLowerCase() || "";
-    return (
-      (u.name.toLowerCase().includes(search.toLowerCase()) || u.mobileNumber?.includes(search)) &&
-      (!filterDistrict || loc.includes(filterDistrictName)) &&
-      (!filterTaluka || loc.includes(filterTalukaName))
-    );
+    const searchLower = search.trim().toLowerCase();
+    const locInfo = getUserLocationInfo(u);
+
+    if (searchLower) {
+      const nameMatch = u.name?.toLowerCase().includes(searchLower);
+      const phoneMatch = u.mobileNumber?.includes(searchLower);
+      const emailMatch = u.email?.toLowerCase().includes(searchLower);
+      if (!nameMatch && !phoneMatch && !emailMatch) return false;
+    }
+
+    if (filterDistrict) {
+      const idMatches = locInfo.districtId != null && String(locInfo.districtId) === String(filterDistrict);
+      const nameMatches = filterDistrictName && (
+        locInfo.districtName.toLowerCase().includes(filterDistrictName) ||
+        locInfo.rawLocation.toLowerCase().includes(filterDistrictName) ||
+        locInfo.displayLocation.toLowerCase().includes(filterDistrictName)
+      );
+      if (!idMatches && !nameMatches) return false;
+    }
+
+    if (filterTaluka) {
+      const idMatches = locInfo.talukaId != null && String(locInfo.talukaId) === String(filterTaluka);
+      const nameMatches = filterTalukaName && (
+        locInfo.talukaName.toLowerCase().includes(filterTalukaName) ||
+        locInfo.rawLocation.toLowerCase().includes(filterTalukaName) ||
+        locInfo.displayLocation.toLowerCase().includes(filterTalukaName)
+      );
+      if (!idMatches && !nameMatches) return false;
+    }
+
+    return true;
   });
+
+  // ── Pagination Logic ─────────────────────────────────────────────────────────
+  const totalItems = filteredUsers.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const validPage = Math.min(Math.max(currentPage, 1), totalPages);
+  const startIndex = (validPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalItems);
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
 
   const getRoleBadge = (userRoles = []) => userRoles[0]?.role?.role || null;
 
@@ -427,7 +495,7 @@ export default function AssignRolesTab() {
             className="w-44 text-[12.5px] text-gray-700 placeholder:text-gray-400 focus:outline-none bg-transparent" />
         </div>
 
-        <div className="relative">
+        {/* <div className="relative">
           <MapPin size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           <select value={filterDistrict} onChange={(e) => handleFilterDistrictChange(e.target.value)}
             disabled={loadingDistricts}
@@ -438,7 +506,7 @@ export default function AssignRolesTab() {
           {loadingDistricts
             ? <Loader2 size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 animate-spin" />
             : <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />}
-        </div>
+        </div> */}
 
         {filterDistrict && (
           <div className="relative">
@@ -486,11 +554,12 @@ export default function AssignRolesTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filteredUsers.length === 0 ? (
+              {paginatedUsers.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-10 text-center text-[12.5px] text-gray-400">No users found.</td></tr>
-              ) : filteredUsers.map((u) => {
+              ) : paginatedUsers.map((u) => {
                 const badge = getRoleBadge(u.userRoles);
                 const isEditing = selectedUser?.userId === u.userId;
+                const locInfo = getUserLocationInfo(u);
 
                 return (
                   <tr key={u.userId} className={`transition-colors ${isEditing ? "bg-blue-50/40" : "hover:bg-gray-50/60"}`}>
@@ -501,8 +570,8 @@ export default function AssignRolesTab() {
                         ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold border bg-blue-50 border-blue-200 text-blue-700">{badge}</span>
                         : <span className="text-gray-400 text-[11px]">—</span>}
                     </td>
-                    <td className="px-4 py-3 text-gray-500 max-w-[180px] truncate" title={u.businessLocation || "—"}>
-                      {u.businessLocation || "—"}
+                    <td className="px-4 py-3 text-gray-500 max-w-[200px] truncate" title={locInfo.displayLocation}>
+                      {locInfo.displayLocation}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${u.isActive ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-gray-100 border-gray-200 text-gray-500"}`}>
@@ -690,11 +759,73 @@ export default function AssignRolesTab() {
             </tbody>
           </table>
 
-          <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
-            <p className="text-[12px] text-gray-400">
-              Showing <span className="font-semibold text-gray-600">{filteredUsers.length}</span> of{" "}
-              <span className="font-semibold text-gray-600">{users.length}</span> users
-            </p>
+          {/* Pagination Footer */}
+          <div className="border-t border-gray-100 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 bg-gray-50">
+            <div className="flex flex-wrap items-center gap-3 text-[12px] text-gray-500">
+              <span>
+                Showing <span className="font-semibold text-gray-700">{filteredUsers.length > 0 ? startIndex + 1 : 0}</span> to{" "}
+                <span className="font-semibold text-gray-700">{endIndex}</span> of{" "}
+                <span className="font-semibold text-gray-700">{filteredUsers.length}</span> users
+                {filteredUsers.length !== users.length && (
+                  <span className="text-gray-400 ml-1">(filtered from {users.length} total)</span>
+                )}
+              </span>
+              <div className="flex items-center gap-1.5 pl-2 border-l border-gray-200">
+                <span className="text-gray-400">Limit:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                  className="h-7 px-2 text-[12px] bg-white border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer text-gray-700"
+                >
+                  <option value={5}>5 / page</option>
+                  <option value={10}>10 / page</option>
+                  <option value={20}>20 / page</option>
+                  <option value={50}>50 / page</option>
+                  <option value={100}>100 / page</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={validPage === 1}
+                title="First Page"
+                className="h-7 w-7 flex items-center justify-center text-gray-500 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <ChevronsLeft size={14} />
+              </button>
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={validPage === 1}
+                title="Previous Page"
+                className="h-7 px-2.5 flex items-center gap-1 text-[12px] font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={14} /> Prev
+              </button>
+
+              <span className="px-2 text-[12px] text-gray-600 font-medium whitespace-nowrap">
+                Page {validPage} of {totalPages}
+              </span>
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={validPage === totalPages}
+                title="Next Page"
+                className="h-7 px-2.5 flex items-center gap-1 text-[12px] font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+              >
+                Next <ChevronRight size={14} />
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={validPage === totalPages}
+                title="Last Page"
+                className="h-7 w-7 flex items-center justify-center text-gray-500 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+              >
+                <ChevronsRight size={14} />
+              </button>
+            </div>
           </div>
         </div>
       </div>

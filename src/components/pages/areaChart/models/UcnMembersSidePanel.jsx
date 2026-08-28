@@ -386,73 +386,7 @@ export default function UcnMembersSidePanel({
               )}
             </div>
 
-            {/* Location Filters below Search */}
-            {(isSuperAdmin || isDistrictHead || isTalukaHead) && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                {/* District Filter (Super Admin only) */}
-                {isSuperAdmin && (
-                  <div className="relative">
-                    <select
-                      value={selectedDistrict}
-                      onChange={handleDistrictChange}
-                      disabled={loadingDistricts}
-                      className="w-full text-[12px] bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:border-slate-400 appearance-none pr-6 cursor-pointer disabled:opacity-50"
-                    >
-                      <option value="">All Districts</option>
-                      {districtsList.map((d) => (
-                        <option key={d.districtId} value={d.districtId}>
-                          {d.districtName}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  </div>
-                )}
 
-                {/* Taluka Filter (Super Admin & District Head) */}
-                {(isSuperAdmin || isDistrictHead) && (
-                  <div className="relative">
-                    <select
-                      value={selectedTaluka}
-                      onChange={handleTalukaChange}
-                      disabled={loadingTalukas || (isSuperAdmin && !selectedDistrict)}
-                      className="w-full text-[12px] bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:border-slate-400 appearance-none pr-6 cursor-pointer disabled:opacity-50"
-                    >
-                      <option value="">All Talukas</option>
-                      {talukasList.map((t) => (
-                        <option key={t.talukaId} value={t.talukaId}>
-                          {t.talukaName}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  </div>
-                )}
-
-                {/* Ward Filter (Super Admin, District Head & Taluka Head) */}
-                {(isSuperAdmin || isDistrictHead || isTalukaHead) && (
-                  <div className="relative">
-                    <select
-                      value={selectedWard}
-                      onChange={handleWardChange}
-                      disabled={loadingWards || ((isSuperAdmin || isDistrictHead) && !selectedTaluka && wardsList.length === 0)}
-                      className="w-full text-[12px] bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:border-slate-400 appearance-none pr-6 cursor-pointer disabled:opacity-50"
-                    >
-                      <option value="">All Wards</option>
-                      {wardsList.map((w) => {
-                        const wName = w.wardName || w.ward_name || w.ward;
-                        return (
-                          <option key={w.wardId || wName} value={wName}>
-                            {wName} {w.wardNumber ? `(#${w.wardNumber})` : ""}
-                          </option>
-                        );
-                      })}
-                    </select>
-                    <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Members List */}

@@ -1356,8 +1356,8 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                           tone="brick"
                           assigned={effectiveAssignments[slotId]}
                           dimmed={isDimmed(slotId, "chairmen", effectiveAssignments[slotId]?.name)}
-                          onAssignClick={slotClickProp}
-                          showPlus={!isPreviewMode}
+                          onAssignClick={null}
+                          showPlus={false}
                           isSuperAdmin={isSuperAdmin}
                         />
                       </div>
