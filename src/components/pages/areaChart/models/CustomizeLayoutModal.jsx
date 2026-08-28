@@ -39,6 +39,13 @@ export default function CustomizeLayoutModal({
   const [customUms, setCustomUms] = useState(["", ""]);
   const [umsError, setUmsError] = useState("");
 
+  // ── Custom company batch inputs ──────────────
+  const [showAddCompanyForm, setShowAddCompanyForm] = useState(false);
+  const [newCompanies, setNewCompanies] = useState([
+    { title: "", slots: ["", "", "", "", ""] },
+  ]);
+  const [companyError, setCompanyError] = useState("");
+
   // ── Custom brand product per category ─────────────────────────
   const [customBrand, setCustomBrand] = useState({});
 
@@ -271,6 +278,106 @@ export default function CustomizeLayoutModal({
 
   const addUmsField = () => setCustomUms((prev) => [...prev, "", ""]);
 
+  // ── Add custom companies (Title + 5 Slots) ────────────────────
+  const updateCompanyTitle = (compIdx, titleVal) => {
+    setCompanyError("");
+    setNewCompanies((prev) =>
+      prev.map((c, i) => (i === compIdx ? { ...c, title: titleVal } : c))
+    );
+  };
+
+  const updateCompanySlot = (compIdx, slotIdx, slotVal) => {
+    setCompanyError("");
+    setNewCompanies((prev) =>
+      prev.map((c, i) => {
+        if (i !== compIdx) return c;
+        const newSlots = [...c.slots];
+        newSlots[slotIdx] = slotVal;
+        return { ...c, slots: newSlots };
+      })
+    );
+  };
+
+  const addAnotherCompanyBlock = () => {
+    setNewCompanies((prev) => [
+      ...prev,
+      { title: "", slots: ["", "", "", "", ""] },
+    ]);
+  };
+
+  const removeCompanyBlock = (compIdx) => {
+    if (newCompanies.length <= 1) return;
+    setNewCompanies((prev) => prev.filter((_, i) => i !== compIdx));
+  };
+
+  const submitNewCompanies = () => {
+    const validEntries = newCompanies.filter((c) => c.title.trim().length > 0);
+    if (validEntries.length === 0) {
+      setCompanyError("Please enter a Main Company Title (e.g. UB Social & Brand).");
+      return;
+    }
+    setCompanyError("");
+    setDraft((d) => {
+      const newBrandTiles = [...(d.brandTiles || [])];
+      const newSlotCounts = { ...(d.slotCounts || {}) };
+
+      validEntries.forEach((entry) => {
+        const companyTitle = entry.title.trim();
+        const catKey = `company-custom-${uid()}`;
+        const countKey = `count_${catKey}`;
+        newSlotCounts[countKey] = 5;
+
+        newBrandTiles.push({
+          key: catKey,
+          label: companyTitle,
+          countKey: countKey,
+          color: "#2563EB",
+          isCustomCompany: true,
+          products: Array.from({ length: 5 }).map((_, i) => {
+            const customSlotName = entry.slots[i]?.trim();
+            return {
+              key: `${catKey}-item-${uid()}-${i}`,
+              name: customSlotName || `${companyTitle} ${i + 1}`,
+              sub: companyTitle,
+              enabled: true,
+            };
+          }),
+        });
+      });
+
+      return {
+        ...d,
+        slotCounts: newSlotCounts,
+        brandTiles: newBrandTiles,
+      };
+    });
+    setNewCompanies([{ title: "", slots: ["", "", "", "", ""] }]);
+    setShowAddCompanyForm(false);
+  };
+
+  const updateBrandCategoryLabel = (catKey, newLabel) => {
+    setDraft((d) => {
+      const brandTiles = [...(d.brandTiles || [])];
+      const catIdx = brandTiles.findIndex((c) => c.key === catKey);
+      if (catIdx === -1) return d;
+
+      brandTiles[catIdx] = {
+        ...brandTiles[catIdx],
+        label: newLabel,
+      };
+      return { ...d, brandTiles };
+    });
+  };
+
+  const removeCustomCompany = (catKey, countKey) => {
+    setDraft((d) => {
+      const brandTiles = (d.brandTiles || []).filter((c) => c.key !== catKey);
+      const slotCounts = { ...d.slotCounts };
+      if (countKey) delete slotCounts[countKey];
+      return { ...d, brandTiles, slotCounts };
+    });
+  };
+
   // ── Add custom brand product ───────────────────────────────────
   const addCustomBrandProduct = (categoryKey) => {
     const name = (customBrand[categoryKey] || "").trim();
@@ -422,86 +529,279 @@ export default function CustomizeLayoutModal({
                 <div className="my-2 border-t border-gray-100" />
               </>
             )}
-            {[
-              { catKey: "ub-queens", countKey: "udyamiQueens", label: "UB Queen's" },
-              { catKey: "ub-realty", countKey: "ubRealtyConstruction", label: "UB Realty Construction" },
-              { catKey: "yuva-udyami", countKey: "yuvaUdyami", label: "Yuva Udyami" },
-              { catKey: "ec", countKey: "ec", label: "E3" },
-              { catKey: "ub-finance-it", countKey: "ubFinanceIT", label: "UB Finance & IT" },
-              { catKey: "ub-social", countKey: "ubSocialBrand", label: "UB Social & Brand" },
-            ].map(({ catKey, countKey, label }) => {
-              const currentCount = draft.slotCounts?.[countKey] ?? 5;
-              const categoryData = (draft.brandTiles || []).find((c) => c.key === catKey);
-              const products = categoryData?.products || [];
-              const isExpanded = openCategoryInputs[catKey];
+            {(() => {
+              const CATEGORY_COUNT_MAP = {
+                "ub-queens": "udyamiQueens",
+                "ub-realty": "ubRealtyConstruction",
+                "yuva-udyami": "yuvaUdyami",
+                "ec": "ec",
+                "ub-finance-it": "ubFinanceIT",
+                "ub-social": "ubSocialBrand",
+              };
 
-              return (
-                <div key={catKey} className="border-b border-gray-100/80 last:border-b-0 py-1.5">
-                  <div className="flex items-center justify-between py-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[13px] text-gray-700 font-medium">{label}</span>
-                      <button
-                        type="button"
-                        onClick={() => toggleCategoryInputs(catKey)}
-                        className="text-[10.5px] text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-0.5 bg-blue-50 px-2 py-0.5 rounded-md transition-colors"
-                      >
-                        {isExpanded ? "Hide names ▲" : `Edit ${currentCount} names ▼`}
-                      </button>
-                    </div>
-                    <select
-                      value={currentCount}
-                      onChange={(e) => {
-                        const newCount = Number(e.target.value);
-                        updateCountDirect(countKey, newCount);
-                        ensureCategoryProductsCount(catKey, label, newCount);
-                        setOpenCategoryInputs((prev) => ({ ...prev, [catKey]: true }));
-                      }}
-                      className="border border-gray-200 rounded-lg px-3 py-1.5 text-[13px] font-semibold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 cursor-pointer"
-                    >
-                      {[5, 10, 15, 20, 25].map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              const standardCatKeys = new Set([
+                "ub-queens",
+                "ub-realty",
+                "yuva-udyami",
+                "ec",
+                "ub-finance-it",
+                "ub-social",
+              ]);
 
-                  {/* Expanded input fields for slot names */}
-                  {isExpanded && (
-                    <div className="mt-1.5 mb-2.5 pl-2.5 pr-1.5 py-2 bg-gray-50/90 rounded-xl border border-gray-200/60 space-y-2">
-                      <div className="flex items-center justify-between px-0.5">
-                        <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-                          Slot Names ({currentCount} slots):
-                        </p>
-                        <span className="text-[10px] text-gray-400">Type custom name for each box</span>
+              const defaultCatList = [
+                { catKey: "ub-queens", countKey: "udyamiQueens", label: "UB Queen's" },
+                { catKey: "ub-realty", countKey: "ubRealtyConstruction", label: "UB Realty Construction" },
+                { catKey: "yuva-udyami", countKey: "yuvaUdyami", label: "Yuva Udyami" },
+                { catKey: "ec", countKey: "ec", label: "E3" },
+                { catKey: "ub-finance-it", countKey: "ubFinanceIT", label: "UB Finance & IT" },
+                { catKey: "ub-social", countKey: "ubSocialBrand", label: "UB Social & Brand" },
+              ];
+
+              const categoryList = (draft.brandTiles || []).length > 0
+                ? (draft.brandTiles || []).map((cat) => {
+                    const countKey = CATEGORY_COUNT_MAP[cat.key] || cat.countKey || `count_${cat.key}`;
+                    return {
+                      catKey: cat.key,
+                      countKey: countKey,
+                      label: cat.label,
+                      isCustom: !standardCatKeys.has(cat.key),
+                    };
+                  })
+                : defaultCatList;
+
+              return categoryList.map(({ catKey, countKey, label, isCustom }) => {
+                const currentCount = draft.slotCounts?.[countKey] ?? 5;
+                const categoryData = (draft.brandTiles || []).find((c) => c.key === catKey);
+                const products = categoryData?.products || [];
+                const isExpanded = openCategoryInputs[catKey];
+
+                return (
+                  <div key={catKey} className="border-b border-gray-100/80 last:border-b-0 py-1.5">
+                    <div className="flex items-center justify-between py-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] text-gray-700 font-medium">{label}</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleCategoryInputs(catKey)}
+                          className="text-[10.5px] text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-0.5 bg-blue-50 px-2 py-0.5 rounded-md transition-colors"
+                        >
+                          {isExpanded ? "Hide names ▲" : `Edit ${currentCount} names ▼`}
+                        </button>
                       </div>
-                      <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
-                        {Array.from({ length: currentCount }).map((_, idx) => {
-                          const prod = products[idx];
-                          const val = prod?.name !== undefined ? prod.name : `${label} ${idx + 1}`;
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={currentCount}
+                          onChange={(e) => {
+                            const newCount = Number(e.target.value);
+                            updateCountDirect(countKey, newCount);
+                            ensureCategoryProductsCount(catKey, label, newCount);
+                            setOpenCategoryInputs((prev) => ({ ...prev, [catKey]: true }));
+                          }}
+                          className="border border-gray-200 rounded-lg px-3 py-1.5 text-[13px] font-semibold text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 cursor-pointer"
+                        >
+                          {[5, 10, 15, 20, 25].map((opt) => (
+                            <option key={opt} value={opt}>
+                              {opt}
+                            </option>
+                          ))}
+                        </select>
+                        {/* {isCustom && (
+                          <button
+                            type="button"
+                            onClick={() => removeCustomCompany(catKey, countKey)}
+                            className="w-6 h-6 rounded-full bg-red-100 hover:bg-red-200 text-red-500 flex items-center justify-center transition-all text-[12px] font-bold shrink-0"
+                            title="Remove Company"
+                          >
+                            ×
+                          </button>
+                        )} */}
+                      </div>
+                    </div>
+
+                    {/* Expanded input fields for slot names */}
+                    {isExpanded && (
+                      <div className="mt-1.5 mb-2.5 pl-2.5 pr-1.5 py-2 bg-gray-50/90 rounded-xl border border-gray-200/60 space-y-2">
+                        {/* Company Title Input Field */}
+                        <div className="flex flex-col gap-1 pb-2 border-b border-gray-200/60">
+                          <label className="text-[10.5px] font-bold text-gray-600 uppercase tracking-wider">
+                            Main Company Title / Name:
+                          </label>
+                          <input
+                            type="text"
+                            value={categoryData?.label || label}
+                            onChange={(e) => updateBrandCategoryLabel(catKey, e.target.value)}
+                            placeholder="e.g. UB Social & Brand, Yuva Udyami..."
+                            className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-[12.5px] font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between px-0.5">
+                          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                            Slot Names ({currentCount} slots):
+                          </p>
+                          <span className="text-[10px] text-gray-400">Type custom name for each box</span>
+                        </div>
+                        <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+                          {Array.from({ length: currentCount }).map((_, idx) => {
+                            const prod = products[idx];
+                            const val = prod?.name !== undefined ? prod.name : `${label} ${idx + 1}`;
+                            return (
+                              <div key={idx} className="flex items-center gap-2">
+                                <span className="text-[11px] text-gray-400 w-5 text-right font-medium shrink-0">
+                                  {idx + 1}.
+                                </span>
+                                <input
+                                  type="text"
+                                  value={val}
+                                  onChange={(e) =>
+                                    updateBrandTileProductName(catKey, idx, e.target.value, label)
+                                  }
+                                  placeholder={`${label} ${idx + 1}`}
+                                  className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-[12px] text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              });
+            })()}
+
+            {/* ── Add New Companies Toggle & Form ── */}
+            {!showAddCompanyForm ? (
+              <div className="mt-4 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddCompanyForm(true)}
+                  className="w-full py-2.5 px-4 bg-blue-50/90 hover:bg-blue-100/90 text-blue-600 hover:text-blue-700 text-[12.5px] font-bold rounded-xl border border-blue-100 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs group"
+                >
+                  <Plus size={15} className="group-hover:scale-110 transition-transform" />
+                  <span>+ Add Companies</span>
+                </button>
+              </div>
+            ) : (
+              <div className="mt-5 space-y-3.5 pt-4 border-t border-gray-200/80">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="text-[12.5px] font-bold text-gray-900 tracking-tight">
+                      Add New Companies
+                    </h3>
+                    <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">
+                      Set main company title & custom position slot names
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCompanyForm(false)}
+                    className="text-[11px] font-semibold text-gray-500 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded-lg transition-colors shrink-0 cursor-pointer"
+                  >
+                    Hide ▲
+                  </button>
+                </div>
+
+                {newCompanies.map((comp, compIdx) => (
+                  <div
+                    key={compIdx}
+                    className="relative bg-gradient-to-b from-gray-50/90 to-slate-50/50 border border-gray-200/80 rounded-2xl p-3.5 space-y-3 shadow-xs hover:border-blue-200 transition-all"
+                  >
+                    {/* Header row inside card */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-blue-600" />
+                        <span className="text-[11.5px] font-bold text-gray-800 uppercase tracking-wide">
+                          Company #{compIdx + 1}
+                        </span>
+                      </div>
+                      {newCompanies.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeCompanyBlock(compIdx)}
+                          className="text-[11px] text-red-500 hover:text-red-700 font-semibold px-2 py-0.5 rounded-lg hover:bg-red-50 transition-colors"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Main Company Title Field */}
+                    <div>
+                      <label className="block text-[11.5px] font-semibold text-gray-700 mb-1">
+                        Company Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={comp.title}
+                        onChange={(e) => updateCompanyTitle(compIdx, e.target.value)}
+                        placeholder="e.g. UB Social & Brand"
+                        className="w-full border border-gray-300 rounded-xl px-3 py-2 text-[12.5px] font-medium text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs transition-all"
+                      />
+                    </div>
+
+                    {/* 5 Slot Inputs List */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between px-0.5">
+                        <span className="text-[11px] font-semibold text-gray-600">
+                          Slot Names (5 Positions)
+                        </span>
+                        <span className="text-[10px] text-gray-400">Optional custom names</span>
+                      </div>
+                      <div className="space-y-1.5 bg-white/80 p-2 rounded-xl border border-gray-200/60">
+                        {comp.slots.map((slotVal, slotIdx) => {
+                          const defaultPlaceholder = comp.title.trim()
+                            ? `${comp.title.trim()} ${slotIdx + 1}`
+                            : `Slot ${slotIdx + 1} name…`;
                           return (
-                            <div key={idx} className="flex items-center gap-2">
-                              <span className="text-[11px] text-gray-400 w-5 text-right font-medium shrink-0">
-                                {idx + 1}.
+                            <div key={slotIdx} className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-md bg-gray-100 text-gray-500 text-[10px] font-bold flex items-center justify-center shrink-0">
+                                {slotIdx + 1}
                               </span>
                               <input
                                 type="text"
-                                value={val}
+                                value={slotVal}
                                 onChange={(e) =>
-                                  updateBrandTileProductName(catKey, idx, e.target.value, label)
+                                  updateCompanySlot(compIdx, slotIdx, e.target.value)
                                 }
-                                placeholder={`${label} ${idx + 1}`}
-                                className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-[12px] text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 bg-white"
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") submitNewCompanies();
+                                }}
+                                placeholder={defaultPlaceholder}
+                                className="flex-1 border border-gray-200/90 rounded-lg px-2.5 py-1.5 text-[12px] text-gray-800 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
                               />
                             </div>
                           );
                         })}
                       </div>
                     </div>
-                  )}
+                  </div>
+                ))}
+
+                {companyError && (
+                  <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 text-red-600 text-[11.5px] font-medium px-3 py-2 rounded-xl">
+                    <span>⚠</span> {companyError}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={addAnotherCompanyBlock}
+                    className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-50/80 hover:bg-blue-100/80 px-3 py-2 rounded-xl transition-all cursor-pointer"
+                  >
+                    <Plus size={14} /> Add Another Company
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submitNewCompanies}
+                    className="inline-flex items-center gap-1.5 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-[12px] font-semibold px-4 py-2 rounded-xl transition-all shadow-xs cursor-pointer active:scale-[0.98]"
+                  >
+                    Save Company
+                  </button>
                 </div>
-              );
-            })}
+              </div>
+            )}
           </Section>
 
           {/* ── Sectors ── */}
@@ -711,55 +1011,6 @@ export default function CustomizeLayoutModal({
             </div>
           </Section>
 
-          {/* ── Brand Tiles ── */}
-          <Section
-            title="Brand Tiles (Products page)"
-            badge={null}
-            open={openSection.brandTiles}
-            onToggle={() => toggle("brandTiles")}
-          >
-            <div className="space-y-6">
-              {draft.brandTiles.map((cat) => (
-                <div key={cat.key}>
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2">
-                    {cat.label}
-                  </p>
-                  <div className="space-y-1">
-                    {cat.products.map((p) => (
-                      <ToggleRow
-                        key={p.key || p.name}
-                        label={p.name}
-                        enabled={p.enabled}
-                        onToggle={() => toggleBrandTile(cat.key, p.name)}
-                      />
-                    ))}
-                  </div>
-                  <div className="flex gap-2 mt-3">
-                    <input
-                      value={customBrand[cat.key] || ""}
-                      onChange={(e) =>
-                        setCustomBrand((prev) => ({
-                          ...prev,
-                          [cat.key]: e.target.value,
-                        }))
-                      }
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") addCustomBrandProduct(cat.key);
-                      }}
-                      placeholder="New product add pannanum…"
-                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-[12.5px] text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-                    />
-                    <button
-                      onClick={() => addCustomBrandProduct(cat.key)}
-                      className="w-9 h-9 shrink-0 rounded-lg bg-blue-600 text-white flex items-center justify-center hover:bg-blue-700 transition-colors"
-                    >
-                      <Plus size={15} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Section>
         </div>
 
         {/* ── Footer ── */}
@@ -798,8 +1049,10 @@ export default function CustomizeLayoutModal({
                 setDraft(config);
                 setCustomSectors(["", "", ""]);
                 setCustomUms(["", ""]);
+                setNewCompanies([{ title: "", slots: ["", "", "", "", ""] }]);
                 setSectorError("");
                 setUmsError("");
+                setCompanyError("");
               }}
               className="flex-1 min-w-[70px] border border-gray-200 bg-white text-gray-600 text-[13px] font-medium py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
             >

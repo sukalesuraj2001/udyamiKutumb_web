@@ -43,7 +43,7 @@ export function calculateTotalLayoutCards(config, wardLength = 9) {
   let totalBrandProductCards = 0;
   if (Array.isArray(config.brandTiles) && config.brandTiles.length > 0) {
     config.brandTiles.forEach((cat) => {
-      const countKey = CATEGORY_COUNT_MAP[cat.key];
+      const countKey = CATEGORY_COUNT_MAP[cat.key] || cat.countKey || `count_${cat.key}`;
       const slotCount = countKey ? Number(slotCounts[countKey] ?? 0) : 0;
       const enabledProducts = (cat.products || []).filter((p) => p.enabled !== false).length;
       totalBrandProductCards += Math.max(slotCount, enabledProducts);

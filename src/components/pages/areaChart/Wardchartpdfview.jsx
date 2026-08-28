@@ -289,6 +289,36 @@ export default function WardChartPdfView() {
             })
             .filter((cat) => cat.products.length > 0);
 
+        const customCatsInConfig = (config.brandTiles || []).filter(
+            (c) => !DEFAULT_CONFIG.brandTiles.some((dc) => dc.key === c.key)
+        );
+
+        const customCats = customCatsInConfig.map((cat) => {
+            const countKey = CATEGORY_COUNT_MAP[cat.key] || cat.countKey || `count_${cat.key}`;
+            const enabledProducts = (cat.products || []).filter((p) => p.enabled !== false);
+            const maxCount = config.slotCounts?.[countKey] ?? (enabledProducts.length || 5);
+
+            const slots = [...enabledProducts];
+            while (slots.length < maxCount) {
+                const idx = slots.length;
+                slots.push({
+                    key: `placeholder-${cat.key}-${idx}`,
+                    name: `${cat.label} ${idx + 1}`,
+                    sub: cat.label,
+                    enabled: true,
+                    isPlaceholder: true,
+                });
+            }
+
+            return {
+                ...cat,
+                color: cat.color || "#2563EB",
+                products: slots.slice(0, maxCount),
+            };
+        }).filter((cat) => cat.products.length > 0);
+
+        const allBrandCats = [...baseCats, ...customCats];
+
         if (remSectors.length > 0 || remUms.length > 0) {
             const sectorItems = remSectors.map((s) => ({
                 key: `sector-${s.key}`,
@@ -337,10 +367,10 @@ export default function WardChartPdfView() {
                 color: "#c8102e",
                 products: products,
             };
-            return [extraCat, ...baseCats];
+            return [extraCat, ...allBrandCats];
         }
 
-        return baseCats;
+        return allBrandCats;
     }, [config.brandTiles, config.slotCounts, remSectors, remUms]);
 
     const productPages = useMemo(
