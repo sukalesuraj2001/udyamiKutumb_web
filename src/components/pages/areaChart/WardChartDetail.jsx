@@ -892,6 +892,18 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
     return slotId.startsWith("patron-");
   };
 
+  const isWardLevelSlot = (slotId) => {
+    if (!slotId) return false;
+    return (
+      slotId.startsWith("advisory-") ||
+      slotId.startsWith("mentor-") ||
+      slotId.startsWith("core-") ||
+      slotId.startsWith("sector-") ||
+      slotId.startsWith("ums-") ||
+      slotId.startsWith("product-")
+    );
+  };
+
   const handleSlotClick = (id, label) => {
     const a = assignments[id];
     if (isWardChairman && (id === "ward-chairman" || isBlockedForWardChairman(id))) {
@@ -1356,8 +1368,8 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                           tone="brick"
                           assigned={effectiveAssignments[slotId]}
                           dimmed={isDimmed(slotId, "chairmen", effectiveAssignments[slotId]?.name)}
-                          onAssignClick={null}
-                          showPlus={false}
+                          onAssignClick={slotClickProp}
+                          showPlus={!isPreviewMode}
                           isSuperAdmin={isSuperAdmin}
                         />
                       </div>
@@ -1657,11 +1669,13 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
       {modal && (
         <AssignPositionModal
           position={modal.label}
+          slotId={modal.slotId}
           wardName={ward.ward_name}
           talukaId={ward.talukaId || ward.taluka_id}
           districtId={ward.districtId || ward.district_id}
           role={user?.role}
           constituency={ward.constituency}
+          hideWardFilter={isWardLevelSlot(modal.slotId)}
           onClose={() => setModal(null)}
           onAssign={(data) => handleAssign({ ...data, slotLabel: modal.label })}
         />
@@ -1703,6 +1717,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
         patrons={patrons}
         umsMembers={umsMembers}
         panelType={sidePanelSlot?.panelType || "ucn"}
+        hideWardFilter={isWardLevelSlot(sidePanelSlot?.slotId)}
         onSearchBusiness={(businessName) => dispatch(fetchChannelPartners({ wardId: ward.id, businessName }))}
         onAssignMember={handleAssignMemberFromPanel}
       />
