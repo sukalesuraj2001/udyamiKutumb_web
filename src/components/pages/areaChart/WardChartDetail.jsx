@@ -1313,7 +1313,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                           <div className="w-px h-1.5 bg-ink/40 mb-0.5" />
                           <PdfSlot
                             slotId={slotId}
-                            topLabel={`Official ${i + 1}`}
+                            // topLabel={`Official ${i + 1}`}
                             tone="navy"
                             assigned={assignments[slotId]}
                             dimmed={isDimmed(slotId, "patrons", assignments[slotId]?.name)}
