@@ -390,197 +390,197 @@ export default function WardChartDetail() {
   };
 
 
-// ── Modern CSS Color (OKLAB, OKLCH, etc.) to RGB Sanitizer Helpers ────────
-function convertModernColorToRgb(colorStr) {
-  if (!colorStr || typeof colorStr !== "string") return colorStr;
+  // ── Modern CSS Color (OKLAB, OKLCH, etc.) to RGB Sanitizer Helpers ────────
+  function convertModernColorToRgb(colorStr) {
+    if (!colorStr || typeof colorStr !== "string") return colorStr;
 
-  if (!/(?:oklch|oklab|color\(|color-mix\(|light-dark\()/i.test(colorStr)) {
+    if (!/(?:oklch|oklab|color\(|color-mix\(|light-dark\()/i.test(colorStr)) {
+      return colorStr;
+    }
+
+    // 1. Try native browser 2D canvas context for exact sRGB conversion
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      ctx.fillStyle = "rgba(0,0,0,0)";
+      ctx.clearRect(0, 0, 1, 1);
+      ctx.fillStyle = colorStr;
+      ctx.fillRect(0, 0, 1, 1);
+      const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+      if (a !== 0 || colorStr.includes("0%")) {
+        const alpha = +(a / 255).toFixed(3);
+        return alpha === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+    } catch (e) {
+      // fallback below
+    }
+
+    // 2. Mathematical OKLAB -> sRGB fallback conversion
+    if (colorStr.includes("oklab")) {
+      try {
+        const match = colorStr.match(/oklab\(\s*([\d.%]+)\s+([-\d.]+)\s+([-\d.]+)(?:\s*\/\s*([\d.%]+))?\s*\)/i);
+        if (match) {
+          let [, lStr, aStr, bStr, alphaStr] = match;
+          let L = lStr.endsWith("%") ? parseFloat(lStr) / 100 : parseFloat(lStr);
+          let aLab = parseFloat(aStr);
+          let bLab = parseFloat(bStr);
+          let A = alphaStr ? (alphaStr.endsWith("%") ? parseFloat(alphaStr) / 100 : parseFloat(alphaStr)) : 1;
+
+          const l_ = L + 0.3963377774 * aLab + 0.2158037573 * bLab;
+          const m_ = L - 0.1055613458 * aLab - 0.0638541728 * bLab;
+          const s_ = L - 0.0894841775 * aLab - 1.291485548 * bLab;
+
+          const l = l_ * l_ * l_;
+          const m = m_ * m_ * m_;
+          const s = s_ * s_ * s_;
+
+          let rLin = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+          let gLin = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+          let bLin = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+
+          const gamma = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
+          let r = Math.min(255, Math.max(0, Math.round(gamma(rLin) * 255)));
+          let g = Math.min(255, Math.max(0, Math.round(gamma(gLin) * 255)));
+          let b = Math.min(255, Math.max(0, Math.round(gamma(bLin) * 255)));
+
+          return A === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${A})`;
+        }
+      } catch (e) { }
+    }
+
+    // 3. Mathematical OKLCH -> sRGB fallback conversion
+    if (colorStr.includes("oklch")) {
+      try {
+        const match = colorStr.match(/oklch\(\s*([\d.%]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.%]+))?\s*\)/i);
+        if (match) {
+          let [, lStr, cStr, hStr, aStr] = match;
+          let L = lStr.endsWith("%") ? parseFloat(lStr) / 100 : parseFloat(lStr);
+          let C = parseFloat(cStr);
+          let H = parseFloat(hStr);
+          let A = aStr ? (aStr.endsWith("%") ? parseFloat(aStr) / 100 : parseFloat(aStr)) : 1;
+
+          const hRad = (H * Math.PI) / 180;
+          const aLab = C * Math.cos(hRad);
+          const bLab = C * Math.sin(hRad);
+
+          const l_ = L + 0.3963377774 * aLab + 0.2158037573 * bLab;
+          const m_ = L - 0.1055613458 * aLab - 0.0638541728 * bLab;
+          const s_ = L - 0.0894841775 * aLab - 1.291485548 * bLab;
+
+          const l = l_ * l_ * l_;
+          const m = m_ * m_ * m_;
+          const s = s_ * s_ * s_;
+
+          let rLin = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+          let gLin = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+          let bLin = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+
+          const gamma = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
+          let r = Math.min(255, Math.max(0, Math.round(gamma(rLin) * 255)));
+          let g = Math.min(255, Math.max(0, Math.round(gamma(gLin) * 255)));
+          let b = Math.min(255, Math.max(0, Math.round(gamma(bLin) * 255)));
+
+          return A === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${A})`;
+        }
+      } catch (e) { }
+    }
+
     return colorStr;
   }
 
-  // 1. Try native browser 2D canvas context for exact sRGB conversion
-  try {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1;
-    canvas.height = 1;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    ctx.fillStyle = "rgba(0,0,0,0)";
-    ctx.clearRect(0, 0, 1, 1);
-    ctx.fillStyle = colorStr;
-    ctx.fillRect(0, 0, 1, 1);
-    const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
-    if (a !== 0 || colorStr.includes("0%")) {
-      const alpha = +(a / 255).toFixed(3);
-      return alpha === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  function replaceModernColorsInCssText(cssText) {
+    if (!cssText || typeof cssText !== "string" || !/(?:oklch|oklab|color|color-mix|light-dark)/i.test(cssText)) {
+      return cssText;
     }
-  } catch (e) {
-    // fallback below
-  }
 
-  // 2. Mathematical OKLAB -> sRGB fallback conversion
-  if (colorStr.includes("oklab")) {
-    try {
-      const match = colorStr.match(/oklab\(\s*([\d.%]+)\s+([-\d.]+)\s+([-\d.]+)(?:\s*\/\s*([\d.%]+))?\s*\)/i);
-      if (match) {
-        let [, lStr, aStr, bStr, alphaStr] = match;
-        let L = lStr.endsWith("%") ? parseFloat(lStr) / 100 : parseFloat(lStr);
-        let aLab = parseFloat(aStr);
-        let bLab = parseFloat(bStr);
-        let A = alphaStr ? (alphaStr.endsWith("%") ? parseFloat(alphaStr) / 100 : parseFloat(alphaStr)) : 1;
+    let prev;
+    let result = cssText;
+    let iterations = 0;
 
-        const l_ = L + 0.3963377774 * aLab + 0.2158037573 * bLab;
-        const m_ = L - 0.1055613458 * aLab - 0.0638541728 * bLab;
-        const s_ = L - 0.0894841775 * aLab - 1.291485548 * bLab;
-
-        const l = l_ * l_ * l_;
-        const m = m_ * m_ * m_;
-        const s = s_ * s_ * s_;
-
-        let rLin = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
-        let gLin = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
-        let bLin = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
-
-        const gamma = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
-        let r = Math.min(255, Math.max(0, Math.round(gamma(rLin) * 255)));
-        let g = Math.min(255, Math.max(0, Math.round(gamma(gLin) * 255)));
-        let b = Math.min(255, Math.max(0, Math.round(gamma(bLin) * 255)));
-
-        return A === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${A})`;
-      }
-    } catch (e) { }
-  }
-
-  // 3. Mathematical OKLCH -> sRGB fallback conversion
-  if (colorStr.includes("oklch")) {
-    try {
-      const match = colorStr.match(/oklch\(\s*([\d.%]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.%]+))?\s*\)/i);
-      if (match) {
-        let [, lStr, cStr, hStr, aStr] = match;
-        let L = lStr.endsWith("%") ? parseFloat(lStr) / 100 : parseFloat(lStr);
-        let C = parseFloat(cStr);
-        let H = parseFloat(hStr);
-        let A = aStr ? (aStr.endsWith("%") ? parseFloat(aStr) / 100 : parseFloat(aStr)) : 1;
-
-        const hRad = (H * Math.PI) / 180;
-        const aLab = C * Math.cos(hRad);
-        const bLab = C * Math.sin(hRad);
-
-        const l_ = L + 0.3963377774 * aLab + 0.2158037573 * bLab;
-        const m_ = L - 0.1055613458 * aLab - 0.0638541728 * bLab;
-        const s_ = L - 0.0894841775 * aLab - 1.291485548 * bLab;
-
-        const l = l_ * l_ * l_;
-        const m = m_ * m_ * m_;
-        const s = s_ * s_ * s_;
-
-        let rLin = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
-        let gLin = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
-        let bLin = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
-
-        const gamma = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
-        let r = Math.min(255, Math.max(0, Math.round(gamma(rLin) * 255)));
-        let g = Math.min(255, Math.max(0, Math.round(gamma(gLin) * 255)));
-        let b = Math.min(255, Math.max(0, Math.round(gamma(bLin) * 255)));
-
-        return A === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${A})`;
-      }
-    } catch (e) { }
-  }
-
-  return colorStr;
-}
-
-function replaceModernColorsInCssText(cssText) {
-  if (!cssText || typeof cssText !== "string" || !/(?:oklch|oklab|color|color-mix|light-dark)/i.test(cssText)) {
-    return cssText;
-  }
-
-  let prev;
-  let result = cssText;
-  let iterations = 0;
-
-  while (result !== prev && iterations < 5) {
-    prev = result;
-    result = result.replace(/(?:oklch|oklab|color-mix|light-dark|color)\((?:[^()]+|\([^()]*\))*\)/gi, (match) => {
-      return convertModernColorToRgb(match);
-    });
-    iterations++;
-  }
-  return result;
-}
-
-function sanitizeModernColorsNodeTree(rootNode, doc) {
-  const defaultView = doc?.defaultView || window;
-
-  if (doc) {
-    // 1. Sanitize style tags
-    const styleEls = doc.querySelectorAll("style");
-    styleEls.forEach((styleEl) => {
-      if (styleEl.textContent && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(styleEl.textContent)) {
-        styleEl.textContent = replaceModernColorsInCssText(styleEl.textContent);
-      }
-    });
-
-    // 2. Sanitize stylesheet rules
-    try {
-      Array.from(doc.styleSheets || []).forEach((sheet) => {
-        try {
-          Array.from(sheet.cssRules || []).forEach((rule) => {
-            if (rule.style && rule.style.cssText && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(rule.style.cssText)) {
-              rule.style.cssText = replaceModernColorsInCssText(rule.style.cssText);
-            }
-          });
-        } catch (e) {
-          // ignore cross-origin sheet errors
-        }
+    while (result !== prev && iterations < 5) {
+      prev = result;
+      result = result.replace(/(?:oklch|oklab|color-mix|light-dark|color)\((?:[^()]+|\([^()]*\))*\)/gi, (match) => {
+        return convertModernColorToRgb(match);
       });
-    } catch (e) { }
+      iterations++;
+    }
+    return result;
   }
 
-  // 3. Sanitize all elements in tree
-  const elements = [rootNode, ...rootNode.querySelectorAll("*")];
-  const colorProps = [
-    "color",
-    "backgroundColor",
-    "borderColor",
-    "borderTopColor",
-    "borderRightColor",
-    "borderBottomColor",
-    "borderLeftColor",
-    "outlineColor",
-    "fill",
-    "stroke",
-  ];
+  function sanitizeModernColorsNodeTree(rootNode, doc) {
+    const defaultView = doc?.defaultView || window;
 
-  elements.forEach((el) => {
-    const inlineStyle = el.getAttribute("style");
-    if (inlineStyle && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(inlineStyle)) {
-      el.setAttribute("style", replaceModernColorsInCssText(inlineStyle));
-    }
-
-    try {
-      const computed = defaultView.getComputedStyle(el);
-      colorProps.forEach((prop) => {
-        const val = computed[prop];
-        if (val && typeof val === "string" && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(val)) {
-          el.style[prop] = convertModernColorToRgb(val);
+    if (doc) {
+      // 1. Sanitize style tags
+      const styleEls = doc.querySelectorAll("style");
+      styleEls.forEach((styleEl) => {
+        if (styleEl.textContent && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(styleEl.textContent)) {
+          styleEl.textContent = replaceModernColorsInCssText(styleEl.textContent);
         }
       });
 
-      const boxShadow = computed.boxShadow;
-      if (boxShadow && typeof boxShadow === "string" && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(boxShadow)) {
-        el.style.boxShadow = replaceModernColorsInCssText(boxShadow);
+      // 2. Sanitize stylesheet rules
+      try {
+        Array.from(doc.styleSheets || []).forEach((sheet) => {
+          try {
+            Array.from(sheet.cssRules || []).forEach((rule) => {
+              if (rule.style && rule.style.cssText && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(rule.style.cssText)) {
+                rule.style.cssText = replaceModernColorsInCssText(rule.style.cssText);
+              }
+            });
+          } catch (e) {
+            // ignore cross-origin sheet errors
+          }
+        });
+      } catch (e) { }
+    }
+
+    // 3. Sanitize all elements in tree
+    const elements = [rootNode, ...rootNode.querySelectorAll("*")];
+    const colorProps = [
+      "color",
+      "backgroundColor",
+      "borderColor",
+      "borderTopColor",
+      "borderRightColor",
+      "borderBottomColor",
+      "borderLeftColor",
+      "outlineColor",
+      "fill",
+      "stroke",
+    ];
+
+    elements.forEach((el) => {
+      const inlineStyle = el.getAttribute("style");
+      if (inlineStyle && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(inlineStyle)) {
+        el.setAttribute("style", replaceModernColorsInCssText(inlineStyle));
       }
 
-      const textShadow = computed.textShadow;
-      if (textShadow && typeof textShadow === "string" && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(textShadow)) {
-        el.style.textShadow = replaceModernColorsInCssText(textShadow);
+      try {
+        const computed = defaultView.getComputedStyle(el);
+        colorProps.forEach((prop) => {
+          const val = computed[prop];
+          if (val && typeof val === "string" && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(val)) {
+            el.style[prop] = convertModernColorToRgb(val);
+          }
+        });
+
+        const boxShadow = computed.boxShadow;
+        if (boxShadow && typeof boxShadow === "string" && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(boxShadow)) {
+          el.style.boxShadow = replaceModernColorsInCssText(boxShadow);
+        }
+
+        const textShadow = computed.textShadow;
+        if (textShadow && typeof textShadow === "string" && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(textShadow)) {
+          el.style.textShadow = replaceModernColorsInCssText(textShadow);
+        }
+      } catch (e) {
+        // ignore non-element nodes
       }
-    } catch (e) {
-      // ignore non-element nodes
-    }
-  });
-}
+    });
+  }
 
   const handleDownloadPdf = async () => {
     setIsPdfGenerating(true);
@@ -731,11 +731,11 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
   };
 
   const openDetails = (id, label) => {
-    const a = assignments[id];
+    const a = effectiveAssignments[id] || assignments[id];
     setSelectedPosition({
       slotId: id,
       role: a?.positionName || a?.slotLabel || label,
-      memberName: a?.name || null,
+      memberName: a?.name || a?.memberName || null,
       company: a?.company || null,
       mobileNumber: a?.mobileNumber || null,
       email: a?.email || null,
@@ -746,7 +746,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
       assignedDate: a?.assignedDate || null,
       memberId: a?.memberId || null,
       memberNumber: a?.memberNumber || null,
-      status: a?.status || null,
+      status: a?.status || "registered",
       profileImage: a?.photoUrl || a?.profileImage || null,
       positionDescription: a?.positionDescription || null,
       assignedUserName: a?.assignedUserName || null,
@@ -912,6 +912,11 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
     }
     if (isPreviewMode) {
       if (a?.name) openDetails(id, label);
+      return;
+    }
+    if (id?.startsWith("chairman-")) {
+      const eff = effectiveAssignments[id] || a;
+      if (eff?.name) openDetails(id, label);
       return;
     }
     if (a?.name) {
@@ -1354,12 +1359,20 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                   })}
                 </div>
 
-                <div className="border-t border-ink/20 my-0.5" />
-
+                <div className="relative flex justify-center items-center py-0.5">
+                  <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[2px] bg-[#1a2e5e]" />
+                  <div className="relative z-10">
+                    <div className="relative bg-[#b5121b] text-white text-[11px] font-bold uppercase px-6 py-[2px] w-[180px] text-center rounded-t-sm rounded-b-xl">
+                      Chairmans
+                    </div>
+                  </div>
+                </div>
                 <div className="grid grid-cols-5 gap-x-2.5 gap-y-1">
                   {chairmenP2.map((i) => {
                     const slotId = `chairman-${i + 1}`;
-                    const label = `${constituencyWards[i]?.ward_number || `${gCode}.${i + 1}`} Chairman`;
+                    console.log("constituencyWards[i]?.ward_number:", constituencyWards);
+                    console.log("constituencyWards[i]:", constituencyWards[i]);
+                    const label = `${constituencyWards[i]?.ward_name || `${gCode}.${i + 1}`} Chairman`;
                     return (
                       <div key={slotId}>
                         <p className="text-[8px] font-bold text-brick text-center mb-[1px] uppercase truncate">{label}</p>
@@ -1369,7 +1382,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                           assigned={effectiveAssignments[slotId]}
                           dimmed={isDimmed(slotId, "chairmen", effectiveAssignments[slotId]?.name)}
                           onAssignClick={slotClickProp}
-                          showPlus={!isPreviewMode}
+                          showPlus={false}
                           isSuperAdmin={isSuperAdmin}
                         />
                       </div>
@@ -1398,7 +1411,7 @@ function sanitizeModernColorsNodeTree(rootNode, doc) {
                                 assigned={effectiveAssignments[slotId]}
                                 dimmed={isDimmed(slotId, "chairmen", effectiveAssignments[slotId]?.name)}
                                 onAssignClick={slotClickProp}
-                                showPlus={!isPreviewMode}
+                                showPlus={false}
                                 isSuperAdmin={isSuperAdmin}
                               />
                             </div>

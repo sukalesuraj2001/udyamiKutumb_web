@@ -48,7 +48,8 @@ export default function WardCard({ ward, constituencyWardCount }) {
 
   const { ward_name, ward_number } = ward;
 
-  const actualBuilt = Number(ward.totalMembers ?? ward.totalWardChartMembers ?? ward.booths_built ?? 0);
+  const rawActualBuilt = Number(ward.totalMembers ?? ward.totalWardChartMembers ?? ward.booths_built ?? 0);
+  const actualBuilt = rawActualBuilt === 0 ? 1 : rawActualBuilt;
   const wardLength = constituencyWardCount || ward.constituencyWardCount || ward.wardsCount;
   const booths_total = Number(ward.layoutCount ?? ward.booths_total ?? 103);
 

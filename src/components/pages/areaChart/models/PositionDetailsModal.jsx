@@ -41,7 +41,7 @@ export default function PositionDetailsModal({ open, position, onClose, onReassi
   } = position;
 
   const photo = profileImage || photoUrl || null;
-  const isActive = status === "active" || status === "registered" || status === true;
+  const isActive = status !== "inactive" && status !== false;
   const displayStatus = isActive ? "Active" : "Inactive";
 
   /* ── initials fallback ── */
@@ -194,20 +194,6 @@ export default function PositionDetailsModal({ open, position, onClose, onReassi
           )}
         </div>
 
-        {/* ── Bottom CTA strip ── */}
-        <div className="px-6 py-3.5 border-t border-slate-100 bg-slate-50 flex items-center gap-2">
-          {onReassign && (
-            <button
-              onClick={() => {
-                onClose();
-                onReassign(position.slotId, position.role);
-              }}
-              className="w-full py-2.5 rounded-xl text-[12px] font-bold text-white bg-gradient-to-r from-[#1a2e5e] to-[#c8102e] hover:opacity-95 transition-all flex items-center justify-center gap-2 shadow-xs"
-            >
-              <UserCircle2 size={15} /> Change / Reassign Member
-            </button>
-          )}
-        </div>
       </div>
     </div>
   );
