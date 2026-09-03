@@ -181,14 +181,15 @@ const WardChairmanDashboard = () => {
   // ── 1. Fetch Ward Location & Chairman Specific Data ────────
   useEffect(() => {
     if (user?.userId) {
-      dispatch(getLocationByWardHeadId(user.userId));
+      const positionId = user?.position?.positionId || localStorage.getItem("positionId") || user.userId;
+      dispatch(getLocationByWardHeadId(positionId));
       dispatch(fetchCloudPatraInterviewsByWardChairman(user.userId));
       dispatch(fetchCpSubmissions(user.userId));
       if (token) {
         dispatch(getAllRoutesByChairman({ wardChairmanId: user.userId, token }));
       }
     }
-  }, [dispatch, user?.userId, token]);
+  }, [dispatch, user?.userId, user?.position?.positionId, token]);
 
   // ── 2. Fetch Ward Scoped Data when Ward Name / Id Available 
   useEffect(() => {

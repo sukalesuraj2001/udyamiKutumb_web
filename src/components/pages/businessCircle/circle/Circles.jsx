@@ -290,9 +290,10 @@ export default function Circles() {
   useEffect(() => {
     const locData = localStorage.getItem("locationData");
     if (!locData && userId) {
-      dispatch(getLocationByWardHeadId(userId));
+      const positionId = user?.position?.positionId || localStorage.getItem("positionId") || userId;
+      dispatch(getLocationByWardHeadId(positionId));
     }
-  }, [dispatch, userId]);
+  }, [dispatch, userId, user?.position?.positionId]);
 
   // Determine user location ID and role type (district vs taluka)
   const { entityId, entityType } = useMemo(() => {

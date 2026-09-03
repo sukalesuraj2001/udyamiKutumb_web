@@ -5,12 +5,26 @@ const API_BASE = "https://backend.udyamikutumba.com";
 
 const loadFromStorage = () => {
   try {
+    const user = JSON.parse(localStorage.getItem("user")) || null;
+    const positionHolderId =
+      localStorage.getItem("positionHolderId") ||
+      sessionStorage.getItem("positionHolderId") ||
+      user?.position?.positionHolderId ||
+      null;
+    const positionId =
+      localStorage.getItem("positionId") ||
+      sessionStorage.getItem("positionId") ||
+      user?.position?.positionId ||
+      null;
+
     return {
-      user: JSON.parse(localStorage.getItem("user")) || null,
+      user,
       token: localStorage.getItem("token") || null,
+      positionHolderId,
+      positionId,
     };
   } catch {
-    return { user: null, token: null };
+    return { user: null, token: null, positionHolderId: null, positionId: null };
   }
 };
 
@@ -73,10 +87,16 @@ const authSlice = createSlice({
     logout(state) {
       state.user = null;
       state.token = null;
+      state.positionHolderId = null;
+      state.positionId = null;
       state.status = "idle";
       state.error = null;
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      localStorage.removeItem("positionHolderId");
+      sessionStorage.removeItem("positionHolderId");
+      localStorage.removeItem("positionId");
+      sessionStorage.removeItem("positionId");
       localStorage.removeItem("locationData");   
       sessionStorage.removeItem("locationData"); 
     },
@@ -99,8 +119,38 @@ const authSlice = createSlice({
       state.token = action.payload.accessToken;
       state.error = null;
 
+      const positionHolderId =
+        action.payload.user?.position?.positionHolderId ||
+        action.payload.user?.positionHolderId ||
+        action.payload.positionHolderId ||
+        "";
+      const positionId =
+        action.payload.user?.position?.positionId ||
+        action.payload.user?.positionId ||
+        action.payload.positionId ||
+        "";
+
+      state.positionHolderId = positionHolderId || null;
+      state.positionId = positionId || null;
+
       localStorage.setItem("token", action.payload.accessToken);
       localStorage.setItem("user", JSON.stringify(action.payload.user));
+
+      if (positionHolderId) {
+        localStorage.setItem("positionHolderId", positionHolderId);
+        sessionStorage.setItem("positionHolderId", positionHolderId);
+      } else {
+        localStorage.removeItem("positionHolderId");
+        sessionStorage.removeItem("positionHolderId");
+      }
+
+      if (positionId) {
+        localStorage.setItem("positionId", positionId);
+        sessionStorage.setItem("positionId", positionId);
+      } else {
+        localStorage.removeItem("positionId");
+        sessionStorage.removeItem("positionId");
+      }
     };
 
     builder
@@ -117,5 +167,7 @@ const authSlice = createSlice({
 });
 export const selectToken = (state) => state.auth.token;
 export const selectUser = (state) => state.auth.user;
+export const selectPositionHolderId = (state) => state.auth.positionHolderId;
+export const selectPositionId = (state) => state.auth.positionId;
 export const { logout, clearAuthError } = authSlice.actions;
 export default authSlice.reducer;

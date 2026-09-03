@@ -262,7 +262,8 @@ const TalukHeadDashboard = () => {
   // ── Fetch Data on Mount / User change ─────────────────────
   const loadData = () => {
     if (user?.userId) {
-      dispatch(getLocationByWardHeadId(user.userId));
+      const positionId = user?.position?.positionId || localStorage.getItem("positionId") || user.userId;
+      dispatch(getLocationByWardHeadId(positionId));
     }
     if (user?.taluka) {
       dispatch(fetchUsersByTaluka(user.taluka));

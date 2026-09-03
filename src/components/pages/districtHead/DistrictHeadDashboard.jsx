@@ -263,7 +263,8 @@ const DistrictHeadDashboard = () => {
     setIsRefreshing(true);
     try {
       if (user?.userId) {
-        dispatch(getLocationByWardHeadId(user.userId));
+        const positionId = user?.position?.positionId || localStorage.getItem("positionId") || user.userId;
+        dispatch(getLocationByWardHeadId(positionId));
       }
 
       dispatch(fetchHeadsByRole(ROLES.TALUKA_HEAD));

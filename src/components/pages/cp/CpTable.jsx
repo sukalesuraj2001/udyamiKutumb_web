@@ -454,8 +454,9 @@ const CpTable = ({ wardId: propWardId }) => {
   const [selectedIdx, setSelectedIdx] = useState(0);
 
   useEffect(() => {
-    if (!wardId && userId) dispatch(getLocationByWardHeadId(userId));
-  }, [wardId, userId, dispatch]);
+    const positionId = user?.position?.positionId || localStorage.getItem("positionId") || userId;
+    if (!wardId && (positionId || userId)) dispatch(getLocationByWardHeadId(positionId));
+  }, [wardId, userId, user?.position?.positionId, dispatch]);
 
   useEffect(() => {
     if (wardId) dispatch(fetchChannelPartnersByWard(wardId));

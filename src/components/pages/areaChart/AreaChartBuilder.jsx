@@ -30,9 +30,10 @@ export default function AreaChartBuilder() {
   // ── Fetch ward list on mount (or when userId changes) ──
   useEffect(() => {
     if (user?.userId) {
-      dispatch(getLocationByWardHeadId(user.userId));
+      const positionId = user?.position?.positionId || localStorage.getItem("positionId") || user.userId;
+      dispatch(getLocationByWardHeadId(positionId));
     }
-  }, [dispatch, user?.userId]);
+  }, [dispatch, user?.userId, user?.position?.positionId]);
 
   // ── Derived data ──────────────────────────────────────────────
   const constituencies = useMemo(

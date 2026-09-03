@@ -470,9 +470,10 @@ export default function CloudPatraApplications() {
   // 1. Fetch location hierarchy if wardId is not available yet
   useEffect(() => {
     if (!wardId && userId) {
-      dispatch(getLocationByWardHeadId(userId));
+      const positionId = user?.position?.positionId || localStorage.getItem("positionId") || userId;
+      dispatch(getLocationByWardHeadId(positionId));
     }
-  }, [wardId, userId, dispatch]);
+  }, [wardId, userId, user?.position?.positionId, dispatch]);
 
   // 2. Fetch applications when wardId is available
   useEffect(() => {

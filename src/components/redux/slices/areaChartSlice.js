@@ -106,14 +106,21 @@ export const getWardName = () => {
 
 export const getLocationByWardHeadId = createAsyncThunk(
   "areaChart/getLocationByWardHeadId",
-  async (userId, { getState, dispatch, rejectWithValue }) => {
+  async (inputParam, { getState, dispatch, rejectWithValue }) => {
     dispatch(showLoader());
     try {
       const token = getState().auth.token;
       const role = getState().auth.user?.role;
+      const user = getState().auth.user;
+
+      const positionId =
+        user?.position?.positionId ||
+        localStorage.getItem("positionId") ||
+        sessionStorage.getItem("positionId") ||
+        inputParam;
 
       const { data } = await axios.get(
-        `${BASE_URL}/ward-chart/hierarchy/${userId}`,
+        `${BASE_URL}/ward-chart/hierarchy/${positionId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

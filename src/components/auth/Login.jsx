@@ -56,10 +56,11 @@ export default function Login() {
     const { user, accessToken } = result.payload ?? {};
     const role = user?.role;
     const userId = user?.userId;
+    const positionId = user?.position?.positionId || localStorage.getItem("positionId") || userId;
 
     // ── Hierarchy dispatch (localStorage storage thunk la நடக்கும்) ──
-    if (userId && ["DistrictHead", "TalukHead", "WardChairman"].includes(role)) {
-      await dispatch(getLocationByWardHeadId(userId));
+    if ((positionId || userId) && ["DistrictHead", "TalukHead", "WardChairman"].includes(role)) {
+      await dispatch(getLocationByWardHeadId(positionId));
     }
 
     navigate(ROLE_ROUTES[role] ?? "/dashboard");

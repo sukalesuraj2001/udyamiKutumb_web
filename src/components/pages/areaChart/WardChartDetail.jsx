@@ -359,9 +359,10 @@ export default function WardChartDetail() {
       lastWardIdRef.current = ward.id;
     }
     if (user?.userId && (!wards || wards.length === 0)) {
-      dispatch(getLocationByWardHeadId(user.userId));
+      const positionId = user?.position?.positionId || localStorage.getItem("positionId") || user.userId;
+      dispatch(getLocationByWardHeadId(positionId));
     }
-  }, [dispatch, targetUserId, ward.id, user?.userId]);
+  }, [dispatch, targetUserId, ward.id, user?.userId, user?.position?.positionId]);
 
   useEffect(() => {
     if (fetchStatus === "succeeded" && fetchedData) {
