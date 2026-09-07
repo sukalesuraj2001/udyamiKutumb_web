@@ -75,13 +75,27 @@ function getMemberPhotoUrl(member) {
 function MemberCard({ member, selected, onSelect }) {
   const role = member.userRoles?.[0]?.role;
   const photo = getMemberPhotoUrl(member);
+  // /userprofile/search-users can return a member who is already assigned to
+  // some position elsewhere — that flag can sit at the top level or nested
+  // under profile. Block re-selecting them here instead of allowing a
+  // duplicate assignment.
+  const alreadyAssigned =
+    member.isAssigned === true || member.profile?.isAssigned === true;
 
   return (
     <button
-      onClick={() => onSelect(member)}
-      className={`w-full text-left px-4 py-3.5 rounded-2xl border transition-all duration-150 ${selected
-          ? "border-amber bg-amber/5 shadow-sm"
-          : "border-hairline hover:border-amber/40 hover:bg-ink/[.02]"
+      type="button"
+      onClick={() => {
+        if (alreadyAssigned) return;
+        onSelect(member);
+      }}
+      disabled={alreadyAssigned}
+      aria-disabled={alreadyAssigned}
+      className={`w-full text-left px-4 py-3.5 rounded-2xl border transition-all duration-150 ${alreadyAssigned
+          ? "cursor-not-allowed opacity-60 border-hairline bg-ink/[.02]"
+          : selected
+            ? "border-amber bg-amber/5 shadow-sm"
+            : "border-hairline hover:border-amber/40 hover:bg-ink/[.02]"
         }`}
     >
       <div className="flex items-start gap-3">
@@ -93,6 +107,11 @@ function MemberCard({ member, selected, onSelect }) {
             <span className="text-[13.5px] font-semibold text-ink truncate">
               {member.name}
             </span>
+            {alreadyAssigned && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-semibold uppercase tracking-wide">
+                Already Assigned
+              </span>
+            )}
             {role && <RoleBadge role={role} />}
             {member.isPrime && (
               <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-600 text-[10px] font-semibold">

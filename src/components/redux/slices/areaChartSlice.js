@@ -178,15 +178,50 @@ export const createWardChartData = createAsyncThunk(
     dispatch(showLoader());
     try {
       const token = getState().auth.token;
+      const authUser = getState().auth.user;
+      const assignerUserId = authUser?.userId || authUser?._id || authUser?.id || "";
 
-      const isFormData = payload instanceof FormData;
+      let finalPayload = payload;
+
+      const processMembers = (membersArr = []) => {
+        return membersArr.map((m) => ({
+          ...m,
+          userId: m.userId || m.memberId || "",
+          isAssigned: m.isAssigned !== undefined ? m.isAssigned : true,
+          assignedBy: m.assignedBy || assignerUserId,
+        }));
+      };
+
+      if (payload instanceof FormData) {
+        const dataStr = payload.get("data");
+        if (dataStr) {
+          try {
+            const parsed = JSON.parse(dataStr);
+            if (Array.isArray(parsed.members) && parsed.members.length > 0) {
+              parsed.members = processMembers(parsed.members);
+              payload.set("data", JSON.stringify(parsed));
+            }
+          } catch (e) {
+            console.error("Error processing members in FormData:", e);
+          }
+        }
+      } else if (payload && typeof payload === "object") {
+        if (Array.isArray(payload.members) && payload.members.length > 0) {
+          finalPayload = {
+            ...payload,
+            members: processMembers(payload.members),
+          };
+        }
+      }
+
+      const isFormData = finalPayload instanceof FormData;
       const headers = isFormData
         ? { Authorization: `Bearer ${token}` }
         : { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
       const { data } = await axios.post(
         `${BASE_URL}/ward-chart/createWardChartData`,
-        payload,
+        finalPayload,
         { headers }
       );
 

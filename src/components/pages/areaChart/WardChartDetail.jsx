@@ -110,6 +110,25 @@ const DEFAULT_CONFIG = {
   })),
 };
 
+// Rejected thunks can resolve to a plain string, or to an object like
+// { message, error, statusCode } (e.g. a 409 Conflict from
+// createWardChartData). Rendering that object directly as a JSX child
+// throws "Objects are not valid as a React child" and — with no error
+// boundary above it — blanks the entire page instead of showing the error.
+// Always coerce through this before putting an error value into text.
+function getErrorMessage(err) {
+  if (!err) return "";
+  if (typeof err === "string") return err;
+  if (typeof err === "object") {
+    return (
+      err.message ||
+      (typeof err.error === "string" ? err.error : null) ||
+      "Something went wrong"
+    );
+  }
+  return String(err);
+}
+
 const CORE_ROLES = ["President", "Vice-President", "General Secretary", "Treasurer"];
 
 function userTypeFromSlotId(slotId) {
@@ -158,6 +177,8 @@ function buildSingleMemberPayload(ward, user, slotId, assignmentData) {
   if (slotId.startsWith("sector-")) sectorKey = slotId.replace("sector-", "");
   if (slotId.startsWith("ums-")) umsKey = slotId.replace("ums-", "");
 
+  const assignerUserId = user?.userId || user?._id || user?.id || "";
+
   const memberObj = {
     userType: userTypeFromSlotId(slotId),
     slotId,
@@ -168,10 +189,13 @@ function buildSingleMemberPayload(ward, user, slotId, assignmentData) {
     profileImage: assignmentData.photoUrl || "",
     status: assignmentData.status || "registered",
     slotLabel: assignmentData.slotLabel || slotId,
+    isAssigned: true,
+    assignedBy: assignerUserId,
   };
 
+  const assignedUserId = assignmentData.userId || assignmentData.memberId || "";
+  if (assignedUserId) memberObj.userId = assignedUserId;
   if (assignmentData.memberId) memberObj.memberId = assignmentData.memberId;
-  if (assignmentData.userId) memberObj.userId = assignmentData.userId;
   if (coreRoleMap[slotId]) memberObj.coreRole = coreRoleMap[slotId];
   if (sectorKey) memberObj.sectorKey = sectorKey;
   if (umsKey) memberObj.umsKey = umsKey;
@@ -193,14 +217,15 @@ function PageFooter({ num }) {
   );
 }
 
-function ChartPage({ pageLabel, pageNum, ward, children }) {
+function ChartPage({ pageLabel, pageNum, ward, children, hideWardCode = false, wardNameOverride }) {
   return (
     <ChartPreviewFrame pageLabel={pageLabel}>
       <div className="flex flex-col h-full bg-white">
         <ChartHeaderBanner
           code={ward.g_code || ward.ward_number}
-          wardName={ward.ward_name}
+          wardName={wardNameOverride ?? ward.ward_name}
           region={ward.region || ward.district || ward.constituency}
+          hideCode={hideWardCode}
         />
         <div className="flex-1 flex flex-col min-h-0 overflow-visible">{children}</div>
         <PageFooter num={pageNum} />
@@ -263,6 +288,14 @@ export default function WardChartDetail() {
   const channelPartners = useSelector(selectChannelPartners);
   const patrons = useSelector(selectPatrons);
   const umsMembers = useSelector(selectUmsMembers);
+
+  // Taluka name for the "MLA · Patrons · Chairmen" page banner (Page 2),
+  // which shows the taluka instead of the ward code/name shown elsewhere.
+  const talukaName =
+    fetchedData?.data?.taluka?.talukaName ||
+    ward?.taluka?.talukaName ||
+    ward?.talukaName ||
+    "";
 
   const [errorModalData, setErrorModalData] = useState(null);
   const activeError = errorModalData || apiError;
@@ -700,11 +733,70 @@ export default function WardChartDetail() {
     }
   };
 
+  // ── Duplicate mobile/email guard ───────────────────────────────
+  // Prevents the same person (matched by mobile number or email) from being
+  // assigned to more than one slot — e.g. the Ward Head being re-assigned as
+  // President with the same contact details.
+  const normalizeContact = (val) => (val || "").toString().trim().toLowerCase();
+
+  const findDuplicateContact = (mobileNumber, email, slotId) => {
+    const mobile = normalizeContact(mobileNumber);
+    const mail = normalizeContact(email);
+    if (!mobile && !mail) return null;
+
+    const isSameContact = (candMobile, candEmail) => {
+      const cm = normalizeContact(candMobile);
+      const ce = normalizeContact(candEmail);
+      return (mobile && cm && cm === mobile) || (mail && ce && ce === mail);
+    };
+
+    // 1) The Ward Head who owns this chart
+    const wardHead = fetchedData?.data?.wardHead;
+    if (wardHead && isSameContact(wardHead.mobileNumber, wardHead.email)) {
+      return { name: wardHead.name, role: "Ward Head" };
+    }
+
+    // 2) Members already saved on the server for this chart
+    // (guarded with Array.isArray — the API can return `members` as `{}`/null
+    // instead of `[]` when the chart has no members yet, which isn't iterable)
+    const savedMembers = Array.isArray(fetchedData?.data?.members) ? fetchedData.data.members : [];
+    for (const m of savedMembers) {
+      if (!m || m.slotId === slotId) continue;
+      if (isSameContact(m.mobileNumber, m.email)) {
+        return { name: m.name, role: m.slotLabel || m.coreRole || m.slotId };
+      }
+    }
+
+    // 3) Slots currently held in local UI state (covers chairmen/patrons
+    //    merged in on the client that may not be in `members` yet)
+    for (const [sid, a] of Object.entries(effectiveAssignments || {})) {
+      if (!a || sid === slotId) continue;
+      if (isSameContact(a.mobileNumber, a.email)) {
+        return { name: a.name, role: a.slotLabel || sid };
+      }
+    }
+
+    return null;
+  };
+
+  const duplicateContactError = (duplicate) => ({
+    message: `${duplicate.name || "This member"} is already assigned as ${duplicate.role}. The same mobile number / email cannot be assigned to another position.`,
+    error: "Duplicate Member",
+    statusCode: 409,
+  });
+
   // ── Assign handler ────────────────────────────────────────────
   const handleAssign = (data) => {
     const slotId = modal.slotId;
     const photoFile = data.photoFile;
     const photoUrl = data.photoUrl;
+
+    const duplicate = findDuplicateContact(data.mobileNumber, data.email, slotId);
+    if (duplicate) {
+      setErrorModalData(duplicateContactError(duplicate));
+      return;
+    }
+
     setModal(null);
 
     const isCommon = isBlockedForWardChairman(slotId);
@@ -808,6 +900,13 @@ export default function WardChartDetail() {
       selectedMember.memberId ||
       selectedMember.assignmentId ||
       null;
+
+    const duplicate = findDuplicateContact(mobileToAssign, emailToAssign, slotId);
+    if (duplicate) {
+      setErrorModalData(duplicateContactError(duplicate));
+      setSidePanelSlot(null);
+      return;
+    }
 
     const payload = buildSingleMemberPayload(ward, user, slotId, {
       name: nameToAssign,
@@ -1137,7 +1236,13 @@ export default function WardChartDetail() {
             !slotId.startsWith("chairman-") &&
             slotId !== "hero-image" &&
             a &&
-            a.name
+            a.name &&
+            // For the WardChairman role, the All Assignments table should
+            // only list this ward's own positions (Sector, Advisory,
+            // Mentor, UMS, Leadership...) — MLA/Official/Patron/Chairman
+            // are constituency-level assignments managed elsewhere, not
+            // something a ward chairman assigns or should see listed here.
+            !(isWardChairman && isBlockedForWardChairman(slotId))
         )
         .map(([slotId, a]) => ({
           name: a.name,
@@ -1151,7 +1256,7 @@ export default function WardChartDetail() {
           email: a.email || null,
           profileImage: a.photoUrl || a.profileImage || null,
         })),
-    [effectiveAssignments]
+    [effectiveAssignments, isWardChairman]
   );
 
   const reduxWardCount = constituencyWards.length > 0 ? constituencyWards.length : (reduxWards.length > 0 ? reduxWards.length : null);
@@ -1231,7 +1336,9 @@ export default function WardChartDetail() {
         <p className="text-[12px] text-green-600 font-medium">Chart saved successfully.</p>
       )}
       {isWardChairman && apiStatus === "failed" && apiError && (
-        <p className="text-[12px] text-red-600 font-medium">Save failed: {apiError}</p>
+        <p className="text-[12px] text-red-600 font-medium">
+          Save failed: {getErrorMessage(apiError)}
+        </p>
       )}
 
       {/* ── Action Buttons ── */}
@@ -1295,7 +1402,13 @@ export default function WardChartDetail() {
         {!isWardChairman && (
           <>
             {/* ══════ PAGE 2 — MLA + Officials + Patrons + Chairmen ══════ */}
-            <ChartPage pageLabel={`MLA · Patrons · Chairmen (1–${p2Count})`} pageNum={2} ward={ward}>
+            <ChartPage
+              pageLabel={`MLA · Patrons · Chairmen (1–${p2Count})`}
+              pageNum={2}
+              ward={ward}
+              hideWardCode
+              wardNameOverride={talukaName || ward.ward_name}
+            >
               <div className="px-6 py-1 space-y-1">
                 <div className="flex justify-center pt-0">
                   <MlaCard

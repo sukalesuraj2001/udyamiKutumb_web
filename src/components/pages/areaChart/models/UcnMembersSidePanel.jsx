@@ -14,7 +14,11 @@ import {
   Sparkles,
   ChevronDown,
 } from "lucide-react";
-import { searchMembers } from "../../../redux/slices/areaChartSlice.js";
+import {
+  searchMembers,
+  selectSearchResults,
+  selectSearchStatus,
+} from "../../../redux/slices/areaChartSlice.js";
 
 const BASE_URL = "https://backend.udyamikutumba.com";
 
@@ -48,9 +52,14 @@ export default function UcnMembersSidePanel({
   const dispatch = useDispatch();
   const authUser = useSelector((state) => state.auth?.user);
   const token = useSelector((state) => state.auth?.token);
+  const searchResults = useSelector(selectSearchResults);
+  const searchStatus = useSelector(selectSearchStatus);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMember, setSelectedMember] = useState(null);
+  // When true (Channel Partner panel only), the list shows ward members
+  // fetched via /userprofile/search-users instead of the channel partner list.
+  const [showWardMembers, setShowWardMembers] = useState(false);
 
   // Location data fallback
   const locationData = useMemo(() => {
@@ -186,13 +195,39 @@ export default function UcnMembersSidePanel({
   const isUms = panelType === "ums" || (slotId && slotId.startsWith("ums-"));
   const isPatron = panelType === "patron" || (slotId && slotId.startsWith("patron-"));
   const isChannelPartner = panelType === "channelPartner" || (slotId && slotId.startsWith("product-"));
-  const targetMembers = isUms
-    ? umsMembers
-    : isPatron
-      ? patrons
-      : isChannelPartner
-        ? channelPartners
-        : ucnMembers;
+  const isWardMembersView = isChannelPartner && showWardMembers;
+  const targetMembers = isWardMembersView
+    ? searchResults
+    : isUms
+      ? umsMembers
+      : isPatron
+        ? patrons
+        : isChannelPartner
+          ? channelPartners
+          : ucnMembers;
+
+  // ── Get Ward Members (Channel Partner panel only) ──
+  // Calls /userprofile/search-users (via searchMembers) scoped to this ward
+  // and swaps the list source to show only that ward's members.
+  const handleGetWardMembers = () => {
+    setShowWardMembers(true);
+    setSearchQuery("");
+    setSelectedMember(null);
+    dispatch(
+      searchMembers({
+        wardName: wardName || selectedWard || locationData?.wardName || "",
+        talukaId: propsTalukaId || locationData?.talukaId || "",
+        districtId: propsDistrictId || locationData?.districtId || "",
+        role: propsRole,
+      })
+    );
+  };
+
+  const handleBackToChannelPartners = () => {
+    setShowWardMembers(false);
+    setSearchQuery("");
+    setSelectedMember(null);
+  };
 
   const targetTypes = useMemo(() => {
     if (!slotId) return [];
@@ -221,8 +256,16 @@ export default function UcnMembersSidePanel({
 
     let list = [...targetMembers];
 
-    // Filter by ward if selectedWard is specified or hideWardFilter is active
-    const activeWard = selectedWard || (hideWardFilter ? wardName : "");
+    // Filter by ward if selectedWard is specified or hideWardFilter is active.
+    // Skipped for channel partners: that list is already scoped to the
+    // selected ward server-side (fetchChannelPartners is called with
+    // wardId), and the only ward-ish fields available on a CP record
+    // (businessLocation/officeLocation) are free-text city/district
+    // strings unrelated to the assigned ward — matching against them
+    // incorrectly drops correct results (e.g. a CP whose business
+    // address is "Hubballi, Karnataka" but who is assigned to ward
+    // "Mathikere").
+    const activeWard = !isChannelPartner && (selectedWard || (hideWardFilter ? wardName : ""));
     if (activeWard) {
       const wLower = activeWard.trim().toLowerCase();
       list = list.filter((m) => {
@@ -252,7 +295,7 @@ export default function UcnMembersSidePanel({
 
     const q = searchQuery.toLowerCase();
     return list.filter((m) => {
-      if (isChannelPartner) {
+      if (isChannelPartner && !isWardMembersView) {
         const cpId = (m.cpId || "").toLowerCase();
         const busName = (m.profile?.businessDetails?.businessName || "").toLowerCase();
         const services = (m.cpRegistration?.selectedServices || []).join(" ").toLowerCase();
@@ -308,12 +351,12 @@ export default function UcnMembersSidePanel({
         ucnType.includes(q)
       );
     });
-  }, [targetMembers, searchQuery, isChannelPartner, isPatron, isUms, targetTypes]);
+  }, [targetMembers, searchQuery, isChannelPartner, isWardMembersView, isPatron, isUms, targetTypes]);
 
   const handleSearchChange = (e) => {
     setSearchQuery(e.target.value);
     setSelectedMember(null);
-    if (isChannelPartner && onSearchBusiness) {
+    if (isChannelPartner && !isWardMembersView && onSearchBusiness) {
       onSearchBusiness(e.target.value);
     }
   };
@@ -323,6 +366,7 @@ export default function UcnMembersSidePanel({
     if (!open) {
       setSelectedMember(null);
       setSearchQuery("");
+      setShowWardMembers(false);
     }
   }, [open]);
 
@@ -381,13 +425,15 @@ export default function UcnMembersSidePanel({
               <input
                 type="text"
                 placeholder={
-                  isUms
-                    ? "Search by UMS designation, name, or email..."
-                    : isPatron
-                      ? "Search by patron name, business name, or email..."
-                      : isChannelPartner
-                        ? "Search by business name, CP ID, or service..."
-                        : "Search by name, email, phone..."
+                  isWardMembersView
+                    ? "Search ward members by name, email, phone..."
+                    : isUms
+                      ? "Search by UMS designation, name, or email..."
+                      : isPatron
+                        ? "Search by patron name, business name, or email..."
+                        : isChannelPartner
+                          ? "Search by business name, CP ID, or service..."
+                          : "Search by name, email, phone..."
                 }
                 value={searchQuery}
                 onChange={handleSearchChange}
@@ -404,7 +450,7 @@ export default function UcnMembersSidePanel({
                   onClick={() => {
                     setSearchQuery("");
                     setSelectedMember(null);
-                    if (isChannelPartner && onSearchBusiness) onSearchBusiness("");
+                    if (isChannelPartner && !isWardMembersView && onSearchBusiness) onSearchBusiness("");
                   }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
@@ -412,6 +458,54 @@ export default function UcnMembersSidePanel({
                 </button>
               )}
             </div>
+
+            {/* Channel Partners / Ward Members — sliding segmented toggle */}
+            {isChannelPartner && (
+              <div className="relative flex items-center bg-slate-100 border border-slate-200 rounded-lg p-1">
+                {/* Sliding highlight */}
+                <div
+                  className="absolute top-1 bottom-1 left-1 w-[calc(50%-4px)] rounded-md bg-white shadow-sm border border-slate-200 transition-transform duration-200 ease-out"
+                  style={{
+                    transform: isWardMembersView
+                      ? "translateX(calc(100% + 4px))"
+                      : "translateX(0)",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isWardMembersView) handleBackToChannelPartners();
+                  }}
+                  className={`
+                    relative z-10 flex-1 flex items-center justify-center gap-1.5
+                    py-1.5 px-2 rounded-md text-[11.5px] font-bold
+                    transition-colors
+                    ${!isWardMembersView ? "text-slate-800" : "text-slate-500 hover:text-slate-700"}
+                  `}
+                >
+                  <Building2 size={12} />
+                  Channel Partners
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isWardMembersView) handleGetWardMembers();
+                  }}
+                  disabled={searchStatus === "loading" && !isWardMembersView}
+                  className={`
+                    relative z-10 flex-1 flex items-center justify-center gap-1.5
+                    py-1.5 px-2 rounded-md text-[11.5px] font-bold
+                    transition-colors disabled:opacity-50 disabled:cursor-not-allowed
+                    ${isWardMembersView ? "text-slate-800" : "text-slate-500 hover:text-slate-700"}
+                  `}
+                >
+                  <UserCheck size={12} />
+                  {searchStatus === "loading" && !isWardMembersView
+                    ? "Loading…"
+                    : "Ward Members"}
+                </button>
+              </div>
+            )}
 
             {/* Location Filters below Search */}
             {(isSuperAdmin || isDistrictHead || isTalukaHead) && (
@@ -490,24 +584,28 @@ export default function UcnMembersSidePanel({
                   <UserPlus size={18} className="text-slate-400" />
                 </div>
                 <p className="text-[13px] font-semibold text-slate-600">
-                  {isUms
-                    ? "No UMS Management members found"
-                    : isPatron
-                      ? "No Patrons found"
-                      : isChannelPartner
-                        ? "No Channel Partners found"
-                        : "No members found"}
+                  {isWardMembersView
+                    ? "No ward members found"
+                    : isUms
+                      ? "No UMS Management members found"
+                      : isPatron
+                        ? "No Patrons found"
+                        : isChannelPartner
+                          ? "No Channel Partners found"
+                          : "No members found"}
                 </p>
                 <p className="text-[12px] text-slate-400 mt-1">
                   {searchQuery
                     ? "Try a different search term."
-                    : isUms
-                      ? "No management members returned for this ward."
-                      : isPatron
-                        ? "No patrons returned for this taluka."
-                        : isChannelPartner
-                          ? "No channel partners returned for this ward."
-                          : "No members for this ward."}
+                    : isWardMembersView
+                      ? "No members returned for this ward."
+                      : isUms
+                        ? "No management members returned for this ward."
+                        : isPatron
+                          ? "No patrons returned for this taluka."
+                          : isChannelPartner
+                            ? "No channel partners returned for this ward."
+                            : "No members for this ward."}
                 </p>
               </div>
             ) : (
@@ -558,21 +656,36 @@ export default function UcnMembersSidePanel({
                   null;
                 const emailStr = member.holder?.user?.email || member.email;
                 const phoneStr = member.holder?.user?.mobileNumber || member.mobileNumber;
+                // A user returned by /userprofile/search-users can already be
+                // assigned to some position elsewhere — that flag can sit at
+                // the top level or nested under profile. Block re-selecting
+                // them here instead of allowing a duplicate assignment.
+                const alreadyAssigned =
+                  member.isAssigned === true ||
+                  member.profile?.isAssigned === true ||
+                  member.holder?.user?.profile?.isAssigned === true;
 
                 return (
                   <div
                     key={member.assignmentId || member.cpId || member.userId || member.holder?.user?.userId || Math.random()}
-                    onClick={() => setSelectedMember(member)}
+                    onClick={() => {
+                      if (alreadyAssigned) return;
+                      setSelectedMember(member);
+                    }}
+                    aria-disabled={alreadyAssigned}
                     className={`
-                      relative cursor-pointer rounded-2xl overflow-hidden
+                      relative rounded-2xl overflow-hidden
                       border-2 transition-all duration-150 p-4 shadow-xs
-                      ${isSelected && isMatched
-                        ? "border-[#d97706] bg-[#fefce8] ring-2 ring-[#f59e0b]/40 shadow-md"
-                        : isSelected
-                          ? "border-slate-800 bg-slate-50 ring-2 ring-slate-800/10 shadow-md"
-                          : isMatched
-                            ? "border-[#fde68a] bg-[#fffbeb] hover:border-[#f59e0b]/60 hover:bg-[#fef3c7]"
-                            : "border-slate-100 bg-white hover:border-slate-300 hover:shadow-sm"
+                      ${alreadyAssigned
+                        ? "cursor-not-allowed opacity-60 border-slate-100 bg-slate-50"
+                        : `cursor-pointer ${isSelected && isMatched
+                            ? "border-[#d97706] bg-[#fefce8] ring-2 ring-[#f59e0b]/40 shadow-md"
+                            : isSelected
+                              ? "border-slate-800 bg-slate-50 ring-2 ring-slate-800/10 shadow-md"
+                              : isMatched
+                                ? "border-[#fde68a] bg-[#fffbeb] hover:border-[#f59e0b]/60 hover:bg-[#fef3c7]"
+                                : "border-slate-100 bg-white hover:border-slate-300 hover:shadow-sm"
+                          }`
                       }
                     `}
                   >
@@ -610,6 +723,11 @@ export default function UcnMembersSidePanel({
                           <h4 className="text-[13.5px] font-bold text-slate-900 truncate">
                             {nameToUse}
                           </h4>
+                          {alreadyAssigned && (
+                            <span className="text-[9px] font-extrabold tracking-wider text-slate-600 bg-slate-200 border border-slate-300 px-1.5 py-[1.5px] rounded uppercase">
+                              Already Assigned
+                            </span>
+                          )}
                           {member.cpId && (
                             <span className="text-[9px] font-extrabold tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-[1.5px] rounded uppercase">
                               CP: {member.cpId}
