@@ -291,7 +291,12 @@ export default function WardChartDetail() {
 
   // Taluka name for the "MLA · Patrons · Chairmen" page banner (Page 2),
   // which shows the taluka instead of the ward code/name shown elsewhere.
+  // Confirmed API shape: `ward.taluka` is a plain string (e.g. "Malleshwaram"),
+  // not an object — read it directly. The `.talukaName` fallbacks are kept
+  // only for any older/alternate response shape that still nests it.
   const talukaName =
+    (typeof ward?.taluka === "string" && ward.taluka) ||
+    (typeof fetchedData?.data?.taluka === "string" && fetchedData.data.taluka) ||
     fetchedData?.data?.taluka?.talukaName ||
     ward?.taluka?.talukaName ||
     ward?.talukaName ||
@@ -1198,8 +1203,29 @@ export default function WardChartDetail() {
 
   const reduxWards = useSelector(selectWards) || [];
   const constituencyWards = useMemo(() => {
-    if (!ward.constituency) return reduxWards;
-    return reduxWards.filter((w) => w.constituency === ward.constituency);
+    const filtered = !ward.constituency
+      ? reduxWards
+      : reduxWards.filter((w) => w.constituency === ward.constituency);
+
+    // De-dupe: `reduxWards` (wardSlice) has been observed to contain more
+    // than one row for the same physical ward. Every downstream consumer
+    // here — the chairman slot count, the chairman-slot matching in
+    // mergeTalukaChairmenIntoAssignments, and the per-ward Advisory/
+    // Leadership page loop below — assumes one entry per ward, so a
+    // duplicate silently doubles that ward's chairman card and bumps a
+    // different, genuinely-unmatched ward's chairman out of its rightful
+    // slot (the "API returns 10, UI shows 11 with one duplicated" bug).
+    // Key on wardId when present (most reliable), else fall back to a
+    // normalized ward name.
+    const seen = new Set();
+    const deduped = [];
+    for (const w of filtered) {
+      const key = w?.id || w?.wardId || `${w?.ward_name || w?.wardName || ""}`.trim().toLowerCase();
+      if (key && seen.has(key)) continue;
+      if (key) seen.add(key);
+      deduped.push(w);
+    }
+    return deduped;
   }, [reduxWards, ward.constituency]);
 
   const wardChairmenList = useSelector(selectWardChairmenList);
@@ -1262,12 +1288,36 @@ export default function WardChartDetail() {
   const reduxWardCount = constituencyWards.length > 0 ? constituencyWards.length : (reduxWards.length > 0 ? reduxWards.length : null);
   const apiWardCount = fetchedData?.data?.constituencyWardCount || fetchedData?.data?.wardsCount || fetchedData?.data?.totalWards || fetchedData?.data?.wardLength || (Array.isArray(fetchedData?.data?.wards) ? fetchedData.data.wards.length : null);
 
+  // Root cause of the "API returns 10, UI shows 11 chairmen" bug: this count
+  // used to prefer `ward.constituencyWardCount` / `ward.wardsCount` / etc. —
+  // numbers captured on the `ward` object from an earlier, undeduped ward
+  // list — over the actual taluka-chairmen response. When that stale count
+  // was one higher than the real (deduped) ward count, an extra empty
+  // chairman slot got rendered even though only 10 chairman records exist.
+  // `wardChairmenList` (GET /talukas/getAllWardChaimansBy/:talukaId) is the
+  // authoritative source for "how many chairmen did the API return" — dedupe
+  // it the same way `constituencyWards` is deduped (by wardId, else
+  // normalized ward name) and use that first.
+  const dedupedWardChairmenCount = useMemo(() => {
+    if (!Array.isArray(wardChairmenList) || wardChairmenList.length === 0) return 0;
+    const seen = new Set();
+    let count = 0;
+    for (const w of wardChairmenList) {
+      const key = w?.wardId || w?.id || `${w?.wardName || w?.ward_name || ""}`.trim().toLowerCase();
+      if (key && seen.has(key)) continue;
+      if (key) seen.add(key);
+      count += 1;
+    }
+    return count;
+  }, [wardChairmenList]);
+
   const totalChairmenCount = Number(
+    dedupedWardChairmenCount ||
+    reduxWardCount ||
     ward.constituencyWardCount ||
     ward.wardsCount ||
     ward.wardLength ||
     ward.totalWards ||
-    reduxWardCount ||
     apiWardCount ||
     9
   );
@@ -1412,7 +1462,7 @@ export default function WardChartDetail() {
               <div className="px-6 py-1 space-y-1">
                 <div className="flex justify-center pt-0">
                   <MlaCard
-                    mlaLabel={`${ward.ward_name} Assembly constituency`}
+                    mlaLabel={`${talukaName || ward.ward_name} Assembly constituency`}
                     assigned={assignments.mla}
                     dimmed={isDimmed("mla", "core", assignments.mla?.name)}
                     onAssignClick={slotClickProp}
@@ -1484,9 +1534,13 @@ export default function WardChartDetail() {
                 <div className="grid grid-cols-5 gap-x-2.5 gap-y-1">
                   {chairmenP2.map((i) => {
                     const slotId = `chairman-${i + 1}`;
-                    console.log("constituencyWards[i]?.ward_number:", constituencyWards);
-                    console.log("constituencyWards[i]:", constituencyWards[i]);
-                    const label = `${constituencyWards[i]?.ward_name || `${gCode}.${i + 1}`} Chairman`;
+                    // Prefer the label baked into the matched chairman record
+                    // (mergeTalukaChairmenIntoAssignments) over `constituencyWards[i]`
+                    // — that keeps the ward name shown always in sync with
+                    // whichever chairman actually got assigned to this slot,
+                    // even if `constituencyWards` and the API list ever
+                    // disagree on ordering.
+                    const label = `${effectiveAssignments[slotId]?.wardLabel || constituencyWards[i]?.ward_name || `${gCode}.${i + 1}`} Chairman`;
                     return (
                       <div key={slotId}>
                         <p className="text-[8px] font-bold text-brick text-center mb-[1px] uppercase truncate">{label}</p>
@@ -1508,14 +1562,22 @@ export default function WardChartDetail() {
 
             {/* ══════ PAGE 3 — Chairmen continued ══════ */}
             {chairmenP3.length > 0 && (
-              <ChartPage pageLabel={`Chairmen (${p2Count + 1}–${totalChairmenCount})`} pageNum={3} ward={ward}>
+              <ChartPage
+                pageLabel={`Chairmen (${p2Count + 1}–${totalChairmenCount})`}
+                pageNum={3}
+                ward={ward}
+                wardNameOverride={talukaName || ward.ward_name}
+              >
                 <div className="flex-1 h-full px-[3%] py-[2%]">
                   <div className="space-y-6">
                     {chairmenRowsP3.map((row, ri) => (
                       <div key={ri} className={row.length === 5 ? "grid grid-cols-5 gap-5" : "flex justify-center gap-5"}>
                         {row.map((i) => {
                           const slotId = `chairman-${i + 1}`;
-                          const label = `${constituencyWards[i]?.ward_number || `${gCode}.${i + 1}`} Chairman`;
+                          // Reuse the label already computed onto the matched
+                          // chairman record — see the page-2 comment above for why.
+                          const label = effectiveAssignments[slotId]?.slotLabel
+                            || `${constituencyWards[i]?.ward_number || `${gCode}.${i + 1}`} Chairman`;
                           return (
                             <div key={slotId} className={row.length < 5 ? "w-[110px]" : ""}>
                               <p className="text-[9px] font-bold text-brick text-center mb-1 uppercase">{label}</p>

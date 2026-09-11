@@ -1,9 +1,22 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../service/api.js";
 
+// ── fetchDashboard ────────────────────────────────────────────
+// GET /auth/getAllUsers — fetches the caller's FULL scoped user list in a
+// single call (no ?page=/&limit= query params). District/taluka/ward are
+// NOT sent from here — the backend resolves the caller's own jurisdiction
+// from the JWT (req.user.userId) instead of trusting anything the client
+// passes, which closes an authorization gap the old endpoint had (any
+// logged-in user could previously pass ?districtId=... for a district they
+// don't head). The JWT already carries "the logged-in user's data"; there
+// is nothing further to read from Redux auth state for this call.
+//
+// The full array is stored as `users` in state. Any search/filter UI is
+// expected to filter that array locally (client-side) instead of asking
+// the backend for another page — see AssignRolesTab for the pattern.
 export const fetchDashboard = createAsyncThunk(
   "dashboard/fetchDashboard",
-  async (_, thunkAPI) => {
+  async (_arg, thunkAPI) => {
     try {
       const token = thunkAPI.getState().auth.token;
       const response = await api.get("/auth/getAllUsers", {
@@ -82,6 +95,13 @@ const dashboardSlice = createSlice({
     loading: false,
     error: null,
 
+    // scope + pagination of the current `users` page — mirrors the
+    // getAllUsers response's `scope`/`pagination` objects. `scope` shows
+    // which district/taluka/ward (if any) the backend resolved for the
+    // caller server-side; it is informational only, never sent back.
+    scope: { districtId: null, talukaId: null, wardId: null },
+    pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+
     // ward users
     wardUsers: [],
     wardUsersTotal: 0,
@@ -125,6 +145,17 @@ const dashboardSlice = createSlice({
           { name: "Basic Users", value: counts.basicUsers },
           { name: "Prime Users", value: counts.primeUsers },
         ];
+        // `scope` is whatever jurisdiction the backend resolved for the
+        // caller (null district/taluka/ward for super_admin); `pagination`
+        // describes just the `users` page above — `stats`/`userDistribution`
+        // above are already counted across the caller's FULL scoped set,
+        // not just this page.
+        if (action.payload.scope) {
+          state.scope = action.payload.scope;
+        }
+        if (action.payload.pagination) {
+          state.pagination = action.payload.pagination;
+        }
       })
       .addCase(fetchDashboard.rejected, (state, action) => {
         state.loading = false;

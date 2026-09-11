@@ -16,8 +16,17 @@ function InfoRow({ label, value }) {
 
 export default function PersonalInfoCard({ user, profileDetails }) {
   const {
-    alternateMobile, gender, state, district,
-    assembly, ward, pincode, homeAddress, officeAddress,
+    alternateMobile,
+    gender,
+    state,
+    district,
+    assembly,
+    ward,
+    pincode,
+    cityOfResidence,
+    yearsInCity,
+    homeAddress,
+    officeAddress,
   } = profileDetails || {};
 
   return (
@@ -28,26 +37,30 @@ export default function PersonalInfoCard({ user, profileDetails }) {
         </div>
         <div>
           <h2 className="text-[14px] font-semibold text-[#1a2b4a]">Personal information</h2>
-          <p className="text-[11px] text-slate-400 mt-0.5">Your account details</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Your personal and contact details</p>
         </div>
       </div>
 
       <div className="grid grid-cols-2 max-sm:grid-cols-1">
-        <InfoRow label="Full name"       value={user?.name} />
-        <InfoRow label="Email"           value={user?.email} />
-        <InfoRow label="Mobile"          value={user?.mobileNumber} />
+        <InfoRow label="Full name" value={user?.name} />
+        <InfoRow label="Username" value={user?.username ? `@${user.username}` : null} />
+        <InfoRow label="Email" value={user?.email} />
+        <InfoRow label="Mobile" value={user?.mobileNumber} />
         <InfoRow label="Alternate mobile" value={alternateMobile} />
-        <InfoRow label="Gender"          value={gender} />
-        <InfoRow label="Role"            value={user?.role} />
-        <InfoRow label="State"           value={state} />
-        <InfoRow label="District"        value={district} />
-        <InfoRow label="Assembly"        value={assembly} />
-        <InfoRow label="Ward"            value={ward} />
-        <InfoRow label="Pincode"         value={pincode} />
-        <InfoRow label="Account type"    value={user?.accountType || "Regular"} />
+        <InfoRow label="Gender" value={gender} />
+        <InfoRow label="Role" value={user?.role} />
+        <InfoRow label="Account type" value={user?.accountType || (user?.isPrime ? "Prime" : user?.isPatron ? "Patron" : user?.isBasic ? "Basic" : "Regular")} />
+        <InfoRow label="State" value={state} />
+        <InfoRow label="District" value={district} />
+        <InfoRow label="Assembly" value={assembly} />
+        <InfoRow label="Ward" value={ward} />
+        <InfoRow label="Pincode" value={pincode} />
+        <InfoRow label="City of residence" value={cityOfResidence} />
+        <InfoRow label="Years in city" value={yearsInCity !== null && yearsInCity !== undefined ? String(yearsInCity) : null} />
       </div>
+
       <div className="px-5 border-t border-[#F1F5F9]">
-        <InfoRow label="Home address"   value={homeAddress} />
+        <InfoRow label="Home address" value={homeAddress} />
         <InfoRow label="Office address" value={officeAddress} />
       </div>
     </div>

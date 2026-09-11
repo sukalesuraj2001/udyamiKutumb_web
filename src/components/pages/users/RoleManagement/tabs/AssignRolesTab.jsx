@@ -3,16 +3,11 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   UserCheck, Search, Check, X, ChevronDown,
   AlertCircle, Loader2, MapPin, ChevronLeft, ChevronRight,
-  ChevronsLeft, ChevronsRight, Filter, Shield
+  ChevronsLeft, ChevronsRight, Filter, Shield, Repeat
 } from "lucide-react";
-import { fetchRoles, assignRole, clearAssignSuccess } from "../../../../redux/slices/rolesSlice";
+import { fetchRoles, assignRole, changeRole, clearAssignSuccess, clearChangeError, clearChangeSuccess } from "../../../../redux/slices/rolesSlice";
 import { fetchDashboard } from "../../../../redux/slices/dashboardSlice";
 import api from "../../../../service/api.js";
-import {
-  fetchWardsByTalukaId,
-  selectTalukaWards,
-  selectTalukaWardsStatus,
-} from "../../../../redux/slices/areaChartSlice";
 
 function RowSelect({ value, onChange, placeholder, options, loading, minWidth = "120px" }) {
   return (
@@ -37,13 +32,52 @@ function RowSelect({ value, onChange, placeholder, options, loading, minWidth = 
   );
 }
 
+// ── Role types accepted by POST /roles/assign-role ──────────────────────────
+// Exact `type` strings the backend expects — see ROLE_ASSIGNMENT_API.md
+const ROLE_TYPES = [
+  { type: "district_head", label: "District Head" },
+  { type: "taluka_head", label: "Taluka Head" },
+  { type: "ward_chairman", label: "Ward Chairman" },
+  { type: "circle_leader", label: "Circle Leader" },
+  { type: "circle_president", label: "Circle President" },
+  { type: "vice_president", label: "Vice President" },
+  { type: "general_secretary", label: "General Secretary" },
+  { type: "treasurer", label: "Treasurer" },
+];
+
+const CIRCLE_TIER_TYPES = [
+  "circle_leader",
+  "circle_president",
+  "vice_president",
+  "general_secretary",
+  "treasurer",
+];
+
+// Which geography fields are actually sent in the POST body for each type
+// (per the API doc's request-body table + sample payloads).
+const REQUIRED_FIELDS_BY_TYPE = {
+  district_head: ["districtId"],
+  taluka_head: ["districtId", "talukaId"],
+  ward_chairman: ["talukaId", "wardId"],
+  circle_leader: ["wardId"],
+  circle_president: ["wardId"],
+  vice_president: ["wardId"],
+  general_secretary: ["wardId"],
+  treasurer: ["wardId"],
+};
+
 export default function AssignRolesTab() {
   const dispatch = useDispatch();
-  const { users } = useSelector((s) => s.dashboard);
-  const { roles, loadingRoles, assigning, assignSuccessId, error } = useSelector((s) => s.roles);
+  // GET /auth/getAllUsers now returns the caller's FULL scoped user list in
+  // one call (no ?page=/&limit= query params) — see the fetchDashboard
+  // effect below. `allUsers` holds that full array; search and the
+  // district/taluka/ward filters run entirely client-side against it
+  // (see `filteredUsers`), and the pagination controls below just slice
+  // `filteredUsers` for display — neither ever triggers another API call.
+  const { users: allUsers } = useSelector((s) => s.dashboard);
+  const { roles, loadingRoles, assigning, assignSuccessId, error, changing, changeError, changeSuccessId } = useSelector((s) => s.roles);
   const token = useSelector((s) => s.auth.token);
   const authUser = useSelector((s) => s.auth.user);
-  const currentUserId = authUser?.userId;
 
   // Role detection for logged in user
   const currentUserRoleRaw = authUser?.role || authUser?.roleName || authUser?.userRoles?.[0]?.role?.role || "";
@@ -52,6 +86,7 @@ export default function AssignRolesTab() {
   const isSuperAdmin = roleLower.includes("superadmin") || roleLower.includes("super_admin") || roleLower === "admin";
   const isDistrictHead = roleLower.includes("districthead") || roleLower.includes("district_head") || roleLower === "district head";
   const isTalukaHead = roleLower.includes("talukhead") || roleLower.includes("taluka_head") || roleLower.includes("talukahead") || roleLower === "taluk head" || roleLower === "taluka head";
+  const isWardChairman = roleLower.includes("wardchairman") || roleLower.includes("ward_chairman") || roleLower === "ward chairman";
 
   const locationData = useMemo(() => {
     try {
@@ -65,6 +100,8 @@ export default function AssignRolesTab() {
   const loggedInDistrictName = locationData?.districtName || authUser?.districtName || authUser?.positions?.[0]?.district?.districtName || authUser?.location?.district?.districtName || "";
   const loggedInTalukaId = locationData?.talukaId || authUser?.talukaId || authUser?.positions?.[0]?.taluka?.talukaId || authUser?.location?.taluka?.talukaId || "";
   const loggedInTalukaName = locationData?.talukaName || authUser?.talukaName || authUser?.positions?.[0]?.taluka?.talukaName || authUser?.location?.taluka?.talukaName || "";
+  const loggedInWardId = locationData?.wardId || authUser?.wardId || authUser?.positions?.[0]?.ward?.wardId || authUser?.location?.ward?.wardId || "";
+  const loggedInWardName = locationData?.wardName || authUser?.wardName || authUser?.positions?.[0]?.ward?.wardName || authUser?.location?.ward?.wardName || "";
 
   // ── Filter bar states ────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
@@ -86,50 +123,28 @@ export default function AssignRolesTab() {
 
   // ── Inline-edit base ─────────────────────────────────────────────────────────
   const [selectedUser, setSelectedUser] = useState(null);
-  const [newRoleId, setNewRoleId] = useState("");
+  const [newRoleType, setNewRoleType] = useState("");
 
-  // ── DistrictHead flow ────────────────────────────────────────────────────────
-  const [rowDistrict, setRowDistrict] = useState("");
+  // ── Cascade dropdowns for the Assign flow (District → Taluka → Ward) ───────
+  const [assignDistrictId, setAssignDistrictId] = useState("");
+  const [assignTalukaId, setAssignTalukaId] = useState("");
+  const [assignWardId, setAssignWardId] = useState("");
+  const [assignTalukas, setAssignTalukas] = useState([]);
+  const [assignWards, setAssignWards] = useState([]);
+  const [loadingAssignTalukas, setLoadingAssignTalukas] = useState(false);
+  const [loadingAssignWards, setLoadingAssignWards] = useState(false);
 
-  // ── TalukaHead flow ──────────────────────────────────────────────────────────
-  const [dhUsersList, setDhUsersList] = useState([]);
-  const [availableDistricts, setAvailableDistricts] = useState([]);
-  const [selectedDHDistrict, setSelectedDHDistrict] = useState("");
-  const [selectedDistrictHeadId, setSelectedDistrictHeadId] = useState("");
-  const [selectedTalukaIds, setSelectedTalukaIds] = useState([]);
-  const [rowTalukas, setRowTalukas] = useState([]);
-  const [loadingRoleUsers, setLoadingRoleUsers] = useState(false);
-  const [loadingRowTalukas, setLoadingRowTalukas] = useState(false);
-
-  // ── WardChairman flow ────────────────────────────────────────────────────────
-  const [wcDistrict, setWcDistrict] = useState("");
-  const [wcTalukas, setWcTalukas] = useState([]);
-  const [wcTaluka, setWcTaluka] = useState("");
-  const [talukaHeads, setTalukaHeads] = useState([]);
-  const [selectedTalukaHeadId, setSelectedTalukaHeadId] = useState("");
-  const [wards, setWards] = useState([]);
-  const [selectedWardId, setSelectedWardId] = useState("");
-  const [loadingWcTalukas, setLoadingWcTalukas] = useState(false);
-  const [loadingTalukaHeads, setLoadingTalukaHeads] = useState(false);
-  const [loadingWards, setLoadingWards] = useState(false);
+  // ── Change Person (PUT /roles/change-role) modal state ─────────────────────
+  const [changeModalUser, setChangeModalUser] = useState(null);
+  const [changeModalPositionId, setChangeModalPositionId] = useState("");
+  const [newUserId, setNewUserId] = useState("");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
 
   const authHeader = useMemo(() => ({ headers: { Authorization: `Bearer ${token}` } }), [token]);
 
-  const talukaWards = useSelector(selectTalukaWards);
-  const talukaWardsStatus = useSelector(selectTalukaWardsStatus);
-
-  const HIDDEN_ROLES_BY_LOGIN = {
-    SuperAdmin: [],
-    DistrictHead: ["SuperAdmin", "DistrictHead"],
-    TalukHead: ["SuperAdmin", "DistrictHead", "TalukHead"],
-    WardChairman: ["SuperAdmin", "DistrictHead", "TalukHead", "WardChairman"],
-  };
-
-  const visibleRoles = roles.filter(
-    (r) => !(HIDDEN_ROLES_BY_LOGIN[currentUserRoleRaw] ?? []).includes(r.role)
-  );
-
   // ── Mount ────────────────────────────────────────────────────────────────────
+  // fetchDashboard() takes no page/limit args — it fetches the caller's full
+  // user list in one call, so this only needs to run once on mount.
   useEffect(() => {
     dispatch(fetchRoles());
     dispatch(fetchDashboard());
@@ -138,10 +153,19 @@ export default function AssignRolesTab() {
 
   useEffect(() => {
     if (!assignSuccessId) return;
+    // Refresh the full user list so the table reflects the change — no
+    // page/limit args needed now that fetchDashboard always fetches
+    // everything in one call.
     dispatch(fetchDashboard());
     const t = setTimeout(() => dispatch(clearAssignSuccess()), 3000);
     return () => clearTimeout(t);
   }, [assignSuccessId, dispatch]);
+
+  useEffect(() => {
+    if (!changeSuccessId) return;
+    const t = setTimeout(() => dispatch(clearChangeSuccess()), 3000);
+    return () => clearTimeout(t);
+  }, [changeSuccessId, dispatch]);
 
   // ── Role Scoped Filter initialization ────────────────────────────────────────
   useEffect(() => {
@@ -174,7 +198,7 @@ export default function AssignRolesTab() {
         if (d.districtId) distMap.set(d.districtId, d);
       });
 
-      users.forEach((u) => {
+      allUsers.forEach((u) => {
         if (u.location?.district?.districtId && !distMap.has(u.location.district.districtId)) {
           distMap.set(u.location.district.districtId, {
             districtId: u.location.district.districtId,
@@ -218,7 +242,7 @@ export default function AssignRolesTab() {
         if (key) talukaMap.set(key, { talukaId: t.talukaId, talukaName: t.talukaName });
       });
 
-      users.forEach((u) => {
+      allUsers.forEach((u) => {
         const locMatchDist = (dId && u.location?.district?.districtId === dId) ||
           (dName && u.location?.district?.districtName?.toLowerCase() === dName.toLowerCase());
         if (locMatchDist && u.location?.taluka) {
@@ -267,7 +291,7 @@ export default function AssignRolesTab() {
         if (key) wardMap.set(key, { wardId: w.wardId, wardName: w.wardName });
       });
 
-      users.forEach((u) => {
+      allUsers.forEach((u) => {
         const locMatchTal = (tId && u.location?.taluka?.talukaId === tId) ||
           (tName && u.location?.taluka?.talukaName?.toLowerCase() === tName.toLowerCase());
         if (locMatchTal && u.location?.ward) {
@@ -341,211 +365,207 @@ export default function AssignRolesTab() {
     }
   };
 
-  // ── Role detection for row assignment ─────────────────────────────────────────
-  const selectedRoleObj = roles.find((r) => r.roleId === Number(newRoleId));
-  const roleName = selectedRoleObj?.role || "";
-  const isDistrictHeadAssign = roleName === "DistrictHead";
-  const isTalukaHeadAssign = roleName === "TalukHead";
-  const isWardChairmanAssign = roleName === "WardChairman" || roleName === "WardHead";
-
-  // Step 1 for TalukaHead assign:
-  const loadTalukaHeadDropdowns = async () => {
+  // ── Cascade dropdowns for the Assign flow ────────────────────────────────────
+  // District → fetch talukas: GET /talukas/district/:districtId
+  // Taluka   → fetch wards:   GET /talukas/getAllWardChaimansBy/:talukaId
+  // (Confirmed against talukas.controller.ts — these are path params, not
+  // query strings; the earlier ?districtId=/?talukaId= query-string routes
+  // don't exist on the backend and 404.)
+  const loadAssignTalukas = async (districtId) => {
+    if (!districtId) {
+      setAssignTalukas([]);
+      return;
+    }
+    setLoadingAssignTalukas(true);
     try {
-      setLoadingRoleUsers(true);
-      const roleUsersRes = await api.get("/roles/getAllRoleUsers", authHeader);
-      const allUsers = roleUsersRes.data.data || [];
-      const dhUsers = allUsers.filter((u) =>
-        u.roles?.some((r) => r.roleName === "district_head")
-      );
-      setDhUsersList(dhUsers);
-
-      const districtRes = await api.get("/district/getAllDistricts", authHeader);
-      const allDistricts = districtRes.data.data || [];
-
-      const dhDistrictMap = {};
-      dhUsers.forEach((dh) => {
-        if (dh.districtId) dhDistrictMap[dh.districtId] = dh.userId;
-      });
-
-      const filtered = allDistricts.filter((d) => dhDistrictMap[d.districtId]);
-      setAvailableDistricts(filtered);
-      setDhUsersList(dhUsers.map((dh) => ({ ...dh, _districtId: dh.districtId })));
+      const res = await api.get(`/talukas/district/${districtId}`, authHeader);
+      // talukas.service.ts → getTalukasByDistrict returns { success, message, data }
+      setAssignTalukas(res.data?.data || (Array.isArray(res.data) ? res.data : []));
     } catch (e) {
-      console.error(e);
+      console.error("Failed to fetch talukas", e);
+      setAssignTalukas([]);
     } finally {
-      setLoadingRoleUsers(false);
+      setLoadingAssignTalukas(false);
     }
   };
 
-  const handleDHDistrictSelect = async (districtId) => {
-    setSelectedDHDistrict(districtId);
-    setSelectedDistrictHeadId("");
-    setSelectedTalukaIds([]);
-    setRowTalukas([]);
-    if (!districtId) return;
-
-    const matchedDH = dhUsersList.find((dh) => dh._districtId === districtId || dh.districtId === districtId);
-    if (matchedDH) setSelectedDistrictHeadId(matchedDH.userId);
-
+  const loadAssignWards = async (talukaId) => {
+    if (!talukaId) {
+      setAssignWards([]);
+      return;
+    }
+    setLoadingAssignWards(true);
     try {
-      setLoadingRowTalukas(true);
-      const res = await api.get(`/district/getAllDistricts?districtId=${districtId}`, authHeader);
-      setRowTalukas(res.data.data || []);
+      const res = await api.get(`/talukas/getAllWardChaimansBy/${talukaId}`, authHeader);
+      // talukas.service.ts → getWardsByTalukaId returns { success, count, data }
+      setAssignWards(res.data?.data || (Array.isArray(res.data) ? res.data : []));
     } catch (e) {
-      console.error(e);
+      console.error("Failed to fetch wards", e);
+      setAssignWards([]);
     } finally {
-      setLoadingRowTalukas(false);
+      setLoadingAssignWards(false);
     }
   };
 
-  const handleRowDistrictChange = (id) => setRowDistrict(id);
-
-  const handleWcDistrictChange = async (id) => {
-    setWcDistrict(id);
-    setWcTaluka("");
-    setWcTalukas([]);
-    setTalukaHeads([]);
-    setSelectedTalukaHeadId("");
-    setWards([]);
-    setSelectedWardId("");
-    if (!id) return;
-    try {
-      setLoadingWcTalukas(true);
-      const res = await api.get(`/district/getAllDistricts?districtId=${id}`, authHeader);
-      setWcTalukas(res.data.data || []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingWcTalukas(false);
-    }
+  // Reset child dropdowns whenever a parent changes
+  const handleAssignDistrictChange = (districtId) => {
+    setAssignDistrictId(districtId);
+    setAssignTalukaId("");
+    setAssignWardId("");
+    setAssignTalukas([]);
+    setAssignWards([]);
+    if (districtId) loadAssignTalukas(districtId);
   };
 
-  const handleWcTalukaChange = async (id) => {
-    setWcTaluka(id);
-    setTalukaHeads([]);
-    setSelectedTalukaHeadId("");
-    setWards([]);
-    setSelectedWardId("");
-    if (!id) return;
-    try {
-      setLoadingTalukaHeads(true);
-      const res = await api.get(`/roles/getTalukaHeads?talukaId=${id}`, authHeader);
-      setTalukaHeads(res.data.data || []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingTalukaHeads(false);
-    }
-
-    try {
-      setLoadingWards(true);
-      const res = await api.get(`/ward/getWardBy?talukaId=${id}`, authHeader);
-      setWards(res.data.data || []);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingWards(false);
-    }
+  const handleAssignTalukaChange = (talukaId) => {
+    setAssignTalukaId(talukaId);
+    setAssignWardId("");
+    setAssignWards([]);
+    if (talukaId) loadAssignWards(talukaId);
   };
 
-  const handleRoleChange = (e) => {
-    const roleId = e.target.value;
-    setNewRoleId(roleId);
+  const handleAssignWardChange = (wardId) => setAssignWardId(wardId);
+
+  // ── Which roles the logged-in user is allowed to assign ─────────────────────
+  // Mirrors the "Who can call what" table in ROLE_ASSIGNMENT_API.md
+  const visibleRoleTypes = ROLE_TYPES.filter((r) => {
+    if (isSuperAdmin) return true;
+    if (isDistrictHead) return r.type === "taluka_head";
+    if (isTalukaHead) return r.type === "ward_chairman";
+    if (isWardChairman) return CIRCLE_TIER_TYPES.includes(r.type);
+    return false;
+  });
+
+  // ── Which cascade steps to show for the selected role type ──────────────────
+  // district_head        → District only
+  // taluka_head          → District → Taluka
+  // ward_chairman        → District → Taluka → Ward
+  // circle-tier roles    → District → Taluka → Ward
+  // (District/Taluka are shown for navigation even when the API doc doesn't
+  // require them in the payload for that type — see REQUIRED_FIELDS_BY_TYPE.)
+  const showDistrict = !!newRoleType;
+  const showTaluka = !!newRoleType && newRoleType !== "district_head";
+  const showWard = !!newRoleType && newRoleType !== "district_head" && newRoleType !== "taluka_head";
+
+  // Lock (pre-fill, read-only) a cascade step to the caller's own jurisdiction
+  // when their role means it can only ever be that value.
+  const districtLocked =
+    (newRoleType === "taluka_head" && isDistrictHead) ||
+    (newRoleType === "ward_chairman" && isTalukaHead) ||
+    (CIRCLE_TIER_TYPES.includes(newRoleType) && isWardChairman);
+
+  const talukaLocked =
+    (newRoleType === "ward_chairman" && isTalukaHead) ||
+    (CIRCLE_TIER_TYPES.includes(newRoleType) && isWardChairman);
+
+  const wardLocked = CIRCLE_TIER_TYPES.includes(newRoleType) && isWardChairman;
+
+  const handleRoleTypeChange = (e) => {
+    const type = e.target.value;
+    setNewRoleType(type);
     resetRowState();
+    if (!type) return;
 
-    const roleObj = roles.find((r) => r.roleId === Number(roleId));
-
-    if (roleObj?.role === "TalukHead") {
-      if (currentUserRoleRaw === "DistrictHead") {
-        const { districtId } = locationData;
-        if (districtId) {
-          setSelectedDHDistrict(districtId);
-          setSelectedDistrictHeadId(currentUserId);
-          setLoadingRowTalukas(true);
-          api.get(`/district/getAllDistricts?districtId=${districtId}`, authHeader)
-            .then((res) => setRowTalukas(res.data.data || []))
-            .catch(console.error)
-            .finally(() => setLoadingRowTalukas(false));
-        }
-      } else {
-        loadTalukaHeadDropdowns();
-      }
-    }
-
-    if (roleObj?.role === "WardChairman" && currentUserRoleRaw === "TalukHead") {
-      const { talukaId } = locationData;
-      if (talukaId) {
-        setWcTaluka(talukaId);
-        setSelectedTalukaHeadId(currentUserId);
-        dispatch(fetchWardsByTalukaId(talukaId));
-      }
+    if (type === "taluka_head" && isDistrictHead && loggedInDistrictId) {
+      setAssignDistrictId(loggedInDistrictId);
+      loadAssignTalukas(loggedInDistrictId);
+    } else if (type === "ward_chairman" && isTalukaHead && loggedInTalukaId) {
+      if (loggedInDistrictId) setAssignDistrictId(loggedInDistrictId);
+      setAssignTalukaId(loggedInTalukaId);
+      loadAssignWards(loggedInTalukaId);
+    } else if (CIRCLE_TIER_TYPES.includes(type) && isWardChairman && loggedInWardId) {
+      if (loggedInDistrictId) setAssignDistrictId(loggedInDistrictId);
+      if (loggedInTalukaId) setAssignTalukaId(loggedInTalukaId);
+      setAssignWardId(loggedInWardId);
     }
   };
 
   const resetRowState = () => {
-    setRowDistrict("");
-    setDhUsersList([]);
-    setAvailableDistricts([]);
-    setSelectedDHDistrict("");
-    setSelectedDistrictHeadId("");
-    setSelectedTalukaIds([]);
-    setRowTalukas([]);
-    setWcDistrict("");
-    setWcTalukas([]);
-    setWcTaluka("");
-    setTalukaHeads([]);
-    setSelectedTalukaHeadId("");
-    setWards([]);
-    setSelectedWardId("");
+    setAssignDistrictId("");
+    setAssignTalukaId("");
+    setAssignWardId("");
+    setAssignTalukas([]);
+    setAssignWards([]);
   };
 
-  const openEdit = (u) => { setSelectedUser(u); setNewRoleId(""); resetRowState(); };
-  const cancelEdit = () => { setSelectedUser(null); setNewRoleId(""); resetRowState(); };
-
-  const toggleTalukaId = (id) =>
-    setSelectedTalukaIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+  const openEdit = (u) => { setSelectedUser(u); setNewRoleType(""); resetRowState(); };
+  const cancelEdit = () => { setSelectedUser(null); setNewRoleType(""); resetRowState(); };
 
   const canAssign = (() => {
-    if (!newRoleId) return false;
-    if (isDistrictHeadAssign) return !!rowDistrict;
-    if (isTalukaHeadAssign) return !!selectedDistrictHeadId && selectedTalukaIds.length > 0;
-    if (isWardChairmanAssign) {
-      if (currentUserRoleRaw === "TalukHead") return !!selectedWardId;
-      return !!wcTaluka && !!selectedTalukaHeadId && !!selectedWardId;
-    }
+    if (!selectedUser || !newRoleType) return false;
+    const fields = REQUIRED_FIELDS_BY_TYPE[newRoleType] || [];
+    if (fields.includes("districtId") && !assignDistrictId) return false;
+    if (fields.includes("talukaId") && !assignTalukaId) return false;
+    if (fields.includes("wardId") && !assignWardId) return false;
     return true;
   })();
 
+  // ── Assign — POST /roles/assign-role ─────────────────────────────────────────
+  // Body only ever contains: userId, type, and the geography id(s) that type
+  // actually needs (see REQUIRED_FIELDS_BY_TYPE). No roleId, no assignedBy,
+  // no districtHeadId/talukaHeadId/wardHeadId, no talukaIds array.
   const handleAssign = () => {
-    if (!selectedUser || !newRoleId) return;
-    const base = { userId: selectedUser.userId, roleId: Number(newRoleId), assignedBy: currentUserId };
-    let payload;
+    if (!selectedUser || !newRoleType) return;
 
-    if (isDistrictHeadAssign) {
-      payload = { ...base, type: "district_head", districtId: rowDistrict };
-    } else if (isTalukaHeadAssign) {
-      payload = {
-        ...base,
-        type: "taluka_head",
-        districtHeadId: selectedDistrictHeadId,
-        talukaIds: selectedTalukaIds,
-      };
-    } else if (isWardChairmanAssign) {
-      payload = {
-        ...base,
-        type: "ward_chairman",
-        talukaHeadId: selectedTalukaHeadId,
-        talukaId: wcTaluka,
-        wardId: selectedWardId,
-      };
-    } else {
-      payload = { ...base, type: roleName.toLowerCase() };
-    }
+    const payload = { userId: selectedUser.userId, type: newRoleType };
+    const fields = REQUIRED_FIELDS_BY_TYPE[newRoleType] || [];
+    if (fields.includes("districtId")) payload.districtId = assignDistrictId;
+    if (fields.includes("talukaId")) payload.talukaId = assignTalukaId;
+    if (fields.includes("wardId")) payload.wardId = assignWardId;
 
     dispatch(assignRole(payload)).then((res) => {
       if (res.meta.requestStatus === "fulfilled") cancelEdit();
+    });
+  };
+
+  // ── Change Person — PUT /roles/change-role ───────────────────────────────────
+  // Best-effort lookup of the seat (position) id already assigned to this row,
+  // so it can be pre-filled into the modal without the user typing it in.
+  const getPositionId = (u) =>
+    u?.positions?.[0]?.positionId ||
+    u?.userRoles?.[0]?.positionId ||
+    u?.userRoles?.[0]?.position?.positionId ||
+    u?.currentPositionId ||
+    u?.positionId ||
+    "";
+
+  const openChangeModal = (u) => {
+    setChangeModalUser(u);
+    setChangeModalPositionId(getPositionId(u));
+    setNewUserId("");
+    setUserSearchQuery("");
+    dispatch(clearChangeError());
+  };
+
+  const closeChangeModal = () => {
+    setChangeModalUser(null);
+    setChangeModalPositionId("");
+    setNewUserId("");
+    setUserSearchQuery("");
+  };
+
+  const userSearchResults = useMemo(() => {
+    const q = userSearchQuery.trim().toLowerCase();
+    if (!q || newUserId) return [];
+    return allUsers
+      .filter((u) => u.userId !== changeModalUser?.userId)
+      .filter((u) =>
+        u.name?.toLowerCase().includes(q) ||
+        u.mobileNumber?.includes(q) ||
+        u.email?.toLowerCase().includes(q)
+      )
+      .slice(0, 8);
+  }, [allUsers, userSearchQuery, newUserId, changeModalUser]);
+
+  const handleChangeRole = () => {
+    if (!changeModalPositionId || !newUserId) return;
+    dispatch(changeRole({ positionId: changeModalPositionId, newUserId })).then((res) => {
+      if (res.meta.requestStatus === "fulfilled") {
+        closeChangeModal();
+        // Refresh the full user list so the change is reflected immediately —
+        // no page/limit args needed now that fetchDashboard fetches everything.
+        dispatch(fetchDashboard());
+      }
     });
   };
 
@@ -559,7 +579,7 @@ export default function AssignRolesTab() {
   const filterWardName = selectedWardObj?.wardName || "";
 
   const filteredUsers = useMemo(() => {
-    return users.filter((u) => {
+    return allUsers.filter((u) => {
       const searchLower = search.trim().toLowerCase();
       const matchSearch = !searchLower ||
         u.name?.toLowerCase().includes(searchLower) ||
@@ -641,17 +661,26 @@ export default function AssignRolesTab() {
 
       return matchWd;
     });
-  }, [users, search, filterDistrict, filterDistrictName, filterTaluka, filterTalukaName, filterWard, filterWardName]);
+  }, [allUsers, search, filterDistrict, filterDistrictName, filterTaluka, filterTalukaName, filterWard, filterWardName]);
 
   // ── Pagination Calculation ───────────────────────────────────────────────────
+  // `users` is now exactly the server's current page (see the fetchDashboard
+  // effect above), so there is nothing left to re-slice client-side. The
+  // backend's own `pagination` object — total/totalPages across the caller's
+  // FULL scoped set, per GetAllUsersDto/getAllAllUsers — is the source of
+  // truth for the total count, not `filteredUsers.length`, which only ever
+  // reflects the one page currently loaded.
+  //
+  // NOTE: search/district/taluka/ward filters below still apply only within
+  // this loaded page — GET /auth/getAllUsers doesn't accept a text search or
+  // arbitrary geography filter param today, so filtering across the caller's
+  // entire user base (not just the visible page) would need that added on
+  // the backend first.
   const totalUsersCount = filteredUsers.length;
-  const totalPages = Math.max(1, Math.ceil(totalUsersCount / pageSize));
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / pageSize));
   const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, totalUsersCount);
-
-  const paginatedUsers = useMemo(() => {
-    return filteredUsers.slice(startIndex, endIndex);
-  }, [filteredUsers, startIndex, endIndex]);
+  const endIndex = Math.min(startIndex + pageSize, filteredUsers.length);
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
 
   const getRoleBadge = (userRoles = []) => userRoles[0]?.role?.role || null;
 
@@ -811,6 +840,11 @@ export default function AssignRolesTab() {
           <AlertCircle size={14} /> {error}
         </div>
       )}
+      {changeSuccessId && (
+        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[12.5px] font-medium rounded-lg px-4 py-2.5">
+          <Check size={14} /> Position holder changed successfully.
+        </div>
+      )}
 
       {/* Main Table Container */}
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
@@ -856,9 +890,20 @@ export default function AssignRolesTab() {
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap font-medium">{u.mobileNumber || "—"}</td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         {badge ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold border bg-blue-50 border-blue-200 text-blue-700">
-                            {badge}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-semibold border bg-blue-50 border-blue-200 text-blue-700">
+                              {badge}
+                            </span>
+                            {badge.toLowerCase() !== "member" && (
+                              <button
+                                onClick={() => openChangeModal(u)}
+                                title="Change Person"
+                                className="inline-flex items-center gap-1 h-5 px-1.5 text-[10px] font-semibold text-gray-500 bg-white border border-gray-200 rounded hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-all"
+                              >
+                                <Repeat size={10} /> Change Person
+                              </button>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-gray-400 text-[11px]">—</span>
                         )}
@@ -897,144 +942,68 @@ export default function AssignRolesTab() {
                         {isEditing ? (
                           <div className="flex flex-wrap items-start gap-2">
                             <RowSelect
-                              value={newRoleId}
-                              onChange={handleRoleChange}
+                              value={newRoleType}
+                              onChange={handleRoleTypeChange}
                               placeholder="Select role…"
-                              options={visibleRoles.map((r) => ({ value: r.roleId, label: r.role }))}
-                              loading={loadingRoles}
-                              minWidth="120px"
+                              options={visibleRoleTypes.map((r) => ({ value: r.type, label: r.label }))}
+                              minWidth="140px"
                             />
 
-                            {/* District Head Assign Flow */}
-                            {isDistrictHeadAssign && (
-                              <RowSelect
-                                value={rowDistrict}
-                                onChange={(e) => handleRowDistrictChange(e.target.value)}
-                                placeholder="District…"
-                                options={districts.map((d) => ({ value: d.districtId, label: d.districtName }))}
-                                minWidth="130px"
-                              />
+                            {/* District step */}
+                            {showDistrict && (
+                              districtLocked ? (
+                                <span className="h-7 px-2.5 flex items-center text-[11.5px] font-medium bg-blue-50 border border-blue-200 text-blue-700 rounded-lg">
+                                  📍 {loggedInDistrictName || "Your District"}
+                                </span>
+                              ) : (
+                                <RowSelect
+                                  value={assignDistrictId}
+                                  onChange={(e) => handleAssignDistrictChange(e.target.value)}
+                                  placeholder="District…"
+                                  options={districts.map((d) => ({ value: d.districtId, label: d.districtName }))}
+                                  loading={loadingDistricts}
+                                  minWidth="140px"
+                                />
+                              )
                             )}
 
-                            {/* Taluka Head Assign Flow */}
-                            {isTalukaHeadAssign && (
-                              <>
-                                {currentUserRoleRaw !== "DistrictHead" && (
-                                  <RowSelect
-                                    value={selectedDHDistrict}
-                                    onChange={(e) => handleDHDistrictSelect(e.target.value)}
-                                    placeholder={loadingRoleUsers ? "Loading…" : "Select District…"}
-                                    options={availableDistricts.map((d) => ({ value: d.districtId, label: d.districtName }))}
-                                    loading={loadingRoleUsers}
-                                    minWidth="140px"
-                                  />
-                                )}
-
-                                {currentUserRoleRaw === "DistrictHead" && locationData.districtName && (
-                                  <span className="h-7 px-2.5 flex items-center text-[11.5px] font-medium bg-blue-50 border border-blue-200 text-blue-700 rounded-lg">
-                                    📍 {locationData.districtName}
-                                  </span>
-                                )}
-
-                                {selectedDHDistrict && (
-                                  <div className="flex flex-col gap-1">
-                                    <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">
-                                      Talukas
-                                      {selectedTalukaIds.length > 0 && (
-                                        <span className="text-blue-600 ml-1">({selectedTalukaIds.length} selected)</span>
-                                      )}
-                                    </p>
-                                    {loadingRowTalukas ? (
-                                      <div className="flex items-center gap-1.5 text-[11px] text-gray-400">
-                                        <Loader2 size={11} className="animate-spin" /> Loading talukas…
-                                      </div>
-                                    ) : rowTalukas.length > 0 ? (
-                                      <div className="flex flex-wrap gap-1.5 max-w-[300px]">
-                                        {rowTalukas.map((t) => (
-                                          <label key={t.talukaId}
-                                            className={`flex items-center gap-1 text-[11px] cursor-pointer px-2 py-0.5 rounded border transition-colors ${selectedTalukaIds.includes(t.talukaId)
-                                              ? "bg-blue-600 border-blue-600 text-white"
-                                              : "bg-white border-gray-200 text-gray-600 hover:border-blue-300"
-                                              }`}>
-                                            <input type="checkbox"
-                                              checked={selectedTalukaIds.includes(t.talukaId)}
-                                              onChange={() => toggleTalukaId(t.talukaId)}
-                                              className="sr-only" />
-                                            {selectedTalukaIds.includes(t.talukaId) && <Check size={9} />}
-                                            {t.talukaName}
-                                          </label>
-                                        ))}
-                                      </div>
-                                    ) : (
-                                      <span className="text-[11px] text-gray-400">No talukas found</span>
-                                    )}
-                                  </div>
-                                )}
-                              </>
+                            {/* Taluka step */}
+                            {showTaluka && (districtLocked || assignDistrictId) && (
+                              talukaLocked ? (
+                                <span className="h-7 px-2.5 flex items-center text-[11.5px] font-medium bg-purple-50 border border-purple-200 text-purple-700 rounded-lg">
+                                  Taluka: {loggedInTalukaName || "Your Taluka"}
+                                </span>
+                              ) : (
+                                <RowSelect
+                                  value={assignTalukaId}
+                                  onChange={(e) => handleAssignTalukaChange(e.target.value)}
+                                  placeholder="Taluka…"
+                                  options={assignTalukas.map((t) => ({ value: t.talukaId, label: t.talukaName }))}
+                                  loading={loadingAssignTalukas}
+                                  minWidth="140px"
+                                />
+                              )
                             )}
 
-                            {/* Ward Chairman Assign Flow */}
-                            {isWardChairmanAssign && (
-                              <>
-                                {currentUserRoleRaw !== "TalukHead" && (
-                                  <>
-                                    <RowSelect
-                                      value={wcDistrict}
-                                      onChange={(e) => handleWcDistrictChange(e.target.value)}
-                                      placeholder="District…"
-                                      options={districts.map((d) => ({ value: d.districtId, label: d.districtName }))}
-                                      minWidth="130px"
-                                    />
-                                    {wcDistrict && (
-                                      <RowSelect
-                                        value={wcTaluka}
-                                        onChange={(e) => handleWcTalukaChange(e.target.value)}
-                                        placeholder="Taluka…"
-                                        options={wcTalukas.map((t) => ({ value: t.talukaId, label: t.talukaName }))}
-                                        loading={loadingWcTalukas}
-                                        minWidth="120px"
-                                      />
-                                    )}
-                                    {wcTaluka && (
-                                      <RowSelect
-                                        value={selectedTalukaHeadId}
-                                        onChange={(e) => setSelectedTalukaHeadId(e.target.value)}
-                                        placeholder="Taluka Head…"
-                                        options={talukaHeads.map((u) => ({ value: u.userId, label: u.name }))}
-                                        loading={loadingTalukaHeads}
-                                        minWidth="140px"
-                                      />
-                                    )}
-                                  </>
-                                )}
-
-                                {currentUserRoleRaw === "TalukHead" && locationData.talukaName && (
-                                  <span className="h-7 px-2.5 flex items-center text-[11.5px] font-medium bg-blue-50 border border-blue-200 text-blue-700 rounded-lg">
-                                    📍 {locationData.talukaName}
-                                  </span>
-                                )}
-
-                                {(currentUserRoleRaw === "TalukHead" || selectedTalukaHeadId) && (
-                                  <RowSelect
-                                    value={selectedWardId}
-                                    onChange={(e) => setSelectedWardId(e.target.value)}
-                                    placeholder="Ward…"
-                                    options={
-                                      currentUserRoleRaw === "TalukHead"
-                                        ? talukaWards.map((w) => ({
-                                          value: w.wardId,
-                                          label: `${w.wardNumber ? w.wardNumber + ' — ' : ''}${w.wardName}`,
-                                        }))
-                                        : wards.map((w) => ({
-                                          value: w.wardId,
-                                          label: `${w.wardNumber ? w.wardNumber + ' — ' : ''}${w.wardName}`,
-                                        }))
-                                    }
-                                    loading={currentUserRoleRaw === "TalukHead" ? talukaWardsStatus === "loading" : loadingWards}
-                                    minWidth="160px"
-                                  />
-                                )}
-                              </>
+                            {/* Ward step */}
+                            {showWard && (talukaLocked || assignTalukaId) && (
+                              wardLocked ? (
+                                <span className="h-7 px-2.5 flex items-center text-[11.5px] font-medium bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg">
+                                  Ward: {loggedInWardName || "Your Ward"}
+                                </span>
+                              ) : (
+                                <RowSelect
+                                  value={assignWardId}
+                                  onChange={(e) => handleAssignWardChange(e.target.value)}
+                                  placeholder="Ward…"
+                                  options={assignWards.map((w) => ({
+                                    value: w.wardId,
+                                    label: `${w.wardNumber ? w.wardNumber + " — " : ""}${w.wardName}`,
+                                  }))}
+                                  loading={loadingAssignWards}
+                                  minWidth="160px"
+                                />
+                              )
                             )}
 
                             <button
@@ -1076,8 +1045,10 @@ export default function AssignRolesTab() {
             Showing <span className="font-semibold text-gray-700">{totalUsersCount > 0 ? startIndex + 1 : 0}</span> to{" "}
             <span className="font-semibold text-gray-700">{endIndex}</span> of{" "}
             <span className="font-semibold text-gray-700">{totalUsersCount}</span> users
-            {filteredUsers.length !== users.length && (
-              <span className="text-gray-400 font-normal"> (filtered from {users.length} total)</span>
+            {filteredUsers.length !== allUsers.length && (
+              <span className="text-gray-400 font-normal">
+                (filtered {filteredUsers.length} of {allUsers.length} users)
+              </span>
             )}
           </div>
 
@@ -1139,6 +1110,107 @@ export default function AssignRolesTab() {
           </div>
         )}
       </div>
+
+      {/* ── Change Person modal ── PUT /roles/change-role ─────────────────────── */}
+      {changeModalUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div>
+                <h3 className="text-[14px] font-bold text-gray-900">Change Person</h3>
+                <p className="text-[11.5px] text-gray-400 mt-0.5">Replace the current holder of this position</p>
+              </div>
+              <button
+                onClick={closeChangeModal}
+                className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-3.5">
+              <div>
+                <p className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wide">Position</p>
+                <p className="text-[13px] font-semibold text-gray-800 mt-0.5">
+                  {getRoleBadge(changeModalUser.userRoles) || "—"} · {changeModalUser.name}
+                </p>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  Position ID: {changeModalPositionId || "Not available — enter it manually below"}
+                </p>
+                {!changeModalPositionId && (
+                  <input
+                    value={changeModalPositionId}
+                    onChange={(e) => setChangeModalPositionId(e.target.value)}
+                    placeholder="Paste positionId (UUID)…"
+                    className="mt-1.5 w-full h-8 px-2.5 text-[12px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  />
+                )}
+              </div>
+
+              <div>
+                <p className="text-[10.5px] font-semibold text-gray-400 uppercase tracking-wide">New Person</p>
+                <div className="relative mt-1">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    value={userSearchQuery}
+                    onChange={(e) => { setUserSearchQuery(e.target.value); setNewUserId(""); }}
+                    placeholder="Search by name, phone or email…"
+                    className="w-full h-9 pl-8 pr-3 text-[12.5px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
+                  />
+                </div>
+
+                {userSearchQuery && !newUserId && (
+                  <div className="mt-1 max-h-40 overflow-y-auto border border-gray-100 rounded-lg divide-y divide-gray-50">
+                    {userSearchResults.length === 0 ? (
+                      <div className="px-3 py-2 text-[11.5px] text-gray-400">No matching users</div>
+                    ) : (
+                      userSearchResults.map((u) => (
+                        <button
+                          key={u.userId}
+                          onClick={() => { setNewUserId(u.userId); setUserSearchQuery(u.name); }}
+                          className="w-full text-left px-3 py-2 text-[12px] hover:bg-blue-50 transition-colors"
+                        >
+                          <div className="font-medium text-gray-800">{u.name}</div>
+                          <div className="text-[10.5px] text-gray-400">{u.mobileNumber || u.email || "—"}</div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {newUserId && (
+                  <div className="mt-1.5 inline-flex items-center gap-1 text-[11.5px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg">
+                    <Check size={11} /> Selected: {userSearchQuery}
+                  </div>
+                )}
+              </div>
+
+              {changeError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 text-[11.5px] font-medium rounded-lg px-3 py-2">
+                  <AlertCircle size={13} /> {changeError}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-gray-100 bg-gray-50/60">
+              <button
+                onClick={closeChangeModal}
+                className="h-8 px-3 text-[12px] font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleChangeRole}
+                disabled={!newUserId || !changeModalPositionId || changing}
+                className="h-8 px-4 text-[12px] font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-40 flex items-center gap-1.5"
+              >
+                {changing ? <Loader2 size={12} className="animate-spin" /> : <Repeat size={12} />}
+                Change Person
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

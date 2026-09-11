@@ -61,6 +61,7 @@ import { fetchDashboard } from "../redux/slices/dashboardSlice.js";
 import { fetchHeadsByRole } from "../redux/slices/headSlice.js";
 import { fetchDistricts, fetchTalukasByDistrict } from "../redux/slices/wardSlice.js";
 import { fetchChannelPartners } from "../redux/slices/areaChartSlice.js";
+import { fetchAdminDashboard, fetchAllPositions } from "../redux/slices/adminSlice.js";
 import { ROLES } from "../utils/roles.js";
 
 // ============================================================
@@ -213,6 +214,17 @@ export default function SuperAdmin() {
     (s) => s.areaChart?.channelPartnersStatus === "loading"
   );
 
+  // 7. System-wide admin stats + all-positions (SuperAdmin-only backend
+  // endpoints: GET /admin/dashboard, GET /roles/all-positions). Unlike
+  // everything above, these are true platform-wide counts computed
+  // server-side — not derived/paginated client-side from `allPlatformUsers`.
+  const {
+    dashboard: adminDashboard,
+    loadingDashboard: adminDashboardLoading,
+    allPositions,
+    loadingAllPositions,
+  } = useSelector((s) => s.admin);
+
   // ── Initial Data Fetching ────────────────────────────────
   const loadSuperAdminData = React.useCallback(async () => {
     setIsRefreshing(true);
@@ -220,6 +232,8 @@ export default function SuperAdmin() {
       dispatch(fetchDashboard());
       dispatch(fetchDistricts());
       dispatch(fetchChannelPartners({ limit: 200 }));
+      dispatch(fetchAdminDashboard());
+      dispatch(fetchAllPositions());
 
       // Fetch all leadership role variants
       dispatch(fetchHeadsByRole(ROLES.DISTRICT_HEAD));
@@ -528,6 +542,69 @@ export default function SuperAdmin() {
     },
   ];
 
+  // System-wide stat cards — GET /admin/dashboard (super_admin only).
+  // These are server-computed counts across the ENTIRE platform, not
+  // derived from whatever page of `allPlatformUsers` happens to be loaded
+  // client-side, so they stay accurate regardless of pagination above.
+  const systemStatCards = [
+    {
+      label: "Total Users",
+      value: adminDashboardLoading ? "…" : (adminDashboard?.totalUsers ?? 0).toLocaleString(),
+      icon: Users,
+      textColor: "text-blue-600",
+      lightBg: "bg-blue-50",
+    },
+    {
+      label: "Total Members",
+      value: adminDashboardLoading ? "…" : (adminDashboard?.totalMembers ?? 0).toLocaleString(),
+      icon: UserCheck,
+      textColor: "text-emerald-600",
+      lightBg: "bg-emerald-50",
+    },
+    {
+      label: "Districts",
+      value: adminDashboardLoading ? "…" : (adminDashboard?.totalDistricts ?? 0).toLocaleString(),
+      icon: Globe,
+      textColor: "text-purple-600",
+      lightBg: "bg-purple-50",
+    },
+    {
+      label: "Talukas",
+      value: adminDashboardLoading ? "…" : (adminDashboard?.totalTalukas ?? 0).toLocaleString(),
+      icon: Flag,
+      textColor: "text-amber-600",
+      lightBg: "bg-amber-50",
+    },
+    {
+      label: "Wards",
+      value: adminDashboardLoading ? "…" : (adminDashboard?.totalWards ?? 0).toLocaleString(),
+      icon: MapIcon,
+      textColor: "text-cyan-600",
+      lightBg: "bg-cyan-50",
+    },
+    {
+      label: "Active Positions",
+      value: adminDashboardLoading ? "…" : (adminDashboard?.totalActivePositions ?? 0).toLocaleString(),
+      icon: Layers3,
+      textColor: "text-indigo-600",
+      lightBg: "bg-indigo-50",
+    },
+    {
+      label: "Positions Filled",
+      value: adminDashboardLoading ? "…" : (adminDashboard?.positionsFilled ?? 0).toLocaleString(),
+      icon: CheckCircle2,
+      textColor: "text-emerald-600",
+      lightBg: "bg-emerald-50",
+    },
+    {
+      label: "Positions Empty",
+      value: adminDashboardLoading ? "…" : (adminDashboard?.positionsEmpty ?? 0).toLocaleString(),
+      icon: AlertCircle,
+      textColor: "text-rose-600",
+      lightBg: "bg-rose-50",
+    },
+  ];
+
   return (
     <div className="p-4 sm:p-6 bg-slate-50 min-h-screen space-y-6">
 
@@ -592,6 +669,40 @@ export default function SuperAdmin() {
         </div>
       </div>
 
+      {/* ── SYSTEM-WIDE STATS (GET /admin/dashboard, super_admin only) ── */}
+      <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+            <Crown size={16} className="text-purple-600" />
+            System-Wide Stats
+          </h2>
+          {adminDashboard?.recentAssignments?.length > 0 && (
+            <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2.5 py-1 rounded-lg">
+              {adminDashboard.recentAssignments.length} Recent Assignments
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          {systemStatCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <div
+                key={card.label}
+                className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex flex-col gap-2"
+              >
+                <div className={`w-7 h-7 rounded-lg ${card.lightBg} ${card.textColor} flex items-center justify-center`}>
+                  <Icon size={14} />
+                </div>
+                <div>
+                  <p className="text-lg font-bold text-gray-800 leading-tight">{card.value}</p>
+                  <p className="text-[11px] text-gray-500 font-medium">{card.label}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ── KPI SUMMARY CARDS ──────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpiCards.map((card) => {
@@ -629,6 +740,7 @@ export default function SuperAdmin() {
           { id: "leadership", label: `Leadership Directory (${masterLeadershipDirectory.length})`, icon: ShieldCheck },
           { id: "members", label: `Platform Members (${totalMembersCount.toLocaleString()})`, icon: Users },
           { id: "channelPartners", label: `Channel Partners (${channelPartners.length})`, icon: Building2 },
+          { id: "positions", label: `All Positions (${allPositions.length})`, icon: Layers3 },
           { id: "governance", label: "Governance & Quick Actions", icon: Settings },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -1452,6 +1564,86 @@ export default function SuperAdmin() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── TAB: ALL POSITIONS (GET /roles/all-positions, super_admin only) ── */}
+      {activeTab === "positions" && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm space-y-4 p-5">
+          <div>
+            <h2 className="text-base font-bold text-gray-800">All Positions</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Every position system-wide with its role, geography, and current holder.
+            </p>
+          </div>
+
+          {loadingAllPositions ? (
+            <div className="flex justify-center py-12">
+              <div className="w-6 h-6 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : allPositions.length === 0 ? (
+            <EmptyState message="No positions found." icon={Layers3} />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-slate-50 text-gray-500 font-semibold uppercase tracking-wider">
+                    <th className="p-3.5">Position</th>
+                    <th className="p-3.5">Role</th>
+                    <th className="p-3.5">District / Taluka / Ward</th>
+                    <th className="p-3.5">Current Holder</th>
+                    <th className="p-3.5">Held Since</th>
+                    <th className="p-3.5">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {allPositions.map((pos) => (
+                    <tr key={pos.positionId} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-3.5 font-semibold text-gray-800">{pos.positionName || "—"}</td>
+                      <td className="p-3.5">
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                          {pos.role || "—"}
+                        </span>
+                      </td>
+                      <td className="p-3.5 text-gray-600 font-medium">
+                        {[pos.district?.districtName, pos.taluka?.talukaName, pos.ward?.wardName]
+                          .filter(Boolean)
+                          .join(" / ") || "—"}
+                      </td>
+                      <td className="p-3.5">
+                        {pos.currentHolder ? (
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center flex-shrink-0">
+                              {pos.currentHolder.name?.charAt(0).toUpperCase() || "H"}
+                            </div>
+                            <span className="font-semibold text-gray-800">{pos.currentHolder.name || "—"}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 italic">Vacant</span>
+                        )}
+                      </td>
+                      <td className="p-3.5 text-gray-600">
+                        {pos.currentHolder?.fromDate
+                          ? new Date(pos.currentHolder.fromDate).toLocaleDateString()
+                          : "—"}
+                      </td>
+                      <td className="p-3.5">
+                        {pos.currentHolder ? (
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            Filled
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                            Empty
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>

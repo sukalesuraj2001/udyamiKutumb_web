@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { updateProfile, fetchProfile } from "../../redux/slices/profileSlice.js";
-import { X, MapPin, Upload, Trash2, Building2, User, ChevronDown } from "lucide-react";
+import { X, MapPin, Upload, Trash2, Building2, User, Users, ChevronDown } from "lucide-react";
 import LocationPickerModal from "../../auth/LocationPickerModal.jsx";
 import api from "../../service/api.js";
 
@@ -52,6 +52,14 @@ const TURNOVER_RANGES = [
 const WORKING_HOURS = [
   "9 AM – 5 PM", "9 AM – 6 PM", "10 AM – 6 PM", "8 AM – 8 PM",
   "7 AM – 10 PM", "24 / 7", "Night Shift (10 PM – 6 AM)", "Others",
+];
+
+const BUSINESS_VERTICALS = [
+  "Media & Entertainment", "Healthcare & Medical", "IT / Software Services",
+  "Retail & E-commerce", "Manufacturing & Industry", "Agriculture & Farming",
+  "Finance & Banking", "Real Estate & Construction", "Hospitality & Tourism",
+  "Education & Training", "Transportation & Logistics", "NGO / Social Service",
+  "Others",
 ];
 
 const currentYear = new Date().getFullYear();
@@ -213,6 +221,67 @@ function BusinessImageUpload({ images, onChange }) {
   );
 }
 
+// ─── ChipListInput — add/remove list of free-text values (children, hobbies, interests) ──
+function ChipListInput({ items, onChange, placeholder }) {
+  const [draft, setDraft] = useState("");
+
+  const addItem = () => {
+    const v = draft.trim();
+    if (!v) return;
+    onChange([...items, v]);
+    setDraft("");
+  };
+
+  const removeItem = (idx) => onChange(items.filter((_, i) => i !== idx));
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addItem();
+    }
+  };
+
+  return (
+    <div>
+      {items.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-2">
+          {items.map((item, idx) => (
+            <span
+              key={`${item}-${idx}`}
+              className="inline-flex items-center gap-1.5 bg-[#EEF3FF] text-[#1a56db] text-[12.5px] font-medium px-2.5 py-1 rounded-full"
+            >
+              {item}
+              <button
+                type="button"
+                onClick={() => removeItem(idx)}
+                className="text-[#1a56db]/60 hover:text-[#1a56db]"
+              >
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-2">
+        <input
+          className={inputCls}
+          placeholder={placeholder || "Type a value and press Enter…"}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+        <button
+          type="button"
+          onClick={addItem}
+          className="px-3.5 py-2.5 rounded-lg bg-[#1a56db] text-white text-[13px] font-semibold hover:bg-[#1547c0] transition shrink-0"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function MapPinButton({ onClick }) {
   return (
     <button type="button" onClick={onClick} title="Pick on map"
@@ -229,6 +298,12 @@ export default function EditProfileModal({ profile, userId, onClose }) {
 
   const [mapOpen, setMapOpen] = useState(false);
   const [toast, setToast] = useState(false);
+  // Surfaces a rejected save (404 no user, network error, validation error,
+  // etc.) to the user — previously a rejected updateProfile thunk did
+  // nothing visible at all: no toast, modal stayed open with no message,
+  // so a failed save was indistinguishable from "nothing happened". See
+  // handleSave.
+  const [saveError, setSaveError] = useState(null);
   const [gstError, setGstError] = useState(null);
 
   // ── FIX: Store selected ward's geoJson for map boundary ──
@@ -238,6 +313,22 @@ export default function EditProfileModal({ profile, userId, onClose }) {
     alternateMobile: "", gender: "", state: "", district: "",
     assembly: "", ward: "", pincode: "", homeAddress: "", officeAddress: "",
   });
+
+  // ── Account fields (users table) — username/email/mobileNumber are
+  // editable here; `name` is intentionally not, per the API contract. ──
+  const [account, setAccount] = useState({
+    username: "", email: "", mobileNumber: "",
+  });
+
+  // ── Family / interests (user_profiles table) ──
+  const [familyCount, setFamilyCount] = useState("");
+  const [children, setChildren] = useState([]);
+  const [hobbies, setHobbies] = useState([]);
+  const [interests, setInterests] = useState([]);
+  const [spouse, setSpouse] = useState("");
+  const [pets, setPets] = useState("");
+  const [selectedBusinessVertical, setSelectedBusinessVertical] = useState("");
+  const [activitiesOrInterests, setActivitiesOrInterests] = useState("");
 
   const [hasBusiness, setHasBusiness] = useState(false);
   const [business, setBusiness] = useState({
@@ -352,6 +443,9 @@ export default function EditProfileModal({ profile, userId, onClose }) {
     if (!profile) return;
     const pd = profile.profile || profile || {};
     const bd = pd.businessDetails || pd || {};
+    // The account (users-table) record — same wrapper shape as
+    // profile?.user used by the read-only Account Info fields below.
+    const ud = profile.user || pd.user || {};
 
     setPersonal({
       alternateMobile: pd.alternateMobile || "",
@@ -364,6 +458,32 @@ export default function EditProfileModal({ profile, userId, onClose }) {
       homeAddress: pd.homeAddress || "",
       officeAddress: pd.officeAddress || "",
     });
+
+    setAccount({
+      username: ud.username || "",
+      email: ud.email || "",
+      mobileNumber: ud.mobileNumber || "",
+    });
+
+    setFamilyCount(
+      pd.familyCount !== null && pd.familyCount !== undefined
+        ? String(pd.familyCount)
+        : ""
+    );
+    setSpouse(pd.spouse || "");
+    setPets(pd.pets || "");
+    setSelectedBusinessVertical(pd.selectedBusinessVertical || "");
+    setActivitiesOrInterests(pd.activitiesOrInterests || "");
+    // `children`/`hobbies` used to be single free-text fields — tolerate
+    // a stray string value from stale/cached data by wrapping it as a
+    // one-item array instead of dropping it.
+    setChildren(
+      Array.isArray(pd.children) ? pd.children : (pd.children ? [pd.children] : [])
+    );
+    setHobbies(
+      Array.isArray(pd.hobbies) ? pd.hobbies : (pd.hobbies ? [pd.hobbies] : [])
+    );
+    setInterests(Array.isArray(pd.interests) ? pd.interests : []);
 
     const hasBiz = pd.hasBusiness || Boolean(bd.businessName || pd.businessName);
     setHasBusiness(hasBiz);
@@ -617,6 +737,7 @@ export default function EditProfileModal({ profile, userId, onClose }) {
 
   // ── Save profile with exact JSON payload structure matching API spec ──
   const handleSave = async () => {
+    setSaveError(null);
     const gstErr = validateGST(business.gstNumber);
     if (gstErr) { setGstError(gstErr); return; }
 
@@ -641,6 +762,24 @@ export default function EditProfileModal({ profile, userId, onClose }) {
     };
 
     const payload = {
+      // Account fields (users table) — sent alongside the profile fields;
+      // the backend merges these into the `users` row in the same
+      // transaction and returns 409 if username/email/mobileNumber
+      // collides with another account.
+      username: account.username || null,
+      email: account.email || null,
+      mobileNumber: account.mobileNumber || null,
+
+      // Family / interests (user_profiles table)
+      familyCount: familyCount !== "" ? Number(familyCount) : null,
+      spouse: spouse || null,
+      pets: pets || null,
+      selectedBusinessVertical: selectedBusinessVertical || null,
+      activitiesOrInterests: activitiesOrInterests || null,
+      children,
+      hobbies,
+      interests,
+
       // Personal fields at root level
       alternateMobile: personal.alternateMobile || null,
       gender: personal.gender || null,
@@ -652,7 +791,17 @@ export default function EditProfileModal({ profile, userId, onClose }) {
       homeAddress: personal.homeAddress || null,
       officeAddress: personal.officeAddress || null,
       hasBusiness: Boolean(hasBusiness),
-      profileImage: profile?.profileImage || profile?.photo || profile?.avatar || null,
+      // `profile` here is the { user, profile } wrapper this modal receives
+      // as a prop (see Profile.jsx) — the actual profile-details record
+      // (where profileImage lives) is nested at profile.profile, same as
+      // the "Populate from profile" effect above unwraps it via
+      // `profile.profile || profile`. Reading profile?.profileImage
+      // directly off the wrapper always evaluated to undefined, so this
+      // used to unconditionally send null here; harmless today only
+      // because the backend uses `??` (nullish coalescing) to fall back to
+      // the existing value, but wrong regardless and would silently wipe
+      // the photo if that backend fallback ever changed.
+      profileImage: profile?.profile?.profileImage || profile?.profileImage || profile?.photo || profile?.avatar || null,
 
       // Business details nested object
       businessDetails: hasBusiness ? {
@@ -687,6 +836,13 @@ export default function EditProfileModal({ profile, userId, onClose }) {
       setTimeout(() => setToast(false), 3000);
       await dispatch(fetchProfile(userId));
       onClose();
+    } else {
+      // Previously: nothing happened here at all on a rejected save — no
+      // toast, no message, modal just stayed open — indistinguishable from
+      // the save silently doing nothing. Surface it instead.
+      setSaveError(
+        result.payload || "Failed to update profile. Please try again."
+      );
     }
   };
 
@@ -723,13 +879,40 @@ export default function EditProfileModal({ profile, userId, onClose }) {
           {/* Body */}
           <div className="overflow-y-auto px-6 py-5 flex-1">
 
-            {/* Account info (read-only) */}
+            {/* Account info — Name/Role stay read-only; username/email/
+                mobile are editable (unique on the backend — a 409 with a
+                specific field name surfaces via the save-error toast). */}
             <SectionHeader icon={User} title="Account Info" />
             <div className="grid grid-cols-2 gap-3 mb-2">
               <Field label="Name"><input className={readonlyCls} value={profile?.user?.name || ""} readOnly /></Field>
-              <Field label="Email"><input className={readonlyCls} value={profile?.user?.email || ""} readOnly /></Field>
-              <Field label="Mobile"><input className={readonlyCls} value={profile?.user?.mobileNumber || ""} readOnly /></Field>
               <Field label="Role"><input className={readonlyCls} value={profile?.user?.role || ""} readOnly /></Field>
+              <Field label="Username">
+                <input
+                  className={inputCls}
+                  placeholder="Username"
+                  value={account.username}
+                  onChange={(e) => setAccount((f) => ({ ...f, username: e.target.value }))}
+                />
+              </Field>
+              <Field label="Email">
+                <input
+                  className={inputCls}
+                  type="email"
+                  placeholder="Email address"
+                  value={account.email}
+                  onChange={(e) => setAccount((f) => ({ ...f, email: e.target.value }))}
+                />
+              </Field>
+              <Field label="Mobile">
+                <input
+                  className={inputCls}
+                  placeholder="Mobile number"
+                  value={account.mobileNumber}
+                  onChange={(e) => setAccount((f) => ({ ...f, mobileNumber: e.target.value }))}
+                  inputMode="numeric"
+                  maxLength={15}
+                />
+              </Field>
             </div>
 
             {/* Personal */}
@@ -874,6 +1057,62 @@ export default function EditProfileModal({ profile, userId, onClose }) {
                 </span>
               </div>
             )}
+
+            {/* Family & Interests */}
+            <SectionHeader icon={Users} title="Family & Personal Details" />
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Family Count">
+                <input
+                  className={inputCls}
+                  type="number"
+                  min="0"
+                  placeholder="Total family members"
+                  value={familyCount}
+                  onChange={(e) => setFamilyCount(e.target.value)}
+                />
+              </Field>
+              <Field label="Spouse Name">
+                <input
+                  className={inputCls}
+                  placeholder="Spouse name"
+                  value={spouse}
+                  onChange={(e) => setSpouse(e.target.value)}
+                />
+              </Field>
+              <Field label="Pets">
+                <input
+                  className={inputCls}
+                  placeholder="e.g. Dog, Cat"
+                  value={pets}
+                  onChange={(e) => setPets(e.target.value)}
+                />
+              </Field>
+              <Field label="Business Vertical">
+                <SelectOrText
+                  options={BUSINESS_VERTICALS}
+                  value={selectedBusinessVertical}
+                  onChange={setSelectedBusinessVertical}
+                  placeholder="Select or enter business vertical…"
+                />
+              </Field>
+            </div>
+            <Field label="Children">
+              <ChipListInput items={children} onChange={setChildren} placeholder="Child name, then press Enter…" />
+            </Field>
+            <Field label="Hobbies">
+              <ChipListInput items={hobbies} onChange={setHobbies} placeholder="Hobby, then press Enter…" />
+            </Field>
+            <Field label="Interests & Activities">
+              <ChipListInput items={interests} onChange={setInterests} placeholder="Interest or activity, then press Enter…" />
+            </Field>
+            <Field label="Additional Activities / Interests">
+              <input
+                className={inputCls}
+                placeholder="Additional activities or interests description..."
+                value={activitiesOrInterests}
+                onChange={(e) => setActivitiesOrInterests(e.target.value)}
+              />
+            </Field>
 
             {/* Business toggle */}
             <div className="flex items-center gap-3 mb-4 mt-1">
@@ -1093,6 +1332,13 @@ export default function EditProfileModal({ profile, userId, onClose }) {
         {toast && (
           <div className="fixed bottom-6 right-6 bg-green-600 text-white text-[13px] font-medium px-5 py-3 rounded-xl shadow-lg z-50">
             ✓ Profile updated successfully
+          </div>
+        )}
+
+        {saveError && (
+          <div className="fixed bottom-6 right-6 bg-red-600 text-white text-[13px] font-medium px-5 py-3 rounded-xl shadow-lg z-50 flex items-center gap-3">
+            <span>✕ {saveError}</span>
+            <button onClick={() => setSaveError(null)} className="text-white/80 hover:text-white text-[15px] leading-none">×</button>
           </div>
         )}
       </div>

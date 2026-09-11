@@ -347,9 +347,25 @@ export function mergeTalukaChairmenIntoAssignments(assignments, wardChairmenList
   }
 
   const merged = { ...(assignments || {}) };
-  const targetWards = (Array.isArray(constituencyWards) && constituencyWards.length > 0)
+  const rawTargetWards = (Array.isArray(constituencyWards) && constituencyWards.length > 0)
     ? constituencyWards
     : wardChairmenList;
+
+  // De-dupe defensively — even though the caller is expected to already
+  // pass a unique-per-ward list, a duplicate row here (two entries for the
+  // same physical ward) used to silently double a chairman's card (both
+  // duplicates match the same API ward by id/number/name) while bumping a
+  // different, genuinely-unmatched ward's chairman out of its rightful
+  // slot. Keying on wardId when present, else a normalized ward name,
+  // keeps this function correct regardless of what the caller passes in.
+  const seenWardKeys = new Set();
+  const targetWards = rawTargetWards.filter((w) => {
+    const key = w?.id || w?.wardId || `${w?.ward_name || w?.wardName || ""}`.trim().toLowerCase();
+    if (!key) return true; // nothing to de-dupe on — keep it, let the match below decide
+    if (seenWardKeys.has(key)) return false;
+    seenWardKeys.add(key);
+    return true;
+  });
 
   targetWards.forEach((constituencyWard, index) => {
     const slotId = `chairman-${index + 1}`;
@@ -358,14 +374,28 @@ export function mergeTalukaChairmenIntoAssignments(assignments, wardChairmenList
     const wardNumber = constituencyWard?.ward_number || constituencyWard?.wardNumber;
     const wardName = constituencyWard?.ward_name || constituencyWard?.wardName;
 
+    // No positional fallback (`|| wardChairmenList[index]`) here on purpose:
+    // guessing "the i-th taluka ward is the i-th API ward" is what silently
+    // mis-assigned a chairman whenever the two lists weren't in the same
+    // order/length — the exact "duplicate chairman card, another ward's
+    // chairman missing" bug. An unmatched slot is left empty instead.
     const matchedApiWard = wardChairmenList.find(
       (item) =>
         (wardId && item.wardId === wardId) ||
         (wardNumber && item.wardNumber === wardNumber) ||
         (wardName && item.wardName === wardName)
-    ) || wardChairmenList[index];
+    );
 
-    if (matchedApiWard && matchedApiWard.wardChart) {
+    if (!matchedApiWard) return;
+
+    // Prefer the matched API ward's own number/name for the visible label
+    // over the taluka-ward-list entry's — keeps the label always in sync
+    // with whichever chairman record actually got assigned to this slot.
+    const displayWardNumber = matchedApiWard.wardNumber || wardNumber;
+    const displayWardName = matchedApiWard.wardName || wardName;
+    const slotLabel = `${displayWardNumber || `${gCode}.${index + 1}`} Chairman`;
+
+    if (matchedApiWard.wardChart) {
       const wardChartObj = matchedApiWard.wardChart;
       const rawMembers = wardChartObj.members;
       let chairmanMember = null;
@@ -397,7 +427,8 @@ export function mergeTalukaChairmenIntoAssignments(assignments, wardChairmenList
           email: chairmanMember.email || "",
           memberId: chairmanMember.memberId || chairmanMember.userId || null,
           status: chairmanMember.isActive === false ? "inactive" : (chairmanMember.status || "registered"),
-          slotLabel: `${wardNumber || `${gCode}.${index + 1}`} Chairman`,
+          slotLabel,
+          wardLabel: displayWardName || null,
         };
       } else if (wardChartObj.wardHead) {
         const head = wardChartObj.wardHead;
@@ -417,7 +448,8 @@ export function mergeTalukaChairmenIntoAssignments(assignments, wardChairmenList
             email: head.email || "",
             memberId: head.userId || head.memberId || null,
             status: "registered",
-            slotLabel: `${wardNumber || `${gCode}.${index + 1}`} Chairman`,
+            slotLabel,
+            wardLabel: displayWardName || null,
           };
         }
       }

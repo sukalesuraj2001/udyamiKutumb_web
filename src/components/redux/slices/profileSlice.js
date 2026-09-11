@@ -16,6 +16,10 @@ export const fetchProfile = createAsyncThunk(
 
 export const updateProfile = createAsyncThunk(
   "profile/updateProfile",
+  // `payload` is forwarded to the PATCH body verbatim, so the extended
+  // profile fields (username, email, mobileNumber, familyCount, children,
+  // hobbies, interests — see EditProfileModal's handleSave) already pass
+  // through here without any change needed on this end.
   async ({ userId, payload }, { rejectWithValue }) => {
     try {
       const res = await api.patch(`/userprofile/updateUserProfile/${userId}`, payload);
