@@ -51,6 +51,7 @@ import Membership from "../pages/membership/Membership.jsx";
 import RegistrationPage from "../pages/membership/RegistrationPage.jsx";
 import UserManagement from "../pages/users/UserManagement.jsx";
 import RoleManagement from "../pages/users/RoleManagement.jsx";
+import RegisterEmployee from "../pages/users/RegisterEmployee.jsx";
 import ChannelPartnerOnboard from "../pages/Channelpartneronboard.jsx";
 import FormBuilder from '../pages/onbording/cpOnbording/Formbuilder.jsx'
 // roles
@@ -228,6 +229,7 @@ const AppRouter = [
           { path: "/super-admin-dashboard/membership", element: <Membership /> },
           { path: "/super-admin-dashboard/membership/registration", element: <RegistrationPage /> },
           { path: "/super-admin-dashboard/membership/role-management", element: <RoleManagement /> },
+          { path: "/super-admin-dashboard/register-employee", element: <RegisterEmployee /> },
           { path: "/super-admin-dashboard/cp-onboarding", element: <ChannelPartnerOnboard /> },
           { path: "/super-admin-dashboard/form-builder/channelPartner", element: <FormBuilder /> },
           { path: "/super-admin-dashboard/create-ward", element: <CreateWard /> },

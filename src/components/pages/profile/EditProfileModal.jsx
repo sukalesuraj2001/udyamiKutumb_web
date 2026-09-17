@@ -165,7 +165,7 @@ function BusinessImageUpload({ images, onChange }) {
     files.slice(0, remaining).forEach((file) => {
       const reader = new FileReader();
       reader.onload = () => {
-        const base64Str = reader.result; // "data:image/jpeg;base64,..."
+        const base64Str = reader.result;
         const newImg = {
           file,
           preview: base64Str,
@@ -221,7 +221,7 @@ function BusinessImageUpload({ images, onChange }) {
   );
 }
 
-// ─── ChipListInput — add/remove list of free-text values (children, hobbies, interests) ──
+// ─── ChipListInput — add/remove list of free-text values (hobbies, interests) ──
 function ChipListInput({ items, onChange, placeholder }) {
   const [draft, setDraft] = useState("");
 
@@ -282,6 +282,216 @@ function ChipListInput({ items, onChange, placeholder }) {
   );
 }
 
+// ─── ChildrenInput — name + age + mobile (mobile hidden if age < 18) ──────────
+function ChildrenInput({ items, onChange }) {
+  const addChild = () => {
+    onChange([...items, { name: "", age: "", mobile: "" }]);
+  };
+
+  const removeChild = (idx) => {
+    onChange(items.filter((_, i) => i !== idx));
+  };
+
+  const updateChild = (idx, key, val) => {
+    onChange(items.map((c, i) => (i === idx ? { ...c, [key]: val } : c)));
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      {items.map((child, idx) => {
+        const age = parseInt(child.age) || 0;
+        const isMinor = age > 0 && age < 18;
+
+        return (
+          <div
+            key={idx}
+            className="border border-[#E2E8F4] rounded-xl p-3.5 bg-[#F8FAFF] relative transition hover:border-[#C7D7FA]"
+          >
+            <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-[#E2E8F4]/80">
+              <span className="text-[11px] font-bold text-[#1a56db] uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-[#1a56db]/10 text-[#1a56db] flex items-center justify-center text-[10px]">
+                  {idx + 1}
+                </span>
+                Child {idx + 1}
+              </span>
+              <button
+                type="button"
+                onClick={() => removeChild(idx)}
+                className="text-slate-400 hover:text-red-500 p-1 rounded-md hover:bg-red-50 transition"
+                title="Remove Child"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+              {/* Name */}
+              <div className="col-span-2 max-sm:col-span-1">
+                <label className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">
+                  Child Name
+                </label>
+                <input
+                  className={inputCls}
+                  placeholder="Enter child's name"
+                  value={child.name}
+                  onChange={(e) => updateChild(idx, "name", e.target.value)}
+                />
+              </div>
+
+              {/* Age */}
+              <div className={isMinor ? "col-span-2 max-sm:col-span-1" : ""}>
+                <label className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">
+                  Age
+                </label>
+                <input
+                  className={inputCls}
+                  placeholder="e.g. 12"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={child.age}
+                  onChange={(e) => updateChild(idx, "age", e.target.value)}
+                  inputMode="numeric"
+                />
+              </div>
+
+              {/* Mobile — hide completely if minor */}
+              {!isMinor && (
+                <div>
+                  <label className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">
+                    Mobile Number
+                  </label>
+                  <input
+                    className={inputCls}
+                    placeholder="10-digit mobile number"
+                    value={child.mobile}
+                    onChange={(e) => updateChild(idx, "mobile", e.target.value)}
+                    inputMode="numeric"
+                    maxLength={10}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      <button
+        type="button"
+        onClick={addChild}
+        className="w-full py-2.5 rounded-xl border-2 border-dashed border-[#C7D7FA] bg-[#EEF3FF] text-[#1a56db] text-[12.5px] font-semibold hover:border-[#1a56db] hover:bg-[#E5EDFF] transition flex items-center justify-center gap-2 shadow-xs"
+      >
+        <span className="text-[16px] leading-none">+</span> Add Child
+      </button>
+    </div>
+  );
+}
+
+// ─── SiblingsInput — name + age + mobile for Brother(s) and Sister(s) ───────
+function SiblingsInput({ items, onChange, memberType }) {
+  const addMember = () => {
+    onChange([...items, { name: "", age: "", mobile: "" }]);
+  };
+
+  const removeMember = (idx) => {
+    onChange(items.filter((_, i) => i !== idx));
+  };
+
+  const updateMember = (idx, key, val) => {
+    onChange(items.map((m, i) => (i === idx ? { ...m, [key]: val } : m)));
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      {items.map((member, idx) => {
+        const age = parseInt(member.age) || 0;
+        const isMinor = age > 0 && age < 18;
+
+        return (
+          <div
+            key={idx}
+            className="border border-[#E2E8F4] rounded-xl p-3.5 bg-[#F8FAFF] relative transition hover:border-[#C7D7FA]"
+          >
+            <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-[#E2E8F4]/80">
+              <span className="text-[11px] font-bold text-[#1a56db] uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-[#1a56db]/10 text-[#1a56db] flex items-center justify-center text-[10px]">
+                  {idx + 1}
+                </span>
+                {memberType} {idx + 1}
+              </span>
+              <button
+                type="button"
+                onClick={() => removeMember(idx)}
+                className="text-slate-400 hover:text-red-500 p-1 rounded-md hover:bg-red-50 transition"
+                title={`Remove ${memberType}`}
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+              {/* Name */}
+              <div className="col-span-2 max-sm:col-span-1">
+                <label className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">
+                  {memberType} Name
+                </label>
+                <input
+                  className={inputCls}
+                  placeholder={`Enter ${memberType.toLowerCase()}'s name`}
+                  value={member.name}
+                  onChange={(e) => updateMember(idx, "name", e.target.value)}
+                />
+              </div>
+
+              {/* Age */}
+              <div className={isMinor ? "col-span-2 max-sm:col-span-1" : ""}>
+                <label className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">
+                  Age
+                </label>
+                <input
+                  className={inputCls}
+                  placeholder="e.g. 22"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={member.age}
+                  onChange={(e) => updateMember(idx, "age", e.target.value)}
+                  inputMode="numeric"
+                />
+              </div>
+
+              {/* Mobile — hide if minor */}
+              {!isMinor && (
+                <div>
+                  <label className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">
+                    Mobile Number
+                  </label>
+                  <input
+                    className={inputCls}
+                    placeholder="10-digit mobile number"
+                    value={member.mobile}
+                    onChange={(e) => updateMember(idx, "mobile", e.target.value)}
+                    inputMode="numeric"
+                    maxLength={10}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      <button
+        type="button"
+        onClick={addMember}
+        className="w-full py-2.5 rounded-xl border-2 border-dashed border-[#C7D7FA] bg-[#EEF3FF] text-[#1a56db] text-[12.5px] font-semibold hover:border-[#1a56db] hover:bg-[#E5EDFF] transition flex items-center justify-center gap-2 shadow-xs"
+      >
+        <span className="text-[16px] leading-none">+</span> Add {memberType}
+      </button>
+    </div>
+  );
+}
+
 function MapPinButton({ onClick }) {
   return (
     <button type="button" onClick={onClick} title="Pick on map"
@@ -291,6 +501,13 @@ function MapPinButton({ onClick }) {
   );
 }
 
+// ─── Spouse prefix helper ─────────────────────────────────────────────────────
+function getSpousePrefix(gender) {
+  if (gender === "Male") return "Mrs.";
+  if (gender === "Female") return "Mr.";
+  return "";
+}
+
 // ─── Main Modal ───────────────────────────────────────────────────────────────
 export default function EditProfileModal({ profile, userId, onClose }) {
   const dispatch = useDispatch();
@@ -298,34 +515,31 @@ export default function EditProfileModal({ profile, userId, onClose }) {
 
   const [mapOpen, setMapOpen] = useState(false);
   const [toast, setToast] = useState(false);
-  // Surfaces a rejected save (404 no user, network error, validation error,
-  // etc.) to the user — previously a rejected updateProfile thunk did
-  // nothing visible at all: no toast, modal stayed open with no message,
-  // so a failed save was indistinguishable from "nothing happened". See
-  // handleSave.
   const [saveError, setSaveError] = useState(null);
   const [gstError, setGstError] = useState(null);
-
-  // ── FIX: Store selected ward's geoJson for map boundary ──
   const [selectedWardGeoJson, setSelectedWardGeoJson] = useState(null);
 
   const [personal, setPersonal] = useState({
-    alternateMobile: "", gender: "", state: "", district: "",
+    alternateMobile: "", gender: "", maritalStatus: "Single", state: "", district: "",
     assembly: "", ward: "", pincode: "", homeAddress: "", officeAddress: "",
   });
 
-  // ── Account fields (users table) — username/email/mobileNumber are
-  // editable here; `name` is intentionally not, per the API contract. ──
   const [account, setAccount] = useState({
     username: "", email: "", mobileNumber: "",
   });
 
-  // ── Family / interests (user_profiles table) ──
   const [familyCount, setFamilyCount] = useState("");
+  // children: array of { name, age, mobile }
   const [children, setChildren] = useState([]);
   const [hobbies, setHobbies] = useState([]);
   const [interests, setInterests] = useState([]);
   const [spouse, setSpouse] = useState("");
+  const [spouseMobile, setSpouseMobile] = useState("");
+  const [father, setFather] = useState({ name: "", age: "", mobile: "" });
+  const [mother, setMother] = useState({ name: "", age: "", mobile: "" });
+  // brothers & sisters: array of { name, age, mobile }
+  const [brothers, setBrothers] = useState([]);
+  const [sisters, setSisters] = useState([]);
   const [pets, setPets] = useState("");
   const [selectedBusinessVertical, setSelectedBusinessVertical] = useState("");
   const [activitiesOrInterests, setActivitiesOrInterests] = useState("");
@@ -341,15 +555,13 @@ export default function EditProfileModal({ profile, userId, onClose }) {
   });
   const [businessImages, setBusinessImages] = useState([]);
 
-  // ── Cascading location states (District -> Assembly/Taluka -> Ward) ──
+  // Cascading location states
   const [districts, setDistricts] = useState([]);
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [selectedDistrictId, setSelectedDistrictId] = useState("");
-
   const [talukas, setTalukas] = useState([]);
   const [loadingTalukas, setLoadingTalukas] = useState(false);
   const [selectedTalukaId, setSelectedTalukaId] = useState("");
-
   const [wards, setWards] = useState([]);
   const [loadingWards, setLoadingWards] = useState(false);
 
@@ -357,7 +569,6 @@ export default function EditProfileModal({ profile, userId, onClose }) {
   const [bizTalukas, setBizTalukas] = useState([]);
   const [loadingBizTalukas, setLoadingBizTalukas] = useState(false);
   const [selectedBizDistrictId, setSelectedBizDistrictId] = useState("");
-
   const [bizWards, setBizWards] = useState([]);
   const [loadingBizWards, setLoadingBizWards] = useState(false);
   const [selectedBizTalukaId, setSelectedBizTalukaId] = useState("");
@@ -385,7 +596,6 @@ export default function EditProfileModal({ profile, userId, onClose }) {
       const res = await api.get(`/district/getAllDistricts?districtId=${districtId}`);
       setTalukas(res.data?.data || []);
     } catch (e) {
-      console.error("Failed to load talukas:", e);
       setTalukas([]);
     } finally {
       setLoadingTalukas(false);
@@ -402,7 +612,6 @@ export default function EditProfileModal({ profile, userId, onClose }) {
       }
       setWards(res?.data?.data || []);
     } catch (e) {
-      console.error("Failed to load wards:", e);
       setWards([]);
     } finally {
       setLoadingWards(false);
@@ -443,13 +652,12 @@ export default function EditProfileModal({ profile, userId, onClose }) {
     if (!profile) return;
     const pd = profile.profile || profile || {};
     const bd = pd.businessDetails || pd || {};
-    // The account (users-table) record — same wrapper shape as
-    // profile?.user used by the read-only Account Info fields below.
     const ud = profile.user || pd.user || {};
 
     setPersonal({
       alternateMobile: pd.alternateMobile || "",
       gender: pd.gender || "",
+      maritalStatus: pd.maritalStatus || pd.marital || "Single",
       state: pd.state || "",
       district: pd.district || "",
       assembly: pd.assembly || "",
@@ -470,16 +678,70 @@ export default function EditProfileModal({ profile, userId, onClose }) {
         ? String(pd.familyCount)
         : ""
     );
-    setSpouse(pd.spouse || "");
+    setSpouse(pd.spouse || pd.spouseName || "");
+    setSpouseMobile(pd.spouseMobile || pd.spouseMobileNumber || pd.spousePhone || "");
+    // father normalization
+    const rawFather = pd.father || pd.fatherDetails || pd.fatherName || pd.fathersName || null;
+    setFather(
+      typeof rawFather === "object" && rawFather !== null
+        ? { name: rawFather.name || "", age: rawFather.age !== undefined && rawFather.age !== null ? String(rawFather.age) : "", mobile: rawFather.mobile || rawFather.mobileNumber || "" }
+        : { name: typeof rawFather === "string" ? rawFather : (pd.fatherName || pd.fathersName || ""), age: pd.fatherAge ? String(pd.fatherAge) : "", mobile: pd.fatherMobile || pd.fatherMobileNumber || "" }
+    );
+
+    // mother normalization
+    const rawMother = pd.mother || pd.motherDetails || pd.motherName || pd.mothersName || null;
+    setMother(
+      typeof rawMother === "object" && rawMother !== null
+        ? { name: rawMother.name || "", age: rawMother.age !== undefined && rawMother.age !== null ? String(rawMother.age) : "", mobile: rawMother.mobile || rawMother.mobileNumber || "" }
+        : { name: typeof rawMother === "string" ? rawMother : (pd.motherName || pd.mothersName || ""), age: pd.motherAge ? String(pd.motherAge) : "", mobile: pd.motherMobile || pd.motherMobileNumber || "" }
+    );
+
+    // brothers — normalize to object array { name, age, mobile }
+    const rawBrothers = Array.isArray(pd.brothers)
+      ? pd.brothers
+      : Array.isArray(pd.brotherName)
+      ? pd.brotherName
+      : (pd.brotherName || pd.brother || pd.brothers)
+      ? [pd.brotherName || pd.brother || pd.brothers]
+      : [];
+    setBrothers(
+      rawBrothers.map((b) =>
+        typeof b === "string"
+          ? { name: b, age: "", mobile: "" }
+          : { name: b?.name || "", age: b?.age !== undefined && b?.age !== null ? String(b.age) : "", mobile: b?.mobile || "" }
+      )
+    );
+
+    // sisters — normalize to object array { name, age, mobile }
+    const rawSisters = Array.isArray(pd.sisters)
+      ? pd.sisters
+      : Array.isArray(pd.sisterName)
+      ? pd.sisterName
+      : (pd.sisterName || pd.sister || pd.sisters)
+      ? [pd.sisterName || pd.sister || pd.sisters]
+      : [];
+    setSisters(
+      rawSisters.map((s) =>
+        typeof s === "string"
+          ? { name: s, age: "", mobile: "" }
+          : { name: s?.name || "", age: s?.age !== undefined && s?.age !== null ? String(s.age) : "", mobile: s?.mobile || "" }
+      )
+    );
+
     setPets(pd.pets || "");
     setSelectedBusinessVertical(pd.selectedBusinessVertical || "");
     setActivitiesOrInterests(pd.activitiesOrInterests || "");
-    // `children`/`hobbies` used to be single free-text fields — tolerate
-    // a stray string value from stale/cached data by wrapping it as a
-    // one-item array instead of dropping it.
+
+    // children — normalize to object array { name, age, mobile }
+    const rawChildren = Array.isArray(pd.children) ? pd.children : (pd.children ? [pd.children] : []);
     setChildren(
-      Array.isArray(pd.children) ? pd.children : (pd.children ? [pd.children] : [])
+      rawChildren.map((c) =>
+        typeof c === "string"
+          ? { name: c, age: "", mobile: "" }
+          : { name: c?.name || "", age: c?.age !== undefined ? String(c.age) : "", mobile: c?.mobile || "" }
+      )
     );
+
     setHobbies(
       Array.isArray(pd.hobbies) ? pd.hobbies : (pd.hobbies ? [pd.hobbies] : [])
     );
@@ -592,7 +854,6 @@ export default function EditProfileModal({ profile, userId, onClose }) {
     );
     const talName = matched ? (matched.talukaName || matched.name) : val;
     const talId = matched ? (matched._id || matched.talukaId || matched.id) : val;
-
     const autoPin = matched?.pincode || matched?.pinCode || matched?.postalCode || matched?.zipCode || matched?.pin || (Array.isArray(matched?.pincodes) ? matched.pincodes[0] : null);
 
     setPersonal((f) => ({
@@ -607,7 +868,6 @@ export default function EditProfileModal({ profile, userId, onClose }) {
     loadWards(talId);
   };
 
-  // ── FIX: Ward change now captures geoJson from ward response ──
   const handleWardChange = (e) => {
     const val = e.target.value;
     if (!val) {
@@ -618,18 +878,11 @@ export default function EditProfileModal({ profile, userId, onClose }) {
     const matched = wards.find(
       (w) => (w._id || w.wardId || w.id) === val || (w.wardName || w.name) === val
     );
-    const wardLabel = matched
-      ? (matched.wardName || matched.name || val)
-      : val;
-
+    const wardLabel = matched ? (matched.wardName || matched.name || val) : val;
     const autoPin = matched?.pincode || matched?.pinCode || matched?.postalCode || matched?.zipCode || matched?.pin || (Array.isArray(matched?.pincodes) ? matched.pincodes[0] : null);
 
-    // Store geoJson for map boundary display
-    if (matched?.geoJson) {
-      setSelectedWardGeoJson(matched.geoJson);
-    } else {
-      setSelectedWardGeoJson(null);
-    }
+    if (matched?.geoJson) setSelectedWardGeoJson(matched.geoJson);
+    else setSelectedWardGeoJson(null);
 
     setPersonal((f) => ({
       ...f,
@@ -638,7 +891,6 @@ export default function EditProfileModal({ profile, userId, onClose }) {
     }));
   };
 
-  // Business Location Handlers
   const handleBizDistrictChange = (e) => {
     const val = e.target.value;
     if (!val) {
@@ -676,7 +928,6 @@ export default function EditProfileModal({ profile, userId, onClose }) {
     );
     const talName = matched ? (matched.talukaName || matched.name) : val;
     const talId = matched ? (matched._id || matched.talukaId || matched.id) : val;
-
     const autoPin = matched?.pincode || matched?.pinCode || matched?.postalCode || matched?.zipCode || matched?.pin || (Array.isArray(matched?.pincodes) ? matched.pincodes[0] : null);
 
     setBusiness((f) => ({
@@ -701,17 +952,11 @@ export default function EditProfileModal({ profile, userId, onClose }) {
     const matched = bizWards.find(
       (w) => (w._id || w.wardId || w.id) === val || (w.wardName || w.name) === val
     );
-    const wardLabel = matched
-      ? (matched.wardName || matched.name || val)
-      : val;
-
-    if (matched?.geoJson) {
-      setSelectedWardGeoJson(matched.geoJson);
-    } else {
-      setSelectedWardGeoJson(null);
-    }
-
+    const wardLabel = matched ? (matched.wardName || matched.name || val) : val;
     const autoPin = matched?.pincode || matched?.pinCode || matched?.postalCode || matched?.zipCode || matched?.pin || (Array.isArray(matched?.pincodes) ? matched.pincodes[0] : null);
+
+    if (matched?.geoJson) setSelectedWardGeoJson(matched.geoJson);
+    else setSelectedWardGeoJson(null);
 
     setBusiness((f) => ({
       ...f,
@@ -735,7 +980,7 @@ export default function EditProfileModal({ profile, userId, onClose }) {
     setMapOpen(false);
   };
 
-  // ── Save profile with exact JSON payload structure matching API spec ──
+  // ── Save ──
   const handleSave = async () => {
     setSaveError(null);
     const gstErr = validateGST(business.gstNumber);
@@ -747,12 +992,7 @@ export default function EditProfileModal({ profile, userId, onClose }) {
       const fileName = img.fileName || (img.file ? img.file.name : null) || (img.url ? img.url.split("/").pop() : "image.jpg");
       const mimeType = img.mimeType || (img.file ? img.file.type : "image/jpeg");
       const imageStr = img.base64 || img.preview || img.url || "";
-
-      return {
-        image: imageStr,
-        fileName,
-        mimeType,
-      };
+      return { image: imageStr, fileName, mimeType };
     };
 
     const parseNum = (val) => {
@@ -761,26 +1001,78 @@ export default function EditProfileModal({ profile, userId, onClose }) {
       return isNaN(n) ? val : n;
     };
 
+    // children — serialize array of { name, age, mobile }
+    const childrenPayload = children
+      .filter((c) => c && c.name && String(c.name).trim() !== "")
+      .map((c) => ({
+        name: String(c.name).trim(),
+        age: c.age !== undefined && c.age !== null ? String(c.age).trim() : "",
+        mobile: c.mobile ? String(c.mobile).trim() : "",
+      }));
+
+    // brothers — serialize array of { name, age, mobile }
+    const brothersPayload = brothers
+      .filter((b) => b && b.name && String(b.name).trim() !== "")
+      .map((b) => ({
+        name: String(b.name).trim(),
+        age: b.age !== undefined && b.age !== null ? String(b.age).trim() : "",
+        mobile: b.mobile ? String(b.mobile).trim() : "",
+      }));
+
+    // sisters — serialize array of { name, age, mobile }
+    const sistersPayload = sisters
+      .filter((s) => s && s.name && String(s.name).trim() !== "")
+      .map((s) => ({
+        name: String(s.name).trim(),
+        age: s.age !== undefined && s.age !== null ? String(s.age).trim() : "",
+        mobile: s.mobile ? String(s.mobile).trim() : "",
+      }));
+
+    const isMarried = personal.maritalStatus === "Married";
+
+    const fatherPayload = father.name.trim() ? {
+      name: father.name.trim(),
+      age: father.age ? String(father.age).trim() : "",
+      mobile: father.mobile ? String(father.mobile).trim() : "",
+    } : null;
+
+    const motherPayload = mother.name.trim() ? {
+      name: mother.name.trim(),
+      age: mother.age ? String(mother.age).trim() : "",
+      mobile: mother.mobile ? String(mother.mobile).trim() : "",
+    } : null;
+
     const payload = {
-      // Account fields (users table) — sent alongside the profile fields;
-      // the backend merges these into the `users` row in the same
-      // transaction and returns 409 if username/email/mobileNumber
-      // collides with another account.
       username: account.username || null,
       email: account.email || null,
       mobileNumber: account.mobileNumber || null,
-
-      // Family / interests (user_profiles table)
       familyCount: familyCount !== "" ? Number(familyCount) : null,
-      spouse: spouse || null,
+      maritalStatus: personal.maritalStatus || null,
+      spouse: isMarried ? (spouse || null) : null,
+      spouseMobile: isMarried ? (spouseMobile || null) : null,
+      spouseMobileNumber: isMarried ? (spouseMobile || null) : null,
+      children: isMarried ? childrenPayload : [],
+      fatherName: !isMarried ? (father.name.trim() || null) : null,
+      fathersName: !isMarried ? (father.name.trim() || null) : null,
+      fatherAge: !isMarried ? (father.age ? String(father.age).trim() : null) : null,
+      fatherMobile: !isMarried ? (father.mobile ? String(father.mobile).trim() : null) : null,
+      father: !isMarried ? fatherPayload : null,
+      motherName: !isMarried ? (mother.name.trim() || null) : null,
+      mothersName: !isMarried ? (mother.name.trim() || null) : null,
+      motherAge: !isMarried ? (mother.age ? String(mother.age).trim() : null) : null,
+      motherMobile: !isMarried ? (mother.mobile ? String(mother.mobile).trim() : null) : null,
+      mother: !isMarried ? motherPayload : null,
+      brothers: !isMarried ? brothersPayload : [],
+      brotherName: !isMarried ? brothersPayload : [],
+      brother: !isMarried ? brothersPayload : [],
+      sisters: !isMarried ? sistersPayload : [],
+      sisterName: !isMarried ? sistersPayload : [],
+      sister: !isMarried ? sistersPayload : [],
       pets: pets || null,
       selectedBusinessVertical: selectedBusinessVertical || null,
       activitiesOrInterests: activitiesOrInterests || null,
-      children,
       hobbies,
       interests,
-
-      // Personal fields at root level
       alternateMobile: personal.alternateMobile || null,
       gender: personal.gender || null,
       state: personal.state || null,
@@ -791,19 +1083,7 @@ export default function EditProfileModal({ profile, userId, onClose }) {
       homeAddress: personal.homeAddress || null,
       officeAddress: personal.officeAddress || null,
       hasBusiness: Boolean(hasBusiness),
-      // `profile` here is the { user, profile } wrapper this modal receives
-      // as a prop (see Profile.jsx) — the actual profile-details record
-      // (where profileImage lives) is nested at profile.profile, same as
-      // the "Populate from profile" effect above unwraps it via
-      // `profile.profile || profile`. Reading profile?.profileImage
-      // directly off the wrapper always evaluated to undefined, so this
-      // used to unconditionally send null here; harmless today only
-      // because the backend uses `??` (nullish coalescing) to fall back to
-      // the existing value, but wrong regardless and would silently wipe
-      // the photo if that backend fallback ever changed.
       profileImage: profile?.profile?.profileImage || profile?.profileImage || profile?.photo || profile?.avatar || null,
-
-      // Business details nested object
       businessDetails: hasBusiness ? {
         businessName: business.businessName || null,
         businessType: business.businessType || null,
@@ -837,22 +1117,15 @@ export default function EditProfileModal({ profile, userId, onClose }) {
       await dispatch(fetchProfile(userId));
       onClose();
     } else {
-      // Previously: nothing happened here at all on a rejected save — no
-      // toast, no message, modal just stayed open — indistinguishable from
-      // the save silently doing nothing. Surface it instead.
-      setSaveError(
-        result.payload || "Failed to update profile. Please try again."
-      );
+      setSaveError(result.payload || "Failed to update profile. Please try again.");
     }
   };
 
-  // ── Derive map center: ward centroid (if geoJson available) → else lat/lng from business ──
   const getMapInitialCoords = () => {
     if (selectedWardGeoJson?.geometry?.coordinates) {
       try {
         const coords = selectedWardGeoJson.geometry.coordinates[0];
         if (coords?.length > 0) {
-          // Calculate centroid from polygon coordinates
           const lngSum = coords.reduce((s, c) => s + c[0], 0);
           const latSum = coords.reduce((s, c) => s + c[1], 0);
           return { lat: latSum / coords.length, lng: lngSum / coords.length };
@@ -864,6 +1137,7 @@ export default function EditProfileModal({ profile, userId, onClose }) {
   };
 
   const mapCenter = getMapInitialCoords();
+  const spousePrefix = getSpousePrefix(personal.gender);
 
   return (
     <>
@@ -879,39 +1153,23 @@ export default function EditProfileModal({ profile, userId, onClose }) {
           {/* Body */}
           <div className="overflow-y-auto px-6 py-5 flex-1">
 
-            {/* Account info — Name/Role stay read-only; username/email/
-                mobile are editable (unique on the backend — a 409 with a
-                specific field name surfaces via the save-error toast). */}
+            {/* Account Info */}
             <SectionHeader icon={User} title="Account Info" />
             <div className="grid grid-cols-2 gap-3 mb-2">
               <Field label="Name"><input className={readonlyCls} value={profile?.user?.name || ""} readOnly /></Field>
               <Field label="Role"><input className={readonlyCls} value={profile?.user?.role || ""} readOnly /></Field>
               <Field label="Username">
-                <input
-                  className={inputCls}
-                  placeholder="Username"
-                  value={account.username}
-                  onChange={(e) => setAccount((f) => ({ ...f, username: e.target.value }))}
-                />
+                <input className={inputCls} placeholder="Username" value={account.username}
+                  onChange={(e) => setAccount((f) => ({ ...f, username: e.target.value }))} />
               </Field>
               <Field label="Email">
-                <input
-                  className={inputCls}
-                  type="email"
-                  placeholder="Email address"
-                  value={account.email}
-                  onChange={(e) => setAccount((f) => ({ ...f, email: e.target.value }))}
-                />
+                <input className={inputCls} type="email" placeholder="Email address" value={account.email}
+                  onChange={(e) => setAccount((f) => ({ ...f, email: e.target.value }))} />
               </Field>
               <Field label="Mobile">
-                <input
-                  className={inputCls}
-                  placeholder="Mobile number"
-                  value={account.mobileNumber}
+                <input className={inputCls} placeholder="Mobile number" value={account.mobileNumber}
                   onChange={(e) => setAccount((f) => ({ ...f, mobileNumber: e.target.value }))}
-                  inputMode="numeric"
-                  maxLength={15}
-                />
+                  inputMode="numeric" maxLength={15} />
               </Field>
             </div>
 
@@ -931,20 +1189,23 @@ export default function EditProfileModal({ profile, userId, onClose }) {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>
               </Field>
+              <Field label="Marital Status">
+                <div className="relative">
+                  <select className={inputCls + " appearance-none pr-8"} value={personal.maritalStatus} onChange={updatePersonal("maritalStatus")}>
+                    <option value="Single">Single / Unmarried</option>
+                    <option value="Married">Married</option>
+                    <option value="Divorced">Divorced</option>
+                    <option value="Widowed">Widowed</option>
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
+              </Field>
               <Field label="State">
                 <div className="relative">
-                  <select
-                    className={inputCls + " appearance-none pr-8"}
-                    value={personal.state}
-                    onChange={updatePersonal("state")}
-                  >
+                  <select className={inputCls + " appearance-none pr-8"} value={personal.state} onChange={updatePersonal("state")}>
                     <option value="">Select State</option>
-                    {STATES.map((st) => (
-                      <option key={st} value={st}>{st}</option>
-                    ))}
-                    {personal.state && !STATES.includes(personal.state) && (
-                      <option value={personal.state}>{personal.state}</option>
-                    )}
+                    {STATES.map((st) => (<option key={st} value={st}>{st}</option>))}
+                    {personal.state && !STATES.includes(personal.state) && (<option value={personal.state}>{personal.state}</option>)}
                   </select>
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>
@@ -953,11 +1214,7 @@ export default function EditProfileModal({ profile, userId, onClose }) {
                 <div className="relative">
                   <select
                     className={inputCls + " appearance-none pr-8"}
-                    value={
-                      districts.find(d => (d._id || d.districtId || d.id) === selectedDistrictId || (d.districtName || d.name) === personal.district)
-                        ? (selectedDistrictId || personal.district)
-                        : (personal.district || "")
-                    }
+                    value={districts.find(d => (d._id || d.districtId || d.id) === selectedDistrictId || (d.districtName || d.name) === personal.district) ? (selectedDistrictId || personal.district) : (personal.district || "")}
                     onChange={handleDistrictChange}
                     disabled={loadingDistricts}
                   >
@@ -978,21 +1235,11 @@ export default function EditProfileModal({ profile, userId, onClose }) {
                 <div className="relative">
                   <select
                     className={inputCls + " appearance-none pr-8"}
-                    value={
-                      talukas.find(t => (t._id || t.talukaId || t.id) === selectedTalukaId || (t.talukaName || t.name) === personal.assembly)
-                        ? (selectedTalukaId || personal.assembly)
-                        : (personal.assembly || "")
-                    }
+                    value={talukas.find(t => (t._id || t.talukaId || t.id) === selectedTalukaId || (t.talukaName || t.name) === personal.assembly) ? (selectedTalukaId || personal.assembly) : (personal.assembly || "")}
                     onChange={handleAssemblyChange}
                     disabled={!selectedDistrictId || loadingTalukas}
                   >
-                    <option value="">
-                      {!selectedDistrictId
-                        ? "Select district first"
-                        : loadingTalukas
-                          ? "Loading assemblies…"
-                          : "Select Assembly / Taluka"}
-                    </option>
+                    <option value="">{!selectedDistrictId ? "Select district first" : loadingTalukas ? "Loading assemblies…" : "Select Assembly / Taluka"}</option>
                     {talukas.map((t) => {
                       const val = t._id || t.talukaId || t.id;
                       const label = t.talukaName || t.name;
@@ -1013,13 +1260,7 @@ export default function EditProfileModal({ profile, userId, onClose }) {
                     onChange={handleWardChange}
                     disabled={!selectedTalukaId || loadingWards}
                   >
-                    <option value="">
-                      {!selectedTalukaId
-                        ? "Select assembly first"
-                        : loadingWards
-                          ? "Loading wards…"
-                          : "Select Ward"}
-                    </option>
+                    <option value="">{!selectedTalukaId ? "Select assembly first" : loadingWards ? "Loading wards…" : "Select Ward"}</option>
                     {wards.map((w) => {
                       const label = w.wardName || w.name || "";
                       return <option key={w._id || w.wardId || w.id || label} value={label}>{label}</option>;
@@ -1031,7 +1272,9 @@ export default function EditProfileModal({ profile, userId, onClose }) {
                   <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                 </div>
               </Field>
-              <Field label="Pincode"><input className={inputCls} placeholder="Pincode" value={personal.pincode} onChange={updatePersonal("pincode")} maxLength={6} inputMode="numeric" /></Field>
+              <Field label="Pincode">
+                <input className={inputCls} placeholder="Pincode" value={personal.pincode} onChange={updatePersonal("pincode")} maxLength={6} inputMode="numeric" />
+              </Field>
             </div>
             <Field label="Home Address">
               <textarea className={inputCls} rows={2} placeholder="Home address" value={personal.homeAddress} onChange={updatePersonal("homeAddress")} />
@@ -1040,17 +1283,12 @@ export default function EditProfileModal({ profile, userId, onClose }) {
               <textarea className={inputCls} rows={2} placeholder="Office address" value={personal.officeAddress} onChange={updatePersonal("officeAddress")} />
             </Field>
 
-            {/* ── FIX: Ward selected → show map hint with boundary info ── */}
             {selectedWardGeoJson && (
               <div className="mb-4 flex items-start gap-2 px-3 py-2.5 rounded-lg bg-blue-50 border border-blue-100 text-[12px] text-blue-700">
                 <MapPin size={14} className="mt-0.5 shrink-0 text-blue-500" />
                 <span>
                   Ward boundary available for <strong>{personal.ward}</strong>. Click{" "}
-                  <button
-                    type="button"
-                    className="underline font-semibold"
-                    onClick={() => setMapOpen(true)}
-                  >
+                  <button type="button" className="underline font-semibold" onClick={() => setMapOpen(true)}>
                     Business Location (Map)
                   </button>{" "}
                   below to see it on the map.
@@ -1058,47 +1296,180 @@ export default function EditProfileModal({ profile, userId, onClose }) {
               </div>
             )}
 
-            {/* Family & Interests */}
+            {/* Family & Personal Details */}
             <SectionHeader icon={Users} title="Family & Personal Details" />
-            <div className="grid grid-cols-2 gap-3">
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              {/* 1. Family Count */}
               <Field label="Family Count">
-                <input
-                  className={inputCls}
-                  type="number"
-                  min="0"
-                  placeholder="Total family members"
-                  value={familyCount}
-                  onChange={(e) => setFamilyCount(e.target.value)}
-                />
+                <input className={inputCls} type="number" min="0" placeholder="Total family members"
+                  value={familyCount} onChange={(e) => setFamilyCount(e.target.value)} />
               </Field>
-              <Field label="Spouse Name">
-                <input
-                  className={inputCls}
-                  placeholder="Spouse name"
-                  value={spouse}
-                  onChange={(e) => setSpouse(e.target.value)}
-                />
+
+              {/* Conditional fields based on Marital Status */}
+              {personal.maritalStatus === "Married" ? (
+                <>
+                  {/* Spouse Name */}
+                  <Field label={`Spouse Name${spousePrefix ? ` (${spousePrefix})` : ""}`}>
+                    <div className="flex gap-2">
+                      {spousePrefix && (
+                        <div className="shrink-0 w-16">
+                          <input className={readonlyCls + " text-center font-semibold"} value={spousePrefix} readOnly />
+                        </div>
+                      )}
+                      <input
+                        className={inputCls}
+                        placeholder="Spouse name"
+                        value={spouse}
+                        onChange={(e) => setSpouse(e.target.value)}
+                      />
+                    </div>
+                  </Field>
+
+                  {/* Spouse Mobile Number */}
+                  <Field label="Spouse Mobile Number">
+                    <input
+                      className={inputCls}
+                      placeholder="Spouse mobile number"
+                      value={spouseMobile}
+                      onChange={(e) => setSpouseMobile(e.target.value)}
+                      inputMode="numeric"
+                      maxLength={10}
+                    />
+                  </Field>
+                </>
+              ) : (
+                <>
+                  {/* Father Details */}
+                  <div className="col-span-2 border border-[#E2E8F4] rounded-xl p-3.5 bg-[#F8FAFF]">
+                    <span className="text-[11px] font-bold text-[#1a56db] uppercase tracking-wider block mb-2.5">
+                      Father Details
+                    </span>
+                    <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+                      <div className="col-span-2 max-sm:col-span-1">
+                        <label className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">
+                          Father Name
+                        </label>
+                        <input
+                          className={inputCls}
+                          placeholder="Father's full name"
+                          value={father.name}
+                          onChange={(e) => setFather((f) => ({ ...f, name: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">
+                          Age
+                        </label>
+                        <input
+                          className={inputCls}
+                          placeholder="e.g. 55"
+                          type="number"
+                          min="0"
+                          max="120"
+                          value={father.age}
+                          onChange={(e) => setFather((f) => ({ ...f, age: e.target.value }))}
+                          inputMode="numeric"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">
+                          Mobile Number
+                        </label>
+                        <input
+                          className={inputCls}
+                          placeholder="10-digit mobile number"
+                          value={father.mobile}
+                          onChange={(e) => setFather((f) => ({ ...f, mobile: e.target.value }))}
+                          inputMode="numeric"
+                          maxLength={10}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Mother Details */}
+                  <div className="col-span-2 border border-[#E2E8F4] rounded-xl p-3.5 bg-[#F8FAFF]">
+                    <span className="text-[11px] font-bold text-[#1a56db] uppercase tracking-wider block mb-2.5">
+                      Mother Details
+                    </span>
+                    <div className="grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+                      <div className="col-span-2 max-sm:col-span-1">
+                        <label className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">
+                          Mother Name
+                        </label>
+                        <input
+                          className={inputCls}
+                          placeholder="Mother's full name"
+                          value={mother.name}
+                          onChange={(e) => setMother((m) => ({ ...m, name: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">
+                          Age
+                        </label>
+                        <input
+                          className={inputCls}
+                          placeholder="e.g. 50"
+                          type="number"
+                          min="0"
+                          max="120"
+                          value={mother.age}
+                          onChange={(e) => setMother((m) => ({ ...m, age: e.target.value }))}
+                          inputMode="numeric"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 mb-1 block">
+                          Mobile Number
+                        </label>
+                        <input
+                          className={inputCls}
+                          placeholder="10-digit mobile number"
+                          value={mother.mobile}
+                          onChange={(e) => setMother((m) => ({ ...m, mobile: e.target.value }))}
+                          inputMode="numeric"
+                          maxLength={10}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* If Unmarried: Brother(s) and Sister(s) inputs */}
+            {personal.maritalStatus !== "Married" && (
+              <>
+                <Field label="Brother(s)">
+                  <SiblingsInput items={brothers} onChange={setBrothers} memberType="Brother" />
+                </Field>
+                <Field label="Sister(s)">
+                  <SiblingsInput items={sisters} onChange={setSisters} memberType="Sister" />
+                </Field>
+              </>
+            )}
+
+            {/* Children — show only if Married */}
+            {personal.maritalStatus === "Married" && (
+              <Field label="Children">
+                <ChildrenInput items={children} onChange={setChildren} />
               </Field>
+            )}
+
+            {/* 5. Pets & 6. Business Vertical */}
+            <div className="grid grid-cols-2 gap-3">
               <Field label="Pets">
-                <input
-                  className={inputCls}
-                  placeholder="e.g. Dog, Cat"
-                  value={pets}
-                  onChange={(e) => setPets(e.target.value)}
-                />
+                <input className={inputCls} placeholder="e.g. Dog, Cat" value={pets} onChange={(e) => setPets(e.target.value)} />
               </Field>
               <Field label="Business Vertical">
-                <SelectOrText
-                  options={BUSINESS_VERTICALS}
-                  value={selectedBusinessVertical}
-                  onChange={setSelectedBusinessVertical}
-                  placeholder="Select or enter business vertical…"
-                />
+                <SelectOrText options={BUSINESS_VERTICALS} value={selectedBusinessVertical}
+                  onChange={setSelectedBusinessVertical} placeholder="Select or enter business vertical…" />
               </Field>
             </div>
-            <Field label="Children">
-              <ChipListInput items={children} onChange={setChildren} placeholder="Child name, then press Enter…" />
-            </Field>
+
+            {/* 7. Hobbies */}
             <Field label="Hobbies">
               <ChipListInput items={hobbies} onChange={setHobbies} placeholder="Hobby, then press Enter…" />
             </Field>
@@ -1106,12 +1477,8 @@ export default function EditProfileModal({ profile, userId, onClose }) {
               <ChipListInput items={interests} onChange={setInterests} placeholder="Interest or activity, then press Enter…" />
             </Field>
             <Field label="Additional Activities / Interests">
-              <input
-                className={inputCls}
-                placeholder="Additional activities or interests description..."
-                value={activitiesOrInterests}
-                onChange={(e) => setActivitiesOrInterests(e.target.value)}
-              />
+              <input className={inputCls} placeholder="Additional activities or interests description..."
+                value={activitiesOrInterests} onChange={(e) => setActivitiesOrInterests(e.target.value)} />
             </Field>
 
             {/* Business toggle */}
@@ -1126,7 +1493,6 @@ export default function EditProfileModal({ profile, userId, onClose }) {
             {hasBusiness && (
               <div className="bg-[#F8FAFF] rounded-xl border border-[#E2E8F4] p-4 mb-2">
                 <SectionHeader icon={Building2} title="Business Details" />
-
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Business Name">
                     <input className={inputCls} placeholder="Business name" value={business.businessName} onChange={updateBiz("businessName")} />
@@ -1141,7 +1507,6 @@ export default function EditProfileModal({ profile, userId, onClose }) {
                   <Field label="Website">
                     <input className={inputCls} placeholder="https://example.com" value={business.website} onChange={updateBiz("website")} />
                   </Field>
-
                   <Field label="GST Number" error={gstError}>
                     <div className="relative">
                       <input
@@ -1163,35 +1528,27 @@ export default function EditProfileModal({ profile, userId, onClose }) {
                       <p className="text-[10.5px] text-slate-400 mt-0.5">Enter Valid GST</p>
                     )}
                   </Field>
-
                   <Field label="Registration Number">
                     <input className={inputCls} placeholder="License / reg. number" value={business.registrationNumber} onChange={updateBiz("registrationNumber")} />
                   </Field>
-
                   <Field label="Business Type">
                     <SelectOrText options={BUSINESS_TYPES} value={business.businessType} onChange={(v) => setBiz("businessType", v)} placeholder="Enter business type…" />
                   </Field>
-
                   <Field label="Sector">
                     <SelectOrText options={SECTORS} value={business.sector} onChange={(v) => setBiz("sector", v)} placeholder="Enter sector…" />
                   </Field>
-
                   <Field label="No. of Employees">
                     <SelectOrText options={EMPLOYEE_RANGES} value={business.employees} onChange={(v) => setBiz("employees", v)} placeholder="Enter employee count…" />
                   </Field>
-
                   <Field label="Annual Turnover">
                     <SelectOrText options={TURNOVER_RANGES} value={business.annualTurnover} onChange={(v) => setBiz("annualTurnover", v)} placeholder="Enter turnover…" />
                   </Field>
-
                   <Field label="Established Year">
                     <SelectOrText options={YEARS} value={business.establishedYear} onChange={(v) => setBiz("establishedYear", v)} placeholder="Enter year…" />
                   </Field>
-
                   <Field label="Working Hours">
                     <SelectOrText options={WORKING_HOURS} value={business.workingHours} onChange={(v) => setBiz("workingHours", v)} placeholder="e.g. 8AM – 9PM" />
                   </Field>
-
                   <Field label="State">
                     <div className="relative">
                       <select className={inputCls + " appearance-none pr-8"} value={business.state} onChange={updateBiz("state")}>
@@ -1202,16 +1559,11 @@ export default function EditProfileModal({ profile, userId, onClose }) {
                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     </div>
                   </Field>
-
                   <Field label="District">
                     <div className="relative">
                       <select
                         className={inputCls + " appearance-none pr-8"}
-                        value={
-                          bizTalukas.find(t => (t._id || t.talukaId || t.id) === selectedBizTalukaId)
-                            ? (selectedBizDistrictId || business.district)
-                            : (business.district || "")
-                        }
+                        value={bizTalukas.find(t => (t._id || t.talukaId || t.id) === selectedBizTalukaId) ? (selectedBizDistrictId || business.district) : (business.district || "")}
                         onChange={handleBizDistrictChange}
                         disabled={loadingDistricts}
                       >
@@ -1228,22 +1580,15 @@ export default function EditProfileModal({ profile, userId, onClose }) {
                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     </div>
                   </Field>
-
                   <Field label="Assembly">
                     <div className="relative">
                       <select
                         className={inputCls + " appearance-none pr-8"}
-                        value={
-                          bizTalukas.find(t => (t._id || t.talukaId || t.id) === selectedBizTalukaId || (t.talukaName || t.name) === (business.assembly || business.taluka))
-                            ? (selectedBizTalukaId || business.assembly || business.taluka)
-                            : (business.assembly || business.taluka || "")
-                        }
+                        value={bizTalukas.find(t => (t._id || t.talukaId || t.id) === selectedBizTalukaId || (t.talukaName || t.name) === (business.assembly || business.taluka)) ? (selectedBizTalukaId || business.assembly || business.taluka) : (business.assembly || business.taluka || "")}
                         onChange={handleBizAssemblyChange}
                         disabled={!selectedBizDistrictId || loadingBizTalukas}
                       >
-                        <option value="">
-                          {!selectedBizDistrictId ? "Select district first" : loadingBizTalukas ? "Loading assemblies…" : "Select Assembly / Taluka"}
-                        </option>
+                        <option value="">{!selectedBizDistrictId ? "Select district first" : loadingBizTalukas ? "Loading assemblies…" : "Select Assembly / Taluka"}</option>
                         {bizTalukas.map((t) => {
                           const val = t._id || t.talukaId || t.id;
                           const label = t.talukaName || t.name;
@@ -1256,7 +1601,6 @@ export default function EditProfileModal({ profile, userId, onClose }) {
                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     </div>
                   </Field>
-
                   <Field label="Ward / Hobli">
                     <div className="relative">
                       <select
@@ -1265,9 +1609,7 @@ export default function EditProfileModal({ profile, userId, onClose }) {
                         onChange={handleBizWardChange}
                         disabled={!selectedBizTalukaId || loadingBizWards}
                       >
-                        <option value="">
-                          {!selectedBizTalukaId ? "Select assembly first" : loadingBizWards ? "Loading wards…" : "Select Ward"}
-                        </option>
+                        <option value="">{!selectedBizTalukaId ? "Select assembly first" : loadingBizWards ? "Loading wards…" : "Select Ward"}</option>
                         {bizWards.map((w) => {
                           const label = w.wardName || w.name || "";
                           return <option key={w._id || w.wardId || w.id || label} value={label}>{label}</option>;
@@ -1279,17 +1621,14 @@ export default function EditProfileModal({ profile, userId, onClose }) {
                       <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                     </div>
                   </Field>
-
                   <Field label="City">
                     <input className={inputCls} placeholder="City" value={business.city} onChange={updateBiz("city")} />
                   </Field>
-
                   <Field label="Pincode">
                     <input className={inputCls} placeholder="Pincode" value={business.pincode} onChange={updateBiz("pincode")} maxLength={6} inputMode="numeric" />
                   </Field>
                 </div>
 
-                {/* Map location picker */}
                 <Field label="Business Location (Map)">
                   <div className="relative">
                     <input
@@ -1308,7 +1647,6 @@ export default function EditProfileModal({ profile, userId, onClose }) {
                   )}
                 </Field>
 
-                {/* Business images */}
                 <Field label="Business Images (max 3)">
                   <BusinessImageUpload images={businessImages} onChange={setBusinessImages} />
                 </Field>
@@ -1343,7 +1681,6 @@ export default function EditProfileModal({ profile, userId, onClose }) {
         )}
       </div>
 
-      {/* ── FIX: Pass wardGeoJson to LocationPickerModal for boundary rendering ── */}
       <LocationPickerModal
         isOpen={mapOpen}
         onClose={() => setMapOpen(false)}

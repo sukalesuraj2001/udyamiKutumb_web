@@ -147,6 +147,7 @@ const NAV = {
             type: "group", key: "sp-admin", name: "Employees", icon: UserCog, children: [
                 // { name: "Add Employee", path: "/super-admin-dashboard/user-management" },
                 // { name: "Manage Employee", path: "/manage" },
+                { name: "Register Employee", path: "/super-admin-dashboard/register-employee" },
                 { name: "Manage Roles", path: "/super-admin-dashboard/membership/role-management" },
                 { name: "Create Ward / Hobli", path: "/super-admin-dashboard/create-ward" },
             ]

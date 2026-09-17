@@ -621,18 +621,93 @@ export default function WardChartDetail() {
     });
   }
 
+  // html2canvas lays glyphs out a couple of pixels lower than the browser does.
+  // Anywhere Tailwind's `truncate` (overflow:hidden + nowrap) is paired with
+  // `leading-none` / `leading-tight` there is no vertical slack in the line
+  // box, so that small drift pushes the bottom of every glyph past the clip
+  // edge — which is why the cover title, the ward-name pill and every "NAME" /
+  // sector label came out sliced in half. This is NOT a font problem: the
+  // Kannada text renders correctly wherever the box isn't clipping.
+  // Runs against html2canvas's *cloned* DOM only: extend each clipping box
+  // downward and pull the same amount back out of its bottom margin, so the
+  // text stops being cut while surrounding layout stays pixel-identical.
+  function relaxTextClippingNodeTree(root, doc) {
+    const defaultView = doc?.defaultView;
+    if (!root || !defaultView) return;
+
+    const elements = [root, ...root.querySelectorAll("*")];
+    elements.forEach((el) => {
+      try {
+        const computed = defaultView.getComputedStyle(el);
+        if (computed.overflowY !== "hidden") return;
+
+        // Only Tailwind `truncate`-style boxes: clipped AND single-line.
+        const isTruncating =
+          computed.textOverflow === "ellipsis" || computed.whiteSpace === "nowrap";
+        if (!isTruncating) return;
+
+        // Only elements that render their own text (skip layout wrappers).
+        const rendersText = Array.from(el.childNodes).some(
+          (node) => node.nodeType === 3 && node.textContent.trim()
+        );
+        if (!rendersText) return;
+
+        const fontSize = parseFloat(computed.fontSize) || 0;
+        if (!fontSize) return;
+
+        const slack = Math.min(Math.max(fontSize * 0.45, 2), 14);
+        const paddingBottom = parseFloat(computed.paddingBottom) || 0;
+        const marginBottom = parseFloat(computed.marginBottom) || 0;
+
+        el.style.paddingBottom = `${paddingBottom + slack}px`;
+        el.style.marginBottom = `${marginBottom - slack}px`;
+      } catch {
+        // non-element node — ignore
+      }
+    });
+  }
+
   const handleDownloadPdf = async () => {
+    // Capturing while ward/member data is still in flight bakes the empty
+    // placeholder state ("NAME", blank avatars, blank sector boxes) straight
+    // into the PDF, because html2canvas photographs whatever the DOM shows at
+    // that instant. Refuse rather than export a chart full of placeholders.
+    if (apiStatus === "loading" || fetchStatus === "loading") {
+      setErrorModalData({
+        title: "Chart Still Loading",
+        message: "Ward and member data is still loading. Wait for the chart to finish loading on screen, then try Download PDF again.",
+      });
+      return;
+    }
+
     setIsPdfGenerating(true);
     try {
       const pages = document.querySelectorAll(".pdf-capture-page");
       if (!pages || !pages.length) {
         setIsPdfGenerating(false);
+        setErrorModalData({
+          title: "Nothing to Export",
+          message: "The chart hasn't finished rendering yet. Please wait for the page to fully load, then try Download PDF again.",
+        });
         return;
       }
 
       const totalPages = pages.length;
       setPdfProgress({ current: 1, total: totalPages });
-      const fileName = `${ward.ward_name || "Ward Chart"}.pdf`;
+      // `ward.ward_name` is free-text data from the backend and can contain
+      // "/", ":" or other characters that are invalid in a filename. Chrome's
+      // <a download> silently drops the download (no JS error at all, no
+      // console output) when the download attribute value looks like a path
+      // — which matches "handler completes, no console error, but nothing
+      // ever downloads" exactly. Sanitize before it's ever used as a filename.
+      const sanitizeFileName = (raw) =>
+        (raw || "Ward Chart")
+          .toString()
+          .replace(/[\\/:*?"<>|]/g, "-")
+          .replace(/\s+/g, " ")
+          .trim()
+          .replace(/[. ]+$/g, "") || "Ward Chart";
+      const fileName = `${sanitizeFileName(ward.ward_name)}.pdf`;
 
       const elementWidth = 794;
       const elementHeight = 1123;
@@ -680,27 +755,78 @@ export default function WardChartDetail() {
 
         sanitizeModernColorsNodeTree(page, document);
 
+        // Convert this page's <img> tags to data: URLs before capture.
+        // html2canvas taints its internal canvas whenever an image fails the
+        // useCORS fetch (e.g. patron/chairman photos served without CORS
+        // headers) — that doesn't throw here, but the later
+        // canvas.toDataURL() call throws a SecurityError on the tainted
+        // canvas, which was being swallowed by the outer catch and made the
+        // whole "Download PDF" click look like it silently did nothing.
+        // Pre-fetching each image as a blob sidesteps the taint entirely;
+        // on fetch failure we just leave the original src so export still
+        // proceeds (that one image may then render blank).
+        const imgElements = Array.from(page.querySelectorAll("img"));
+        const originalImgSrc = new Map();
+        await Promise.all(
+          imgElements.map(async (img) => {
+            const src = img.getAttribute("src");
+            if (!src || src.startsWith("data:")) return;
+            try {
+              const res = await fetch(src, { mode: "cors", credentials: "omit" });
+              if (!res.ok) return;
+              const blob = await res.blob();
+              const dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+              originalImgSrc.set(img, src);
+              img.setAttribute("src", dataUrl);
+              // Swapping .src starts a fresh decode. Without waiting for it,
+              // html2canvas can snapshot the element before the new bitmap is
+              // ready and silently rasterize an empty box in its place.
+              if (typeof img.decode === "function") {
+                await img.decode().catch(() => {});
+              }
+            } catch {
+              // Leave the original src — html2canvas will attempt it as-is.
+            }
+          })
+        );
+
         try {
-          let canvas = await html2canvas(page, {
-            scale: 2, // Scale 2: Desktop optimized scale (200+ DPI print sharp, 56% lower RAM)
-            useCORS: true,
-            allowTaint: false,
-            backgroundColor: "#ffffff",
-            imageTimeout: 0,
-            logging: false,
-            width: elementWidth,
-            height: elementHeight,
-            windowWidth: elementWidth,
-            windowHeight: elementHeight,
-            scrollX: 0,
-            scrollY: 0,
-            onclone: (clonedDoc, clonedElement) => {
-              sanitizeModernColorsNodeTree(clonedElement, clonedDoc);
-            },
-          });
+          let canvas;
+          try {
+            canvas = await html2canvas(page, {
+              scale: 2, // Scale 2: Desktop optimized scale (200+ DPI print sharp, 56% lower RAM)
+              useCORS: true,
+              allowTaint: false,
+              backgroundColor: "#ffffff",
+              imageTimeout: 0,
+              logging: false,
+              width: elementWidth,
+              height: elementHeight,
+              windowWidth: elementWidth,
+              windowHeight: elementHeight,
+              scrollX: 0,
+              scrollY: 0,
+              onclone: (clonedDoc, clonedElement) => {
+                sanitizeModernColorsNodeTree(clonedElement, clonedDoc);
+                relaxTextClippingNodeTree(clonedElement, clonedDoc);
+              },
+            });
+          } catch (captureErr) {
+            throw new Error(`Page ${i + 1} of ${totalPages} failed to render: ${captureErr?.message || captureErr}`);
+          }
 
           // Compress to JPEG @ 0.92 (5x faster CPU encoding & 70% smaller memory allocation)
-          const imgData = canvas.toDataURL("image/jpeg", 0.92);
+          let imgData;
+          try {
+            imgData = canvas.toDataURL("image/jpeg", 0.92);
+          } catch (exportErr) {
+            throw new Error(`Page ${i + 1} of ${totalPages} could not be exported (likely a cross-origin image): ${exportErr?.message || exportErr}`);
+          }
           if (i > 0) pdf.addPage([elementWidth, elementHeight], "portrait");
           pdf.addImage(imgData, "JPEG", 0, 0, elementWidth, elementHeight);
 
@@ -709,6 +835,8 @@ export default function WardChartDetail() {
           canvas.height = 0;
           canvas = null;
         } finally {
+          originalImgSrc.forEach((src, img) => img.setAttribute("src", src));
+
           allLiveElements.forEach((el) => {
             const origStyle = elementStyleMap.get(el);
             if (origStyle !== null && origStyle !== undefined) {
@@ -729,9 +857,35 @@ export default function WardChartDetail() {
           page.style.border = prevBorder;
         }
       }
+
+      // Diagnostics: confirm save() is actually reached with a populated,
+      // non-empty document rather than assuming it based on "no error thrown".
+      const pageCount = pdf.internal.getNumberOfPages();
+      if (!pageCount) {
+        setErrorModalData({
+          title: "PDF Download Failed",
+          message: "No pages were captured for this chart, so there is nothing to download. Please try again.",
+        });
+        return;
+      }
+
+      const pdfBlob = pdf.output("blob");
+      if (!pdfBlob || !pdfBlob.size) {
+        setErrorModalData({
+          title: "PDF Download Failed",
+          message: "The generated PDF was empty, so the download was skipped. Please try again.",
+        });
+        return;
+      }
+
+      console.log("saving pdf", { pageCount, blobBytes: pdfBlob.size, fileName });
       pdf.save(fileName);
     } catch (err) {
       console.error("PDF generation failed:", err);
+      setErrorModalData({
+        title: "PDF Download Failed",
+        message: err?.message || "The PDF could not be generated. Please try again, and check your connection if the problem continues.",
+      });
     } finally {
       setIsPdfGenerating(false);
       setPdfProgress({ current: 0, total: 0 });
@@ -1410,11 +1564,12 @@ export default function WardChartDetail() {
         </button>
         <button
           onClick={handleDownloadPdf}
-          disabled={isPdfGenerating}
+          disabled={isPdfGenerating || isBusy}
+          title={isBusy ? "Waiting for ward and member data to finish loading" : "Download PDF"}
           className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-[12.5px] font-medium text-gray-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Download size={14} />
-          {isPdfGenerating ? "Generating…" : "Download PDF"}
+          {isPdfGenerating ? "Generating…" : isBusy ? "Loading data…" : "Download PDF"}
         </button>
       </div>
 

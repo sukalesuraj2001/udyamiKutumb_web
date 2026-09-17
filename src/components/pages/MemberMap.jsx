@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import GlobeIntro from "./memberMap/GlobeIntro.jsx";
 import SatelliteMap from "./memberMap/SatelliteMap.jsx";
+import WardTable from "./memberMap/WardTable.jsx";
 
 // ── Role resolution ──
 function resolveRole(user) {
@@ -695,7 +696,8 @@ export default function MemberMap() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-0 h-[calc(100vh-140px)] -m-6">
+    <div className="-m-6">
+    <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-0 h-[calc(100vh-220px)] min-h-[520px]">
 
       {/* Sidebar */}
       <div className="border-r border-hairline bg-white flex flex-col overflow-hidden shadow-sm">
@@ -768,6 +770,12 @@ export default function MemberMap() {
         )}
 
         <style>{`@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }`}</style>
+      </div>
+    </div>
+
+      {/* Ward data table */}
+      <div className="p-6 bg-paper">
+        <WardTable />
       </div>
     </div>
   );

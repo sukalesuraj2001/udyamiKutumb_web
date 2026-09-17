@@ -38,6 +38,55 @@ export const fetchRoles = createAsyncThunk(
   }
 );
 
+// ── Register a new employee — POST /auth/createUser ─────────────────────────
+// Body: { name, email, mobileNumber, password }
+// Returns { success, message, data: user } where `data.userId` is the new
+// user's UUID — that's what gets fed straight into assignRole below.
+// The backend also creates an empty profile and grants the default `member`
+// role; the hierarchy role is layered on top by POST /roles/assign-role.
+export const registerEmployee = createAsyncThunk(
+  "roles/registerEmployee",
+  async (payload, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.token;
+      const res = await api.post(
+        "/auth/createUser",
+        {
+          name: payload.name?.trim(),
+          email: payload.email?.trim(),
+          mobileNumber: payload.mobileNumber?.trim(),
+          password: payload.password,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      return res.data.data;
+    } catch (err) {
+      return thunkAPI.rejectWithValue(getApiErrorMessage(err));
+    }
+  }
+);
+
+// ── Every position system-wide — GET /roles/all-positions (super_admin only) ─
+// Each row: { positionId, role, district, taluka, ward, currentHolder }
+// with currentHolder === null when the seat is vacant. This is the only
+// place the backend exposes "is this district/taluka/ward already taken",
+// so the Register Employee dropdowns cross-reference it rather than looking
+// for a holder field on the geography list endpoints (they don't have one).
+export const fetchAllPositions = createAsyncThunk(
+  "roles/fetchAllPositions",
+  async (_, thunkAPI) => {
+    try {
+      const token = thunkAPI.getState().auth.token;
+      const res = await api.get("/roles/all-positions", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.data.data || [];
+    } catch (err) {
+      return thunkAPI.rejectWithValue(getApiErrorMessage(err));
+    }
+  }
+);
+
 // ── Full payload objects — POST /roles/assign-role ───────────────────────────
 // district_head                                    → { userId, type, districtId }
 // taluka_head                                      → { userId, type, districtId, talukaId }
@@ -91,11 +140,26 @@ const rolesSlice = createSlice({
     changing: false,
     changeSuccessId: null,
     changeError: null,
+
+    // ── Register Employee ──
+    registering: false,
+    registeredUser: null,
+    registerError: null,
+
+    // ── Position occupancy (vacancy lookup) ──
+    positions: [],
+    loadingPositions: false,
+    positionsError: null,
   },
   reducers: {
     clearAssignSuccess(state) { state.assignSuccessId = null; },
     clearChangeSuccess(state) { state.changeSuccessId = null; },
     clearChangeError(state) { state.changeError = null; },
+    clearRegisterState(state) {
+      state.registering = false;
+      state.registeredUser = null;
+      state.registerError = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -109,9 +173,17 @@ const rolesSlice = createSlice({
 
       .addCase(changeRole.pending, (state) => { state.changing = true; state.changeError = null; })
       .addCase(changeRole.fulfilled, (state, action) => { state.changing = false; state.changeSuccessId = action.payload.positionId; })
-      .addCase(changeRole.rejected, (state, action) => { state.changing = false; state.changeError = action.payload; });
+      .addCase(changeRole.rejected, (state, action) => { state.changing = false; state.changeError = action.payload; })
+
+      .addCase(registerEmployee.pending, (state) => { state.registering = true; state.registerError = null; state.registeredUser = null; })
+      .addCase(registerEmployee.fulfilled, (state, action) => { state.registering = false; state.registeredUser = action.payload; })
+      .addCase(registerEmployee.rejected, (state, action) => { state.registering = false; state.registerError = action.payload; })
+
+      .addCase(fetchAllPositions.pending, (state) => { state.loadingPositions = true; state.positionsError = null; })
+      .addCase(fetchAllPositions.fulfilled, (state, action) => { state.loadingPositions = false; state.positions = action.payload; })
+      .addCase(fetchAllPositions.rejected, (state, action) => { state.loadingPositions = false; state.positionsError = action.payload; });
   },
 });
 
-export const { clearAssignSuccess, clearChangeSuccess, clearChangeError } = rolesSlice.actions;
+export const { clearAssignSuccess, clearChangeSuccess, clearChangeError, clearRegisterState } = rolesSlice.actions;
 export default rolesSlice.reducer;
