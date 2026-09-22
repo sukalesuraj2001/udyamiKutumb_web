@@ -35,6 +35,10 @@ import {
   selectAreaChartError,
   selectFetchStatus,
   selectFetchedData,
+  selectFetchedWardId,
+  selectWardChairmenTalukaId,
+  selectWardChairmenFetchedAt,
+  invalidateTalukaWardChartCache,
   selectUcnMembers,
   selectChannelPartners,
   selectPatrons,
@@ -145,26 +149,95 @@ function userTypeFromSlotId(slotId) {
   return "Member";
 }
 
-const getEffectiveWardHeadId = (user, ward) => {
+// How long the taluka roster (the MLA / Patron members of every ward in the
+// taluka) may be reused before it is refetched. Kept at module scope, together
+// with the Date.now() call, so the component body stays pure.
+const ROSTER_MAX_AGE_MS = 30_000;
+
+function isRosterStale(fetchedAt) {
+  return !fetchedAt || Date.now() - fetchedAt > ROSTER_MAX_AGE_MS;
+}
+
+// Looks up the current Ward Chairman for `ward` inside the freshly-fetched
+// taluka roster (GET /talukas/getAllWardChaimansBy/:talukaId, exposed here
+// as `wardChairmenList`). This list is refetched every time `talukaId`
+// changes (see the effect in WardChartDetail), so — unlike the `ward`
+// object sitting in the `wards` Redux list, which is only loaded once per
+// session — it reflects whoever currently holds the seat. Matching logic
+// mirrors mergeTalukaChairmenIntoAssignments in utils/Mapapitoassignments.js
+// so both stay in agreement about which record belongs to this ward.
+function findCurrentWardHeadIdFromRoster(ward, wardChairmenList) {
+  if (!Array.isArray(wardChairmenList) || wardChairmenList.length === 0) return null;
+
+  const wardId = ward?.id;
+  const wardNumber = ward?.ward_number;
+  const wardName = ward?.ward_name;
+
+  const matchedApiWard = wardChairmenList.find(
+    (item) =>
+      (wardId && item?.wardId === wardId) ||
+      (wardNumber && item?.wardNumber === wardNumber) ||
+      (wardName && item?.wardName === wardName)
+  );
+  if (!matchedApiWard) return null;
+
+  const rawMembers = matchedApiWard.wardChart?.members;
+  let chairmanMember = null;
+  if (Array.isArray(rawMembers)) {
+    chairmanMember = rawMembers.find(
+      (m) => m?.userType === "WardChairman" || m?.slotId === "ward-chairman"
+    );
+  } else if (rawMembers && typeof rawMembers === "object") {
+    const wcList = rawMembers.WardChairman || rawMembers.wardChairman || rawMembers.ward_chairman;
+    if (Array.isArray(wcList) && wcList.length > 0) chairmanMember = wcList[0];
+  }
+
+  return (
+    chairmanMember?.userId ||
+    chairmanMember?.memberId ||
+    matchedApiWard.wardChart?.wardHead?.userId ||
+    null
+  );
+}
+
+// Resolves the userId of the CURRENT Ward Chairman for `ward`. This must
+// always reflect who holds the seat right now, not whoever held it when an
+// earlier page load happened to run.
+//
+// This used to fall back to `localStorage.getItem("wardChartMeta")`, a
+// blob written once by getWardChartData.fulfilled (areaChartSlice.js) and
+// never invalidated afterwards. Once any GET for a ward had ever resolved
+// a wardHeadId, that value sat in localStorage indefinitely — surviving
+// page reloads, new sessions, even backend restarts — and every subsequent
+// createWardChartData call kept silently resending it. That's exactly why
+// Divya's id kept showing up in ward-chart POST payloads long after Kavya
+// had become Keragodu's Ward Chairman. That fallback, and the final
+// "just use whoever is logged in" fallback, are both removed: every
+// source below is re-derived from live data for THIS specific ward, and if
+// none resolve, this throws instead of guessing.
+const getEffectiveWardHeadId = (user, ward, wardChairmenList) => {
+  // 1. Freshest per-ward source: the taluka's current chairman roster.
+  const fromRoster = findCurrentWardHeadIdFromRoster(ward, wardChairmenList);
+  if (fromRoster) return fromRoster;
+
+  // 2. The ward record currently loaded for this page (live app state, not
+  // a persisted cache).
   const wardChairmanId = ward?.wardChairmanUserId || ward?.wardHeadId || ward?.wardChairman?.userId;
-  if (wardChairmanId) {
-    return wardChairmanId;
+  if (wardChairmanId) return wardChairmanId;
+
+  // 3. The logged-in user IS the Ward Chairman viewing their own chart.
+  if (user?.role === "WardChairman" && user?.userId) {
+    return user.userId;
   }
-  if (user?.role === "WardChairman") {
-    return user?.userId || "";
-  }
-  try {
-    const meta = JSON.parse(localStorage.getItem("wardChartMeta") || "{}");
-    if (meta && meta.wardHeadId) {
-      return meta.wardHeadId;
-    }
-  } catch (e) {
-    // fallback if JSON parse fails
-  }
-  return user?.userId || "";
+
+  // No stale cache, no hardcoded id: fail loudly so the caller shows a
+  // clear error instead of silently sending the wrong person's id.
+  throw new Error(
+    "Could not determine the current Ward Chairman for this ward. Please refresh the page and try again."
+  );
 };
 
-function buildSingleMemberPayload(ward, user, slotId, assignmentData) {
+function buildSingleMemberPayload(ward, user, slotId, assignmentData, wardChairmenList) {
   const coreRoleMap = {
     "core-president": "President",
     "core-vice-president": "Vice-President",
@@ -201,7 +274,7 @@ function buildSingleMemberPayload(ward, user, slotId, assignmentData) {
   if (umsKey) memberObj.umsKey = umsKey;
 
   return {
-    wardHeadId: getEffectiveWardHeadId(user, ward),
+    wardHeadId: getEffectiveWardHeadId(user, ward, wardChairmenList),
     ward: ward.ward_name || ward.ward_number || "",
     members: [memberObj],
   };
@@ -281,7 +354,20 @@ export default function WardChartDetail() {
   const apiStatus = useSelector(selectAreaChartStatus);
   const apiError = useSelector(selectAreaChartError);
   const fetchStatus = useSelector(selectFetchStatus);
-  const fetchedData = useSelector(selectFetchedData);
+  const fetchedDataRaw = useSelector(selectFetchedData);
+  const fetchedWardId = useSelector(selectFetchedWardId);
+  const wardChairmenTalukaId = useSelector(selectWardChairmenTalukaId);
+  const wardChairmenFetchedAt = useSelector(selectWardChairmenFetchedAt);
+
+  // Only ever read the cached payload when it belongs to the ward currently on
+  // screen. `fetchedData` is a single un-keyed slot in Redux, so while a new
+  // ward's request is in flight the previous ward's payload is still sitting
+  // there — and every consumer below (assignments, layout config, talukaId)
+  // would happily render it as if it were this ward's data.
+  const fetchedData =
+    fetchedDataRaw && (!fetchedWardId || fetchedWardId === ward.id)
+      ? fetchedDataRaw
+      : null;
   const wardInfo = useSelector(selectWardInfo);
   const layoutConfig = useSelector(selectLayoutConfig);
   const ucnMembers = useSelector(selectUcnMembers);
@@ -343,10 +429,17 @@ export default function WardChartDetail() {
   };
 
   const handleHeroCropDone = (blob) => {
+    let wardHeadId;
+    try {
+      wardHeadId = getEffectiveWardHeadId(user, ward, wardChairmenList);
+    } catch (err) {
+      setErrorModalData({ message: err.message });
+      return;
+    }
     const croppedFile = new File([blob], "hero-image.jpg", { type: "image/jpeg" });
     const formData = new FormData();
     formData.append("data", JSON.stringify({
-      wardHeadId: getEffectiveWardHeadId(user, ward),
+      wardHeadId,
       wardId: ward.id,
       ward: ward.ward_name || ward.ward_number || "",
       layoutCount: getLayoutCountString(config),
@@ -385,6 +478,9 @@ export default function WardChartDetail() {
 
   const lastWardIdRef = useRef(null);
   const lastTalukaIdRef = useRef(null);
+  // Tracks which ward the taluka roster was last (re)fetched for, so switching
+  // wards inside one taluka still refreshes the shared MLA/Patron data.
+  const lastWardIdForRosterRef = useRef(null);
 
   useEffect(() => {
     if (targetUserId && ward.id) {
@@ -402,7 +498,24 @@ export default function WardChartDetail() {
     }
   }, [dispatch, targetUserId, ward.id, user?.userId, user?.position?.positionId]);
 
+  // Wipe the previous ward's rendered state the moment the selected ward
+  // changes, so nothing from it lingers while the new ward's data loads. The
+  // fresh fetch is dispatched by the effect above; this just makes sure the
+  // page doesn't keep showing the old ward's slots/patron count in between.
+  //
+  // Done during render (React's documented "adjust state when a prop changes"
+  // pattern) rather than in an effect: it discards the stale view in the same
+  // render instead of after a paint, so the old ward's data never flashes.
+  const [renderedWardId, setRenderedWardId] = useState(ward.id);
+  if (renderedWardId !== ward.id) {
+    setRenderedWardId(ward.id);
+    setAssignments({});
+    setConfig(DEFAULT_CONFIG);
+  }
+
   useEffect(() => {
+    // `fetchedData` is already ward-scoped (see the guard where it is derived),
+    // so reaching here means the payload really is for the ward on screen.
     if (fetchStatus === "succeeded" && fetchedData) {
       const mapped = mapApiToAssignments(fetchedData);
       setAssignments(mapped);
@@ -415,6 +528,12 @@ export default function WardChartDetail() {
           ...apiLayoutConfig,
           slotCounts: { ...DEFAULT_CONFIG.slotCounts, ...(apiLayoutConfig.slotCounts || {}) },
         });
+      } else {
+        // This ward has no saved layoutConfig (a brand-new or never-customised
+        // chart stores null). Without this branch the config from the PREVIOUS
+        // ward stayed on screen — that is why a sibling ward kept showing the
+        // patron count of whichever ward was opened before it.
+        setConfig(DEFAULT_CONFIG);
       }
     }
   }, [fetchStatus, fetchedData, layoutConfig]);
@@ -960,7 +1079,13 @@ export default function WardChartDetail() {
 
     const isCommon = isBlockedForWardChairman(slotId);
     const { photoFile: _f, photoUrl: _u, ...restData } = data;
-    const payload = buildSingleMemberPayload(ward, user, slotId, { ...restData, photoUrl, slotLabel: modal.label });
+    let payload;
+    try {
+      payload = buildSingleMemberPayload(ward, user, slotId, { ...restData, photoUrl, slotLabel: modal.label }, wardChairmenList);
+    } catch (err) {
+      setErrorModalData({ message: err.message });
+      return;
+    }
 
     const formData = new FormData();
     formData.append("data", JSON.stringify({
@@ -979,6 +1104,15 @@ export default function WardChartDetail() {
     if (photoFile) formData.append("profileImages", photoFile);
     dispatch(createWardChartData(formData))
       .unwrap()
+      .then(() => {
+        // A common-page slot (MLA / Patron / Chairmen) is written by the backend
+        // into every ward of this taluka, so the roster these slots are rendered
+        // from is now stale for every sibling ward — drop it and refetch.
+        if (isCommon) {
+          dispatch(invalidateTalukaWardChartCache());
+          if (talukaId) dispatch(getAllWardChaimansBy(talukaId));
+        }
+      })
       .catch((err) => setErrorModalData(err));
   };
 
@@ -1067,17 +1201,24 @@ export default function WardChartDetail() {
       return;
     }
 
-    const payload = buildSingleMemberPayload(ward, user, slotId, {
-      name: nameToAssign,
-      mobileNumber: mobileToAssign,
-      email: emailToAssign,
-      company: companyToAssign,
-      photoUrl,
-      status: "registered",
-      slotLabel: label,
-      memberId: memberIdToAssign,
-      userId: memberIdToAssign,
-    });
+    let payload;
+    try {
+      payload = buildSingleMemberPayload(ward, user, slotId, {
+        name: nameToAssign,
+        mobileNumber: mobileToAssign,
+        email: emailToAssign,
+        company: companyToAssign,
+        photoUrl,
+        status: "registered",
+        slotLabel: label,
+        memberId: memberIdToAssign,
+        userId: memberIdToAssign,
+      }, wardChairmenList);
+    } catch (err) {
+      setErrorModalData({ message: err.message });
+      setSidePanelSlot(null);
+      return;
+    }
 
     const formData = new FormData();
     formData.append("data", JSON.stringify({
@@ -1113,6 +1254,9 @@ export default function WardChartDetail() {
           },
         }));
 
+        // Same as handleAssign: a common-page slot was just synced across the
+        // whole taluka, so every sibling ward's cached view is now stale.
+        if (isCommon) dispatch(invalidateTalukaWardChartCache());
         if (targetUserId && ward.id) {
           dispatch(getWardChartData({ userId: targetUserId, wardId: ward.id }));
         }
@@ -1395,13 +1539,35 @@ export default function WardChartDetail() {
     );
   }, [fetchedData, ward, constituencyWards, wardFromStateOrStore]);
 
+  // The taluka roster (`wardChairmenList`) is what actually renders the MLA and
+  // Patron slots — `effectiveAssignments` below merges them in from it, for
+  // EVERY ward in the taluka. It used to be fetched once per taluka and gated
+  // behind `lastTalukaIdRef`, so switching between wards of the SAME taluka
+  // never refetched it: the sibling ward rendered the snapshot taken when the
+  // taluka was first opened, which is exactly the data a cross-ward save has
+  // just made stale.
+  //
+  // Refetch when the taluka changes, when the selected WARD changes, when the
+  // cache was explicitly invalidated after a save, or when the snapshot is more
+  // than ROSTER_MAX_AGE_MS old.
   useEffect(() => {
-    if (talukaId && lastTalukaIdRef.current !== talukaId) {
+    if (!talukaId) return;
+
+    const wardChanged = lastWardIdForRosterRef.current !== ward.id;
+    const talukaChanged = lastTalukaIdRef.current !== talukaId;
+    const rosterIsForAnotherTaluka = wardChairmenTalukaId !== talukaId;
+    const rosterIsStale = isRosterStale(wardChairmenFetchedAt);
+
+    if (wardChanged || talukaChanged || rosterIsForAnotherTaluka || rosterIsStale) {
       dispatch(getAllWardChaimansBy(talukaId));
       dispatch(fetchPatrons(talukaId));
       lastTalukaIdRef.current = talukaId;
+      lastWardIdForRosterRef.current = ward.id;
     }
-  }, [dispatch, talukaId]);
+    // `wardChairmenFetchedAt` is deliberately not a dependency: it changes on
+    // every fulfilled fetch and would otherwise re-trigger this effect in a loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch, talukaId, ward.id, wardChairmenTalukaId]);
 
   const effectiveAssignments = useMemo(() => {
     const withChairmen = mergeTalukaChairmenIntoAssignments(assignments, wardChairmenList, constituencyWards, gCode);
@@ -2083,9 +2249,17 @@ export default function WardChartDetail() {
 
             const layoutCountStr = getLayoutCountString(merged);
 
+            let wardHeadId;
+            try {
+              wardHeadId = getEffectiveWardHeadId(user, ward, wardChairmenList);
+            } catch (err) {
+              setErrorModalData({ message: err.message });
+              return;
+            }
+
             const formData = new FormData();
             formData.append("data", JSON.stringify({
-              wardHeadId: getEffectiveWardHeadId(user),
+              wardHeadId,
               wardId: ward.id,
               ward: ward.ward_name || ward.ward_number || "",
               layoutCount: layoutCountStr,
@@ -2100,7 +2274,22 @@ export default function WardChartDetail() {
                 brandTiles: merged.brandTiles,
               },
             }));
-            dispatch(createWardChartData(formData));
+            dispatch(createWardChartData(formData))
+              .unwrap()
+              .then(() => {
+                // This save is common-page (applyToAllWards/isCommonPage),
+                // so the officials/patrons slot counts were just synced
+                // to every other ward in the taluka too. Invalidate the
+                // taluka-wide cache first, then refresh this ward's own data
+                // and the roster, so sibling wards opened afterwards fetch
+                // the new counts instead of the pre-save snapshot.
+                dispatch(invalidateTalukaWardChartCache());
+                if (targetUserId && ward.id) {
+                  dispatch(getWardChartData({ userId: targetUserId, wardId: ward.id }));
+                }
+                if (talukaId) dispatch(getAllWardChaimansBy(talukaId));
+              })
+              .catch((err) => setErrorModalData(err));
           }}
         />
       )}

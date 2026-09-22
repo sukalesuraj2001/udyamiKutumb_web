@@ -506,6 +506,11 @@ const initialState = {
   fetchStatus: "idle",
   fetchedData: null,
   fetchError: null,
+  // Which ward `fetchedData` actually belongs to. `fetchedData` is a single
+  // slot, so without this the previous ward's payload stays readable while a
+  // new ward's request is still in flight, and the page renders it as if it
+  // were the new ward's data.
+  fetchedWardId: null,
 
   deleteStatus: "idle",
   deleteError: null,
@@ -527,6 +532,11 @@ const initialState = {
   wardChairmenList: [],
   wardChairmenStatus: "idle",
   wardChairmenError: null,
+  // The taluka the roster was loaded for, and when. The roster carries every
+  // ward's MLA/Patron members, so it goes stale for sibling wards as soon as a
+  // common-page save syncs across the taluka.
+  wardChairmenTalukaId: null,
+  wardChairmenFetchedAt: null,
 
   ucnMembers: [],
   ucnMembersStatus: "idle",
@@ -558,7 +568,24 @@ const areaChartSlice = createSlice({
       state.error = null;
       state.fetchStatus = "idle";
       state.fetchedData = null;
+      state.fetchedWardId = null;
       state.fetchError = null;
+    },
+    /**
+     * Invalidate everything a common-page (MLA / Patron / slot-count) save
+     * makes stale across the whole taluka. The backend writes those changes
+     * into EVERY ward's chart, so this ward's cached payload and the taluka
+     * roster (which carries the other wards' members) are both out of date
+     * the moment such a save succeeds. Dropping the roster timestamp is what
+     * makes the next ward that opens re-request it instead of rendering the
+     * snapshot taken when the taluka was first loaded.
+     */
+    invalidateTalukaWardChartCache(state) {
+      state.fetchedData = null;
+      state.fetchedWardId = null;
+      state.fetchStatus = "idle";
+      state.wardChairmenFetchedAt = null;
+      state.wardChairmenTalukaId = null;
     },
     clearLocationState(state) {
       state.locationStatus = "idle";
@@ -603,13 +630,21 @@ const areaChartSlice = createSlice({
 
     // ── GET ward chart ──
     builder
-      .addCase(getWardChartData.pending, (state) => {
+      .addCase(getWardChartData.pending, (state, action) => {
         state.fetchStatus = "loading";
         state.fetchError = null;
+        // Drop the previous ward's payload as soon as a different ward is
+        // requested, so nothing can render it against the new ward while the
+        // request is in flight.
+        if (state.fetchedWardId && state.fetchedWardId !== action.meta.arg?.wardId) {
+          state.fetchedData = null;
+          state.fetchedWardId = null;
+        }
       })
       .addCase(getWardChartData.fulfilled, (state, action) => {
         state.fetchStatus = "succeeded";
         state.fetchedData = action.payload;
+        state.fetchedWardId = action.meta.arg?.wardId ?? null;
         state.fetchError = null;
 
         const { wardChartId, wardHeadId, ward } = action.payload.data;
@@ -680,6 +715,8 @@ const areaChartSlice = createSlice({
         state.wardChairmenStatus = "succeeded";
         state.wardChairmenList = action.payload;
         state.wardChairmenError = null;
+        state.wardChairmenTalukaId = action.meta.arg ?? null;
+        state.wardChairmenFetchedAt = Date.now();
       })
       .addCase(getAllWardChaimansBy.rejected, (state, action) => {
         state.wardChairmenStatus = "failed";
@@ -765,6 +802,7 @@ export const selectAreaChartError = (state) => state.areaChart.error;
 export const selectFetchStatus = (state) => state.areaChart.fetchStatus;
 export const selectFetchedData = (state) => state.areaChart.fetchedData;
 export const selectFetchError = (state) => state.areaChart.fetchError;
+export const selectFetchedWardId = (state) => state.areaChart.fetchedWardId;
 
 export const selectDeleteStatus = (state) => state.areaChart.deleteStatus;
 export const selectDeleteError = (state) => state.areaChart.deleteError;
@@ -784,6 +822,8 @@ export const selectSearchError = (s) => s.areaChart.searchError;
 export const selectWardChairmenList = (s) => s.areaChart.wardChairmenList;
 export const selectWardChairmenStatus = (s) => s.areaChart.wardChairmenStatus;
 export const selectWardChairmenError = (s) => s.areaChart.wardChairmenError;
+export const selectWardChairmenTalukaId = (s) => s.areaChart.wardChairmenTalukaId;
+export const selectWardChairmenFetchedAt = (s) => s.areaChart.wardChairmenFetchedAt;
 
 export const selectUcnMembers = (s) => s.areaChart.ucnMembers;
 export const selectUcnMembersStatus = (s) => s.areaChart.ucnMembersStatus;
@@ -803,5 +843,10 @@ export const selectUmsMembersError = (s) => s.areaChart.umsMembersError;
 
 export const selectWardInfo = (s) => s.areaChart.wardInfo;
 export const selectLayoutConfig = (s) => s.areaChart.fetchedData?.data?.layoutConfig ?? null;
-export const { clearAreaChartError, clearAreaChartState, clearLocationState } = areaChartSlice.actions;
+export const {
+  clearAreaChartError,
+  clearAreaChartState,
+  clearLocationState,
+  invalidateTalukaWardChartCache,
+} = areaChartSlice.actions;
 export default areaChartSlice.reducer;
