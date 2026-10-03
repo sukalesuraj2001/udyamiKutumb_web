@@ -630,33 +630,7 @@ export default function SuperAdmin() {
 
         {/* Header Controls */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Global District Filter Selector */}
-          <div className="relative">
-            <select
-              value={selectedDistrictFilter}
-              onChange={(e) => setSelectedDistrictFilter(e.target.value)}
-              className="appearance-none bg-gray-50 border border-gray-200 text-gray-700 text-xs font-medium rounded-xl px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
-            >
-              <option value="ALL">All Districts in Platform</option>
-              {masterDistrictsList.map((d) => (
-                <option key={d.name} value={d.name}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-            <Filter size={13} className="absolute right-2.5 top-2.5 text-gray-400 pointer-events-none" />
-          </div>
 
-          {/* Refresh Button */}
-          <button
-            onClick={loadSuperAdminData}
-            disabled={isRefreshing}
-            className="flex items-center gap-1.5 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-xl transition-all"
-            title="Refresh Live Data"
-          >
-            <RefreshCw size={13} className={isRefreshing ? "animate-spin text-purple-600" : ""} />
-            <span>Refresh</span>
-          </button>
 
           {/* Quick Create Ward Action */}
           <button
@@ -741,7 +715,6 @@ export default function SuperAdmin() {
           { id: "members", label: `Platform Members (${totalMembersCount.toLocaleString()})`, icon: Users },
           { id: "channelPartners", label: `Channel Partners (${channelPartners.length})`, icon: Building2 },
           { id: "positions", label: `All Positions (${allPositions.length})`, icon: Layers3 },
-          { id: "governance", label: "Governance & Quick Actions", icon: Settings },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -1649,105 +1622,7 @@ export default function SuperAdmin() {
         </div>
       )}
 
-      {/* ── TAB 6: GOVERNANCE & QUICK ACTIONS HUB ────────────── */}
-      {activeTab === "governance" && (
-        <div className="space-y-4">
-          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-1">
-            <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
-              <Settings size={18} className="text-purple-600" />
-              Governance & Platform Management Quick Actions
-            </h2>
-            <p className="text-xs text-gray-400">
-              Direct access to system administration, role configuration, sector taxonomies, and communications.
-            </p>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[
-              {
-                title: "User Role Management",
-                desc: "Assign roles, set administrative permissions, and manage user access levels.",
-                icon: ShieldCheck,
-                path: "/admin-dashboard/users/roles",
-                color: "bg-blue-50 text-blue-600",
-              },
-              {
-                title: "Create Ward & GeoJSON",
-                desc: "Create new wards, upload GeoJSON boundary files, and assign districts.",
-                icon: PlusCircle,
-                path: "/super-admin-dashboard/create-ward",
-                color: "bg-emerald-50 text-emerald-600",
-              },
-              {
-                title: "Business Circle Scoring",
-                desc: "Configure scoring matrices, engagement points, and member ranking criteria.",
-                icon: Sliders,
-                path: "/admin-dashboard/business-circle/scoring",
-                color: "bg-purple-50 text-purple-600",
-              },
-              {
-                title: "Taxonomy & Sectors",
-                desc: "Manage industry sectors, subsectors, and business tags.",
-                icon: Layers,
-                path: "/admin-dashboard/business-circle/taxonomy",
-                color: "bg-amber-50 text-amber-600",
-              },
-              {
-                title: "Communication Campaigns",
-                desc: "Send bulk WhatsApp, SMS, and Email announcements across regions.",
-                icon: Mail,
-                path: "/super-admin-dashboard/communications",
-                color: "bg-rose-50 text-rose-600",
-              },
-              {
-                title: "Job Management",
-                desc: "Review job postings, applicant queues, and employment listings.",
-                icon: Briefcase,
-                path: "/super-admin-dashboard/jobs",
-                color: "bg-cyan-50 text-cyan-600",
-              },
-              {
-                title: "News Management",
-                desc: "Publish platform news, event updates, and official announcements.",
-                icon: Newspaper,
-                path: "/super-admin-dashboard/news",
-                color: "bg-indigo-50 text-indigo-600",
-              },
-              {
-                title: "Area Chart Builder",
-                desc: "Build geographical layouts, assign chairmen slots, and view ward maps.",
-                icon: MapIcon,
-                path: "/super-admin-dashboard/area-chart",
-                color: "bg-orange-50 text-orange-600",
-              },
-            ].map((action) => {
-              const ActionIcon = action.icon;
-              return (
-                <div
-                  key={action.title}
-                  onClick={() => navigate(action.path)}
-                  className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between space-y-4 group"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className={`p-3 rounded-xl ${action.color}`}>
-                      <ActionIcon size={22} />
-                    </div>
-                    <ChevronRight size={16} className="text-gray-300 group-hover:text-purple-600 group-hover:translate-x-1 transition-all" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-gray-800 group-hover:text-purple-700 transition-colors">
-                      {action.title}
-                    </h3>
-                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                      {action.desc}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
     </div>
   );

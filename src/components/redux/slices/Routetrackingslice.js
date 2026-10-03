@@ -136,6 +136,32 @@ export const fetchChannelPartners = createAsyncThunk(
   }
 );
 
+// Ward-scoped Channel Partners — only the CPs whose channel_partner
+// position is assigned to this one ward (backend: GET
+// /auth/getAllChannelPartners?wardId=...). Used by Route Management so a
+// logged-in Ward Chairman only sees Channel Partners from their OWN ward
+// in the "Assign to Channel Partner" dropdown, instead of every Channel
+// Partner in the system (which is what fetchChannelPartners above does).
+export const fetchChannelPartnersByWard = createAsyncThunk(
+  "routeTracking/fetchChannelPartnersByWard",
+  async ({ wardId, token }, { rejectWithValue }) => {
+    try {
+      if (!wardId) {
+        throw new Error("Ward ID is required to list Channel Partners for a ward.");
+      }
+      const data = await authRequest(
+        `/auth/getAllChannelPartners?wardId=${encodeURIComponent(wardId)}&page=1&limit=200`,
+        "GET",
+        null,
+        token
+      );
+      return data.data || [];
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
 // ── NEW: Journey Reports for a specific Channel Partner ───────────────────────
 export const fetchCPJourneyReports = createAsyncThunk(
   "routeTracking/fetchCPJourneyReports",
@@ -369,6 +395,19 @@ const routeTrackingSlice = createSlice({
         state.channelPartners = action.payload;
       })
       .addCase(fetchChannelPartners.rejected, (state, action) => {
+        state.channelPartnersStatus = "failed";
+        state.error = action.payload;
+      });
+
+    // fetchChannelPartnersByWard — same state slot as fetchChannelPartners
+    // above, just populated from the ward-scoped endpoint instead.
+    builder
+      .addCase(fetchChannelPartnersByWard.pending, (state) => { state.channelPartnersStatus = "loading"; })
+      .addCase(fetchChannelPartnersByWard.fulfilled, (state, action) => {
+        state.channelPartnersStatus = "succeeded";
+        state.channelPartners = action.payload;
+      })
+      .addCase(fetchChannelPartnersByWard.rejected, (state, action) => {
         state.channelPartnersStatus = "failed";
         state.error = action.payload;
       });

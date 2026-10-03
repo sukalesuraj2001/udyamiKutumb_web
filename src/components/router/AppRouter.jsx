@@ -82,6 +82,7 @@ import CpSubmissionsView from "../pages/onbording/cpOnbording/Cpsubmissionsview.
 import CloudPatraApplications from "../pages/cp/cloudPatra/CloudPatraApplications.jsx";
 import CloudPatraInterviews from "../pages/cp/cloudPatra/CloudPatraInterviews.jsx";
 import CpTable from "../pages/cp/CpTable.jsx";
+import SendMail from "../pages/superAdmin/SendMail.jsx";
 
 
 const AppRouter = [
@@ -233,6 +234,7 @@ const AppRouter = [
           { path: "/super-admin-dashboard/cp-onboarding", element: <ChannelPartnerOnboard /> },
           { path: "/super-admin-dashboard/form-builder/channelPartner", element: <FormBuilder /> },
           { path: "/super-admin-dashboard/create-ward", element: <CreateWard /> },
+          { path: "/super-admin-dashboard/send-mail", element: <SendMail /> },
           { path: "/super-admin-dashboard/job-management", element: <JobManagement /> },
           { path: "/super-admin-dashboard/news-management", element: <NewsManagement /> },
 

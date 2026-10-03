@@ -150,6 +150,7 @@ const NAV = {
                 { name: "Register Employee", path: "/super-admin-dashboard/register-employee" },
                 { name: "Manage Roles", path: "/super-admin-dashboard/membership/role-management" },
                 { name: "Create Ward / Hobli", path: "/super-admin-dashboard/create-ward" },
+                { name: "Send Mail", path: "/super-admin-dashboard/send-mail" },
             ]
         },
         {

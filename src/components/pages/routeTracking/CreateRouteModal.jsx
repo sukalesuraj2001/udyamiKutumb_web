@@ -5,7 +5,7 @@ import {
   resetCreateStatus, 
   selectCreateStatus, 
   selectRouteError,
-  fetchChannelPartners,
+  fetchChannelPartnersByWard,
   selectChannelPartners,
   selectChannelPartnersStatus
 } from "../../redux/slices/Routetrackingslice.js";
@@ -165,10 +165,18 @@ export default function CreateRouteModal({ onClose, channelPartners = [] }) {
   const [mapSearchMarker, setMapSearchMarker] = useState(null);
   const debouncedMapSearch = useDebounce(mapSearch, 400);
 
-  // ── Fetch channel partners ────────────────────────────────────────────────
+  // ── Fetch channel partners (scoped to THIS Ward Chairman's own ward) ─────
+  // wardId comes from the login response's user.position.ward.wardId — the
+  // Ward Chairman's own current seat's ward (see AuthService.
+  // getPositionGeography on the backend). No wardId (e.g. user has no
+  // active seat) means no fetch — dropdown just stays empty.
+  const wardId = user?.position?.ward?.wardId || null;
+
   useEffect(() => {
-    if (token) dispatch(fetchChannelPartners());
-  }, [token, dispatch]);
+    if (token && wardId) {
+      dispatch(fetchChannelPartnersByWard({ wardId, token }));
+    }
+  }, [token, wardId, dispatch]);
 
   // ── Close CP dropdown outside click ──────────────────────────────────────
   useEffect(() => {

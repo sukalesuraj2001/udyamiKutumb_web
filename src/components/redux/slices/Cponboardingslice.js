@@ -205,6 +205,52 @@ export const updateSurveyStatusByWardChairman = createAsyncThunk(
 );
 
 // ═════════════════════════════════════════════════════════════════════════════
+//  EXPO Ambassador APIs (form submitted from mobile app)
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ─── EXPO-1 : Applications for the logged-in Ward Chairman's ward ───────────
+// Backend resolves the ward from the JWT — wardId here is only an optional
+// narrowing filter (must be one of the chairman's own wards).
+export const fetchExpoAmbassadorApplications = createAsyncThunk(
+  "cpOnboarding/fetchExpoAmbassadorApplications",
+  async ({ wardId, status } = {}, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      const params = new URLSearchParams();
+      if (wardId) params.set("wardId", wardId);
+      if (status && status !== "ALL") params.set("status", status);
+      const qs = params.toString();
+      return await authRequest(
+        `/expo-ambassador/applications/ward-chairman${qs ? `?${qs}` : ""}`,
+        { token }
+      );
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+// ─── EXPO-2 : Ward Chairman changes application status ──────────────────────
+export const updateExpoAmbassadorStatus = createAsyncThunk(
+  "cpOnboarding/updateExpoAmbassadorStatus",
+  async ({ applicationId, status, rejectionReason, remarks }, { getState, rejectWithValue }) => {
+    try {
+      const token = getState().auth.token;
+      return await authRequest(
+        `/expo-ambassador/applications/${applicationId}/status`,
+        {
+          method: "PATCH",
+          token,
+          body: { status, rejectionReason, remarks },
+        }
+      );
+    } catch (err) {
+      return rejectWithValue(err.message);
+    }
+  }
+);
+
+// ═════════════════════════════════════════════════════════════════════════════
 //  SLICE
 // ═════════════════════════════════════════════════════════════════════════════
 const cpOnboardingSlice = createSlice({
@@ -246,6 +292,13 @@ const cpOnboardingSlice = createSlice({
     selectedCpForms: [],
     selectedCpFormsStatus: "idle",
     selectedCpFormsError: null,
+
+    // ── EXPO Ambassador applications ────────────────────────────────────────
+    expoApplications: [],
+    expoApplicationsStatus: "idle",
+    expoApplicationsError: null,
+    expoUpdateStatus: "idle",
+    expoUpdateError: null,
   },
 
   reducers: {
@@ -266,6 +319,10 @@ const cpOnboardingSlice = createSlice({
     resetCpInterviewUpdateStatus(state) {
       state.cpInterviewUpdateStatus = "idle";
       state.cpInterviewUpdateError = null;
+    },
+    resetExpoUpdateStatus(state) {
+      state.expoUpdateStatus = "idle";
+      state.expoUpdateError = null;
     },
     // Clear selected CP forms when user deselects / unmounts CpTable
     clearSelectedCpForms(state) {
@@ -504,6 +561,45 @@ const cpOnboardingSlice = createSlice({
         state.surveyUpdateError =
           action.payload || "Failed to update survey status";
       });
+
+    // ── EXPO-1 : Fetch EXPO Ambassador applications ───────────────────────────
+    builder
+      .addCase(fetchExpoAmbassadorApplications.pending, (state) => {
+        state.expoApplicationsStatus = "loading";
+        state.expoApplicationsError = null;
+      })
+      .addCase(fetchExpoAmbassadorApplications.fulfilled, (state, action) => {
+        state.expoApplicationsStatus = "succeeded";
+        state.expoApplications = Array.isArray(action.payload?.data)
+          ? action.payload.data
+          : [];
+      })
+      .addCase(fetchExpoAmbassadorApplications.rejected, (state, action) => {
+        state.expoApplicationsStatus = "failed";
+        state.expoApplicationsError =
+          action.payload || "Failed to fetch EXPO Ambassador applications";
+      });
+
+    // ── EXPO-2 : Update EXPO Ambassador status ────────────────────────────────
+    builder
+      .addCase(updateExpoAmbassadorStatus.pending, (state) => {
+        state.expoUpdateStatus = "loading";
+        state.expoUpdateError = null;
+      })
+      .addCase(updateExpoAmbassadorStatus.fulfilled, (state, action) => {
+        state.expoUpdateStatus = "succeeded";
+        const updated = action.payload?.data;
+        if (updated?.applicationId) {
+          state.expoApplications = state.expoApplications.map((app) =>
+            app.applicationId === updated.applicationId ? { ...app, ...updated } : app
+          );
+        }
+      })
+      .addCase(updateExpoAmbassadorStatus.rejected, (state, action) => {
+        state.expoUpdateStatus = "failed";
+        state.expoUpdateError =
+          action.payload || "Failed to update EXPO Ambassador status";
+      });
   },
 });
 
@@ -548,9 +644,17 @@ export const selectSelectedCpFormsError  = (state) => state.cpOnboarding.selecte
 export const selectSurveyUpdateStatus    = (state) => state.cpOnboarding.surveyUpdateStatus;
 export const selectSurveyUpdateError     = (state) => state.cpOnboarding.surveyUpdateError;
 
+// EXPO Ambassador selectors
+export const selectExpoApplications       = (state) => state.cpOnboarding.expoApplications;
+export const selectExpoApplicationsStatus = (state) => state.cpOnboarding.expoApplicationsStatus;
+export const selectExpoApplicationsError  = (state) => state.cpOnboarding.expoApplicationsError;
+export const selectExpoUpdateStatus       = (state) => state.cpOnboarding.expoUpdateStatus;
+export const selectExpoUpdateError        = (state) => state.cpOnboarding.expoUpdateError;
+
 // ─── Actions ──────────────────────────────────────────────────────────────────
 export const {
   resetUpdateStatus,
+  resetExpoUpdateStatus,
   resetCpAppUpdateStatus,
   resetCpScheduleStatus,
   resetCpInterviewUpdateStatus,

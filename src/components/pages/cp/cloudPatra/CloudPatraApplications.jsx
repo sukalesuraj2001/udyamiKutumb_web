@@ -12,6 +12,7 @@ import {
   resetCpScheduleStatus,
 } from "../../../redux/slices/Cponboardingslice";
 import { getLocationByWardHeadId } from "../../../redux/slices/areaChartSlice";
+import ExpoAmbassadorApplications from "./ExpoAmbassadorApplications";
 
 // ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_STYLES = {
@@ -460,6 +461,7 @@ export default function CloudPatraApplications() {
   const userId = user?._id || user?.userId;
 
   // UI state
+  const [activeTab, setActiveTab]       = useState("CLOUD_PATRA"); // CLOUD_PATRA | EXPO_AMBASSADOR
   const [search, setSearch]             = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [selectedApp, setSelectedApp]   = useState(null);
@@ -547,21 +549,48 @@ export default function CloudPatraApplications() {
       }}>
         <div>
           <p style={{ margin: 0, fontSize: 12, color: "#94A3B8", fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>
-            Cloud Patra · Channel Partner
+            {activeTab === "EXPO_AMBASSADOR" ? "EXPO Ambassador" : "Cloud Patra · Channel Partner"}
           </p>
           <h1 style={{ margin: "4px 0 0", fontSize: 22, fontWeight: 700, color: "#0F172A" }}>
             Applications
           </h1>
+          {/* ── Tabs ── */}
+          <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+            {[
+              { key: "CLOUD_PATRA", label: "Cloud Patra CP" },
+              { key: "EXPO_AMBASSADOR", label: "EXPO Ambassador" },
+            ].map(t => (
+              <button
+                key={t.key}
+                onClick={() => setActiveTab(t.key)}
+                style={{
+                  padding: "7px 14px", borderRadius: 8, border: "1.5px solid",
+                  borderColor: activeTab === t.key ? "#4F7FFF" : "#E2E8F0",
+                  background: activeTab === t.key ? "#EFF4FF" : "#fff",
+                  color: activeTab === t.key ? "#2752D8" : "#374151",
+                  fontSize: 13, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <button
-          onClick={() => wardId && dispatch(fetchCloudPatraApplicationsByWard(wardId))}
-          style={{ ...styles.outlineBtn, padding: "8px 16px" }}
-        >
-          {fetchStatus === "loading" ? "Refreshing…" : "↻ Refresh"}
-        </button>
+        {activeTab === "CLOUD_PATRA" && (
+          <button
+            onClick={() => wardId && dispatch(fetchCloudPatraApplicationsByWard(wardId))}
+            style={{ ...styles.outlineBtn, padding: "8px 16px" }}
+          >
+            {fetchStatus === "loading" ? "Refreshing…" : "↻ Refresh"}
+          </button>
+        )}
       </div>
 
       <div style={{ padding: "24px 32px" }}>
+        {activeTab === "EXPO_AMBASSADOR" ? (
+          <ExpoAmbassadorApplications />
+        ) : (
+        <>
 
         {/* ── Stat Cards ── */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16, marginBottom: 24 }}>
@@ -722,6 +751,8 @@ export default function CloudPatraApplications() {
             </table>
           )}
         </div>
+        </>
+        )}
       </div>
 
       {/* ── Detail Drawer ── */}

@@ -34,7 +34,17 @@ function RowSelect({ value, onChange, placeholder, options, loading, minWidth = 
 
 // ── Role types accepted by POST /roles/assign-role ──────────────────────────
 // Exact `type` strings the backend expects — see ROLE_ASSIGNMENT_API.md
+//
+// "super_admin" and "member" were added to RolesService.assignRoleNew's
+// switch (see ward-chart/roles session notes): canAssignRole() only lets a
+// super_admin CALLER reach either branch, so both entries below only ever
+// actually show up for a SuperAdmin (see visibleRoleTypes' `isSuperAdmin`
+// branch, which already returns every ROLE_TYPES entry unfiltered).
+// "member" is the "remove this user's current role" action — it demotes
+// whoever currently holds the role back to a plain Member, freeing any
+// seat they held.
 const ROLE_TYPES = [
+  { type: "super_admin", label: "SuperAdmin" },
   { type: "district_head", label: "District Head" },
   { type: "taluka_head", label: "Taluka Head" },
   { type: "ward_chairman", label: "Ward Chairman" },
@@ -43,7 +53,12 @@ const ROLE_TYPES = [
   { type: "vice_president", label: "Vice President" },
   { type: "general_secretary", label: "General Secretary" },
   { type: "treasurer", label: "Treasurer" },
+  { type: "member", label: "Remove Role (→ Member)" },
 ];
+
+// super_admin/member need no district/taluka/ward selection at all — see
+// showDistrict/showTaluka/showWard below.
+const NO_GEOGRAPHY_TYPES = ["super_admin", "member"];
 
 const CIRCLE_TIER_TYPES = [
   "circle_leader",
@@ -443,9 +458,9 @@ export default function AssignRolesTab() {
   // circle-tier roles    → District → Taluka → Ward
   // (District/Taluka are shown for navigation even when the API doc doesn't
   // require them in the payload for that type — see REQUIRED_FIELDS_BY_TYPE.)
-  const showDistrict = !!newRoleType;
-  const showTaluka = !!newRoleType && newRoleType !== "district_head";
-  const showWard = !!newRoleType && newRoleType !== "district_head" && newRoleType !== "taluka_head";
+  const showDistrict = !!newRoleType && !NO_GEOGRAPHY_TYPES.includes(newRoleType);
+  const showTaluka = showDistrict && newRoleType !== "district_head";
+  const showWard = showTaluka && newRoleType !== "taluka_head";
 
   // Lock (pre-fill, read-only) a cascade step to the caller's own jurisdiction
   // when their role means it can only ever be that value.
@@ -1009,10 +1024,15 @@ export default function AssignRolesTab() {
                             <button
                               onClick={handleAssign}
                               disabled={!canAssign || assigning}
-                              className="h-7 px-3 text-[11.5px] font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-40 flex items-center gap-1 self-start"
+                              title={newRoleType === "member" ? "Removes their current role and sets them back to Member" : undefined}
+                              className={`h-7 px-3 text-[11.5px] font-semibold text-white rounded-lg transition-colors disabled:opacity-40 flex items-center gap-1 self-start ${
+                                newRoleType === "member"
+                                  ? "bg-red-600 hover:bg-red-700"
+                                  : "bg-emerald-600 hover:bg-emerald-700"
+                              }`}
                             >
                               {assigning ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
-                              Assign
+                              {newRoleType === "member" ? "Remove Role" : "Assign"}
                             </button>
 
                             <button
