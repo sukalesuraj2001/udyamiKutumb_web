@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { selectToken, selectUser } from "../../redux/slices/authSlice";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = "https://backend.udyamikutumba.com";
 
 // ── Field type config ────────────────────────────────────────────────────────
 const FIELD_TYPE_CONFIG = {

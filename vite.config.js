@@ -11,7 +11,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/ward/": {
-        target: "http://localhost:3000",
+        target: "https://backend.udyamikutumba.com",
         // target: "http://192.168.0.70:3000",
         changeOrigin: true,
       },

@@ -1,7 +1,7 @@
 // redux/slices/cpFormSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = "https://backend.udyamikutumba.com";
 
 // ── Thunks ────────────────────────────────────────────────────────────────────
 
