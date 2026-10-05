@@ -62,6 +62,7 @@ export default function SatelliteMap({
   const markersRef        = useRef([]);
   const currentTileKeyRef = useRef("satellite");
   const [currentTile, setCurrentTile] = useState("satellite");
+  const [legendOpen, setLegendOpen] = useState(false); // mobile only; always visible on sm+
 
   // ── Init map ──
   useEffect(() => {
@@ -87,7 +88,18 @@ export default function SatelliteMap({
       if (z !== undefined && z <= 3) onZoomOutToGlobe?.();
     });
 
+    // Keep Leaflet in sync with its container size (orientation change,
+    // sidebar toggle, mobile browser toolbar show/hide, window resize).
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== "undefined") {
+      resizeObserver = new ResizeObserver(() => {
+        mapRef.current?.invalidateSize();
+      });
+      resizeObserver.observe(mapDivRef.current);
+    }
+
     return () => {
+      resizeObserver?.disconnect();
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -245,7 +257,7 @@ export default function SatelliteMap({
       <div ref={mapDivRef} className="w-full h-full z-0" />
 
       {/* Tile switcher */}
-      <div className="absolute top-16 right-4 z-[1000] bg-white/95 backdrop-blur rounded-xl shadow-md p-1 flex gap-0.5">
+      <div className="absolute top-[4.5rem] right-3 sm:top-16 sm:right-4 z-[1000] bg-white/95 backdrop-blur rounded-xl shadow-md p-1 flex gap-0.5">
         {[
           { key: "satellite", label: "Satellite" },
           { key: "street",    label: "Street"    },
@@ -254,7 +266,7 @@ export default function SatelliteMap({
           <button
             key={v.key}
             onClick={() => switchTile(v.key)}
-            className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+            className={`text-[11px] sm:text-[12px] font-semibold px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg transition-colors ${
               currentTile === v.key
                 ? "bg-ink text-white"
                 : "text-muted hover:text-ink hover:bg-ink/[0.05]"
@@ -265,8 +277,20 @@ export default function SatelliteMap({
         ))}
       </div>
 
-      {/* Legend */}
-      <div className="absolute bottom-6 right-4 z-[1000] bg-white/95 backdrop-blur rounded-xl shadow-md px-3.5 py-3 text-[11.5px] text-ink space-y-2">
+      {/* Legend toggle (mobile only) */}
+      <button
+        type="button"
+        onClick={() => setLegendOpen((o) => !o)}
+        className="sm:hidden absolute bottom-3 left-3 z-[1000] bg-white/95 backdrop-blur rounded-lg shadow-md px-2.5 py-1.5 text-[11px] font-semibold text-ink"
+        aria-expanded={legendOpen}
+      >
+        {legendOpen ? "Hide legend" : "Legend"}
+      </button>
+
+      {/* Legend — bottom-left so it never collides with the zoom control (bottom-right) */}
+      <div
+        className={`${legendOpen ? "block" : "hidden"} sm:block absolute bottom-12 left-3 sm:bottom-6 sm:left-4 z-[1000] bg-white/95 backdrop-blur rounded-xl shadow-md px-3 sm:px-3.5 py-2.5 sm:py-3 text-[11px] sm:text-[11.5px] text-ink space-y-1.5 sm:space-y-2 max-w-[70%]`}
+      >
         <p className="font-semibold text-[10px] text-muted uppercase tracking-widest">Legend</p>
         {legendItems.map((item, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -316,6 +340,15 @@ export default function SatelliteMap({
         .district-label { font-size: 13px;   color: #003366; }
         .taluka-label   { font-size: 11px;   color: #C2410C; }
         .ward-label     { font-size: 10.5px; color: #15803D; }
+
+        /* Smaller labels / popups on phones so the map isn't buried in text */
+        @media (max-width: 640px) {
+          .geo-label { padding: 1px 4px !important; border-radius: 4px !important; }
+          .district-label { font-size: 11px; }
+          .taluka-label   { font-size: 9.5px; }
+          .ward-label     { font-size: 9px; }
+          .clean-popup .leaflet-popup-content { margin: 10px 12px; }
+        }
       `}</style>
     </div>
   );

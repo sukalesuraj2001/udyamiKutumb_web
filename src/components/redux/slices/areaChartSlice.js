@@ -141,6 +141,24 @@ export const getLocationByWardHeadId = createAsyncThunk(
         entries = [data.data];
       }
 
+      // A ward can come back more than once (e.g. two WARD_CHAIRMAN position
+      // assignments for the same ward, one of them stale). Every screen built on
+      // this list - cards, counts, Print Preview pages - assumes one entry per
+      // ward, so keep only one: the one with a current chairman if there is a
+      // choice, otherwise the first.
+      const seenWards = new Map();
+      entries.forEach((e) => {
+        const key =
+          e?.ward?.wardId ??
+          e?.wardId ??
+          `${e?.taluka?.talukaName ?? ""}|${(e?.ward?.wardName ?? e?.ward ?? "").toString().trim().toLowerCase()}`;
+        const existing = seenWards.get(key);
+        if (!existing || (!existing.wardChairman && e?.wardChairman)) {
+          seenWards.set(key, e);
+        }
+      });
+      entries = Array.from(seenWards.values());
+
       const constituencyCounts = {};
       entries.forEach((e) => {
         const cName = e?.taluka?.talukaName || "default";

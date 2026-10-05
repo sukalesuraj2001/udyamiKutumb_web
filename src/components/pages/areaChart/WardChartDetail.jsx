@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import { User, UserPlus, SlidersHorizontal, Printer, Download, Pencil, FileCheck2 } from "lucide-react";
+import { User, UserPlus, SlidersHorizontal, Send, Download, Pencil, FileCheck2 } from "lucide-react";
 import ChartSlot from "./components/ChartSlot.jsx";
 import MlaCard from "./components/Mlacard.jsx";
 import ChairmanHighlightCard from "./components/Chairmanhighlightcard.jsx";
@@ -10,6 +10,7 @@ import ProductsPage, { SAMPLE_PRODUCT_CATEGORIES } from "./components/Productspa
 import ChartHeaderBanner from "./components/Chartheaderbanner.jsx";
 import CustomizeLayoutModal from "./models/CustomizeLayoutModal.jsx";
 import AssignPositionModal from "./models/AssignPositionModal.jsx";
+import InviteMemberModal from "./models/InviteMemberModal.jsx";
 import AllAssignmentsTable from "./components/AllAssignmentsTable.jsx";
 import CoverPage from "./components/CoverPage.jsx";
 import ChartPreviewFrame from "./components/ChartPreviewFrame.jsx";
@@ -48,9 +49,7 @@ import { mapApiToAssignments, mergeTalukaChairmenIntoAssignments, mergePatronsIn
 import { paginateBrandCategories } from "./utils/paginateCategories.js";
 import { getLayoutCountString } from "./utils/calculateLayoutCount.js";
 import ImageCropModal from "./models/ImageCropModal.jsx";
-import domtoimage from "dom-to-image-more";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+import api from "../../service/api.js";
 
 // ─── PDF Structure ────────────────────────────────────────────────
 // Page 1  : Cover (CoverPage component)
@@ -393,7 +392,6 @@ export default function WardChartDetail() {
 
   const [assignments, setAssignments] = useState({});
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
-  const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0 });
 
   const heroImageUrl = assignments["hero-image"]?.photoUrl || HERO_IMAGE_URL;
   const [heroCropFile, setHeroCropFile] = useState(null);
@@ -468,6 +466,7 @@ export default function WardChartDetail() {
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const pdfRef = useRef(null);
   const [showCustomize, setShowCustomize] = useState(false);
+  const [showInvite, setShowInvite] = useState(false);
   const [modal, setModal] = useState(null);
   const [selectedPosition, setSelectedPosition] = useState(null);
   const [sidePanelSlot, setSidePanelSlot] = useState(null);
@@ -548,249 +547,121 @@ export default function WardChartDetail() {
   };
 
 
-  // ── Modern CSS Color (OKLAB, OKLCH, etc.) to RGB Sanitizer Helpers ────────
-  function convertModernColorToRgb(colorStr) {
-    if (!colorStr || typeof colorStr !== "string") return colorStr;
+  // ── PDF download (rendered by the backend) ────────────────────────────
+  // The pages that are on screen (.pdf-capture-page) are sent to the backend
+  // as HTML + the app's compiled CSS. The backend prints them with headless
+  // Chrome, so the PDF keeps exactly this design but has real (vector) text
+  // and full-resolution photos - nothing is screenshotted in the browser.
 
-    if (!/(?:oklch|oklab|color\(|color-mix\(|light-dark\()/i.test(colorStr)) {
-      return colorStr;
-    }
+  const sanitizeFileName = (raw) =>
+    (raw || "Ward Chart")
+      .toString()
+      .replace(/[\\/:*?"<>|]/g, "-")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/[. ]+$/g, "") || "Ward Chart";
 
-    // 1. Try native browser 2D canvas context for exact sRGB conversion
-    try {
-      const canvas = document.createElement("canvas");
-      canvas.width = 1;
-      canvas.height = 1;
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      ctx.fillStyle = "rgba(0,0,0,0)";
-      ctx.clearRect(0, 0, 1, 1);
-      ctx.fillStyle = colorStr;
-      ctx.fillRect(0, 0, 1, 1);
-      const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
-      if (a !== 0 || colorStr.includes("0%")) {
-        const alpha = +(a / 255).toFixed(3);
-        return alpha === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${alpha})`;
-      }
-    } catch (e) {
-      // fallback below
-    }
-
-    // 2. Mathematical OKLAB -> sRGB fallback conversion
-    if (colorStr.includes("oklab")) {
-      try {
-        const match = colorStr.match(/oklab\(\s*([\d.%]+)\s+([-\d.]+)\s+([-\d.]+)(?:\s*\/\s*([\d.%]+))?\s*\)/i);
-        if (match) {
-          let [, lStr, aStr, bStr, alphaStr] = match;
-          let L = lStr.endsWith("%") ? parseFloat(lStr) / 100 : parseFloat(lStr);
-          let aLab = parseFloat(aStr);
-          let bLab = parseFloat(bStr);
-          let A = alphaStr ? (alphaStr.endsWith("%") ? parseFloat(alphaStr) / 100 : parseFloat(alphaStr)) : 1;
-
-          const l_ = L + 0.3963377774 * aLab + 0.2158037573 * bLab;
-          const m_ = L - 0.1055613458 * aLab - 0.0638541728 * bLab;
-          const s_ = L - 0.0894841775 * aLab - 1.291485548 * bLab;
-
-          const l = l_ * l_ * l_;
-          const m = m_ * m_ * m_;
-          const s = s_ * s_ * s_;
-
-          let rLin = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
-          let gLin = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
-          let bLin = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
-
-          const gamma = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
-          let r = Math.min(255, Math.max(0, Math.round(gamma(rLin) * 255)));
-          let g = Math.min(255, Math.max(0, Math.round(gamma(gLin) * 255)));
-          let b = Math.min(255, Math.max(0, Math.round(gamma(bLin) * 255)));
-
-          return A === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${A})`;
-        }
-      } catch (e) { }
-    }
-
-    // 3. Mathematical OKLCH -> sRGB fallback conversion
-    if (colorStr.includes("oklch")) {
-      try {
-        const match = colorStr.match(/oklch\(\s*([\d.%]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.%]+))?\s*\)/i);
-        if (match) {
-          let [, lStr, cStr, hStr, aStr] = match;
-          let L = lStr.endsWith("%") ? parseFloat(lStr) / 100 : parseFloat(lStr);
-          let C = parseFloat(cStr);
-          let H = parseFloat(hStr);
-          let A = aStr ? (aStr.endsWith("%") ? parseFloat(aStr) / 100 : parseFloat(aStr)) : 1;
-
-          const hRad = (H * Math.PI) / 180;
-          const aLab = C * Math.cos(hRad);
-          const bLab = C * Math.sin(hRad);
-
-          const l_ = L + 0.3963377774 * aLab + 0.2158037573 * bLab;
-          const m_ = L - 0.1055613458 * aLab - 0.0638541728 * bLab;
-          const s_ = L - 0.0894841775 * aLab - 1.291485548 * bLab;
-
-          const l = l_ * l_ * l_;
-          const m = m_ * m_ * m_;
-          const s = s_ * s_ * s_;
-
-          let rLin = +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
-          let gLin = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
-          let bLin = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
-
-          const gamma = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
-          let r = Math.min(255, Math.max(0, Math.round(gamma(rLin) * 255)));
-          let g = Math.min(255, Math.max(0, Math.round(gamma(gLin) * 255)));
-          let b = Math.min(255, Math.max(0, Math.round(gamma(bLin) * 255)));
-
-          return A === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${A})`;
-        }
-      } catch (e) { }
-    }
-
-    return colorStr;
-  }
-
-  function replaceModernColorsInCssText(cssText) {
-    if (!cssText || typeof cssText !== "string" || !/(?:oklch|oklab|color|color-mix|light-dark)/i.test(cssText)) {
-      return cssText;
-    }
-
-    let prev;
-    let result = cssText;
-    let iterations = 0;
-
-    while (result !== prev && iterations < 5) {
-      prev = result;
-      result = result.replace(/(?:oklch|oklab|color-mix|light-dark|color)\((?:[^()]+|\([^()]*\))*\)/gi, (match) => {
-        return convertModernColorToRgb(match);
-      });
-      iterations++;
-    }
-    return result;
-  }
-
-  function sanitizeModernColorsNodeTree(rootNode, doc) {
-    const defaultView = doc?.defaultView || window;
-
-    if (doc) {
-      // 1. Sanitize style tags
-      const styleEls = doc.querySelectorAll("style");
-      styleEls.forEach((styleEl) => {
-        if (styleEl.textContent && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(styleEl.textContent)) {
-          styleEl.textContent = replaceModernColorsInCssText(styleEl.textContent);
-        }
-      });
-
-      // 2. Sanitize stylesheet rules
-      try {
-        Array.from(doc.styleSheets || []).forEach((sheet) => {
-          try {
-            Array.from(sheet.cssRules || []).forEach((rule) => {
-              if (rule.style && rule.style.cssText && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(rule.style.cssText)) {
-                rule.style.cssText = replaceModernColorsInCssText(rule.style.cssText);
-              }
-            });
-          } catch (e) {
-            // ignore cross-origin sheet errors
-          }
-        });
-      } catch (e) { }
-    }
-
-    // 3. Sanitize all elements in tree
-    const elements = [rootNode, ...rootNode.querySelectorAll("*")];
-    const colorProps = [
-      "color",
-      "backgroundColor",
-      "borderColor",
-      "borderTopColor",
-      "borderRightColor",
-      "borderBottomColor",
-      "borderLeftColor",
-      "outlineColor",
-      "fill",
-      "stroke",
-    ];
-
-    elements.forEach((el) => {
-      const inlineStyle = el.getAttribute("style");
-      if (inlineStyle && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(inlineStyle)) {
-        el.setAttribute("style", replaceModernColorsInCssText(inlineStyle));
-      }
-
-      try {
-        const computed = defaultView.getComputedStyle(el);
-        colorProps.forEach((prop) => {
-          const val = computed[prop];
-          if (val && typeof val === "string" && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(val)) {
-            el.style[prop] = convertModernColorToRgb(val);
-          }
-        });
-
-        const boxShadow = computed.boxShadow;
-        if (boxShadow && typeof boxShadow === "string" && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(boxShadow)) {
-          el.style.boxShadow = replaceModernColorsInCssText(boxShadow);
-        }
-
-        const textShadow = computed.textShadow;
-        if (textShadow && typeof textShadow === "string" && /(?:oklch|oklab|color|color-mix|light-dark)/i.test(textShadow)) {
-          el.style.textShadow = replaceModernColorsInCssText(textShadow);
-        }
-      } catch (e) {
-        // ignore non-element nodes
-      }
+  const blobToDataUrl = (blob) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
     });
-  }
 
-  // html2canvas lays glyphs out a couple of pixels lower than the browser does.
-  // Anywhere Tailwind's `truncate` (overflow:hidden + nowrap) is paired with
-  // `leading-none` / `leading-tight` there is no vertical slack in the line
-  // box, so that small drift pushes the bottom of every glyph past the clip
-  // edge — which is why the cover title, the ward-name pill and every "NAME" /
-  // sector label came out sliced in half. This is NOT a font problem: the
-  // Kannada text renders correctly wherever the box isn't clipping.
-  // Runs against html2canvas's *cloned* DOM only: extend each clipping box
-  // downward and pull the same amount back out of its bottom margin, so the
-  // text stops being cut while surrounding layout stays pixel-identical.
-  function relaxTextClippingNodeTree(root, doc) {
-    const defaultView = doc?.defaultView;
-    if (!root || !defaultView) return;
-
-    const elements = [root, ...root.querySelectorAll("*")];
-    elements.forEach((el) => {
+  // Compiled CSS of the app. Sheets from other origins (e.g. web fonts) can't
+  // be read, so those are sent as plain links for the backend to load itself.
+  const collectPageStyles = () => {
+    let css = "";
+    const links = [];
+    Array.from(document.styleSheets).forEach((sheet) => {
       try {
-        const computed = defaultView.getComputedStyle(el);
-        if (computed.overflowY !== "hidden") return;
-
-        // Only Tailwind `truncate`-style boxes: clipped AND single-line.
-        const isTruncating =
-          computed.textOverflow === "ellipsis" || computed.whiteSpace === "nowrap";
-        if (!isTruncating) return;
-
-        // Only elements that render their own text (skip layout wrappers).
-        const rendersText = Array.from(el.childNodes).some(
-          (node) => node.nodeType === 3 && node.textContent.trim()
-        );
-        if (!rendersText) return;
-
-        const fontSize = parseFloat(computed.fontSize) || 0;
-        if (!fontSize) return;
-
-        const slack = Math.min(Math.max(fontSize * 0.45, 2), 14);
-        const paddingBottom = parseFloat(computed.paddingBottom) || 0;
-        const marginBottom = parseFloat(computed.marginBottom) || 0;
-
-        el.style.paddingBottom = `${paddingBottom + slack}px`;
-        el.style.marginBottom = `${marginBottom - slack}px`;
+        css += Array.from(sheet.cssRules).map((rule) => rule.cssText).join("\n") + "\n";
       } catch {
-        // non-element node — ignore
+        if (sheet.href && sheet.href.startsWith("https://")) links.push(sheet.href);
       }
     });
-  }
+    return { css, links };
+  };
+
+  // outerHTML of one page with every image pointing at an absolute URL the
+  // backend can download (blob: URLs only exist in this browser, so those are
+  // inlined as data: URLs).
+  //
+  // Images served by this web app itself (the Udyami Bharat logo, the default
+  // cover hero image, product logos - bundled assets) are inlined as data:
+  // URLs as well. The backend cannot always reach the web app's own origin
+  // (e.g. a localhost dev server), which is why only those images went missing.
+  const serializePageForPdf = async (page, inlineCache = new Map()) => {
+    const clone = page.cloneNode(true);
+    clone.querySelectorAll(".no-print").forEach((el) => el.remove());
+
+    const liveImgs = Array.from(page.querySelectorAll("img"));
+    const cloneImgs = Array.from(clone.querySelectorAll("img"));
+
+    await Promise.all(
+      cloneImgs.map(async (img, i) => {
+        const live = liveImgs[i];
+        const src = live?.currentSrc || live?.src || img.getAttribute("src") || "";
+
+        img.removeAttribute("srcset");
+        img.removeAttribute("loading");
+        img.removeAttribute("crossorigin");
+
+        // Same-origin images, and images on a local/private host (e.g. a dev
+        // backend serving /uploads), are not reachable from the PDF server.
+        let isSameOrigin = false;
+        try {
+          const parsed = new URL(src, window.location.href);
+          isSameOrigin =
+            parsed.origin === window.location.origin ||
+            /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(parsed.hostname);
+        } catch {
+          // not a parseable URL - treated as external below
+        }
+
+        if (src.startsWith("blob:") || (isSameOrigin && !src.startsWith("data:"))) {
+          if (!inlineCache.has(src)) {
+            inlineCache.set(
+              src,
+              fetch(src)
+                .then((res) => (res.ok ? res.blob() : Promise.reject(new Error(`HTTP ${res.status}`))))
+                .then(blobToDataUrl)
+                .catch(() => null)
+            );
+          }
+          const dataUrl = await inlineCache.get(src);
+          // If it can't be inlined fall back to the absolute URL.
+          img.setAttribute("src", dataUrl || src);
+        } else if (src) {
+          img.setAttribute("src", src);
+        }
+      })
+    );
+
+    return clone.outerHTML;
+  };
+
+  // The backend answers errors as JSON, but because the request asks for a
+  // blob the body arrives as a Blob - read it back into a message.
+  const readPdfError = async (err) => {
+    const data = err?.response?.data;
+    if (data instanceof Blob) {
+      try {
+        const parsed = JSON.parse(await data.text());
+        const msg = Array.isArray(parsed?.message) ? parsed.message.join(", ") : parsed?.message;
+        if (msg) return msg;
+      } catch {
+        // not JSON - fall through
+      }
+    }
+    return err?.message || "The PDF could not be generated. Please try again, and check your connection if the problem continues.";
+  };
 
   const handleDownloadPdf = async () => {
-    // Capturing while ward/member data is still in flight bakes the empty
-    // placeholder state ("NAME", blank avatars, blank sector boxes) straight
-    // into the PDF, because html2canvas photographs whatever the DOM shows at
-    // that instant. Refuse rather than export a chart full of placeholders.
+    // Printing while ward/member data is still in flight would bake the empty
+    // placeholder state ("NAME", blank avatars, blank sector boxes) into the
+    // PDF. Refuse rather than export a chart full of placeholders.
     if (apiStatus === "loading" || fetchStatus === "loading") {
       setErrorModalData({
         title: "Chart Still Loading",
@@ -799,197 +670,45 @@ export default function WardChartDetail() {
       return;
     }
 
+    const pages = document.querySelectorAll(".pdf-capture-page");
+    if (!pages.length) {
+      setErrorModalData({
+        title: "Nothing to Export",
+        message: "The chart hasn't finished rendering yet. Please wait for the page to fully load, then try Download PDF again.",
+      });
+      return;
+    }
+
     setIsPdfGenerating(true);
     try {
-      const pages = document.querySelectorAll(".pdf-capture-page");
-      if (!pages || !pages.length) {
-        setIsPdfGenerating(false);
-        setErrorModalData({
-          title: "Nothing to Export",
-          message: "The chart hasn't finished rendering yet. Please wait for the page to fully load, then try Download PDF again.",
-        });
-        return;
-      }
+      // The file is named after the TALUKA of the opened ward (the chart covers
+      // the whole taluka), not the ward. Names are free text and can contain
+      // "/", ":" etc. which make <a download> silently drop the download -
+      // sanitize it first.
+      const fileName = `${sanitizeFileName(talukaName || ward.constituency || ward.ward_name)}.pdf`;
 
-      const totalPages = pages.length;
-      setPdfProgress({ current: 1, total: totalPages });
-      // `ward.ward_name` is free-text data from the backend and can contain
-      // "/", ":" or other characters that are invalid in a filename. Chrome's
-      // <a download> silently drops the download (no JS error at all, no
-      // console output) when the download attribute value looks like a path
-      // — which matches "handler completes, no console error, but nothing
-      // ever downloads" exactly. Sanitize before it's ever used as a filename.
-      const sanitizeFileName = (raw) =>
-        (raw || "Ward Chart")
-          .toString()
-          .replace(/[\\/:*?"<>|]/g, "-")
-          .replace(/\s+/g, " ")
-          .trim()
-          .replace(/[. ]+$/g, "") || "Ward Chart";
-      const fileName = `${sanitizeFileName(ward.ward_name)}.pdf`;
+      const { css, links } = collectPageStyles();
+      const inlineCache = new Map();
+      const pagesHtml = (
+        await Promise.all(Array.from(pages).map((page) => serializePageForPdf(page, inlineCache)))
+      ).join("\n");
 
-      const elementWidth = 794;
-      const elementHeight = 1123;
+      const response = await api.post(
+        "/ward-chart/downloadPdf",
+        {
+          fileName,
+          pagesHtml,
+          css,
+          stylesheetLinks: links,
+          baseUrl: window.location.origin,
+          htmlClass: document.documentElement.className,
+          bodyClass: document.body.className,
+        },
+        { responseType: "blob", timeout: 180000 }
+      );
 
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "px",
-        format: [elementWidth, elementHeight],
-        hotfixes: ["px_scaling"],
-      });
-
-      for (let i = 0; i < totalPages; i++) {
-        // Update progress state for UI overlay
-        setPdfProgress({ current: i + 1, total: totalPages });
-
-        // Yield main thread to allow browser UI repaint & keep page interactive
-        await new Promise((r) => setTimeout(r, 40));
-
-        const page = pages[i];
-        const prevTransform = page.style.transform;
-        const prevWidth = page.style.width;
-        const prevHeight = page.style.height;
-        const prevMarginBottom = page.style.marginBottom;
-        const prevMarginRight = page.style.marginRight;
-        const prevOverflow = page.style.overflow;
-        const prevBoxShadow = page.style.boxShadow;
-        const prevBorderRadius = page.style.borderRadius;
-        const prevBorder = page.style.border;
-
-        page.style.transform = "none";
-        page.style.width = `${elementWidth}px`;
-        page.style.height = `${elementHeight}px`;
-        page.style.marginBottom = "0px";
-        page.style.marginRight = "0px";
-        page.style.overflow = "visible";
-        page.style.boxShadow = "none";
-        page.style.borderRadius = "0px";
-        page.style.border = "none";
-
-        const elementStyleMap = new Map();
-        const allLiveElements = [page, ...page.querySelectorAll("*")];
-        allLiveElements.forEach((el) => {
-          elementStyleMap.set(el, el.getAttribute("style"));
-        });
-
-        sanitizeModernColorsNodeTree(page, document);
-
-        // Convert this page's <img> tags to data: URLs before capture.
-        // html2canvas taints its internal canvas whenever an image fails the
-        // useCORS fetch (e.g. patron/chairman photos served without CORS
-        // headers) — that doesn't throw here, but the later
-        // canvas.toDataURL() call throws a SecurityError on the tainted
-        // canvas, which was being swallowed by the outer catch and made the
-        // whole "Download PDF" click look like it silently did nothing.
-        // Pre-fetching each image as a blob sidesteps the taint entirely;
-        // on fetch failure we just leave the original src so export still
-        // proceeds (that one image may then render blank).
-        const imgElements = Array.from(page.querySelectorAll("img"));
-        const originalImgSrc = new Map();
-        await Promise.all(
-          imgElements.map(async (img) => {
-            const src = img.getAttribute("src");
-            if (!src || src.startsWith("data:")) return;
-            try {
-              const res = await fetch(src, { mode: "cors", credentials: "omit" });
-              if (!res.ok) return;
-              const blob = await res.blob();
-              const dataUrl = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-              });
-              originalImgSrc.set(img, src);
-              img.setAttribute("src", dataUrl);
-              // Swapping .src starts a fresh decode. Without waiting for it,
-              // html2canvas can snapshot the element before the new bitmap is
-              // ready and silently rasterize an empty box in its place.
-              if (typeof img.decode === "function") {
-                await img.decode().catch(() => {});
-              }
-            } catch {
-              // Leave the original src — html2canvas will attempt it as-is.
-            }
-          })
-        );
-
-        try {
-          let canvas;
-          try {
-            canvas = await html2canvas(page, {
-              scale: 2, // Scale 2: Desktop optimized scale (200+ DPI print sharp, 56% lower RAM)
-              useCORS: true,
-              allowTaint: false,
-              backgroundColor: "#ffffff",
-              imageTimeout: 0,
-              logging: false,
-              width: elementWidth,
-              height: elementHeight,
-              windowWidth: elementWidth,
-              windowHeight: elementHeight,
-              scrollX: 0,
-              scrollY: 0,
-              onclone: (clonedDoc, clonedElement) => {
-                sanitizeModernColorsNodeTree(clonedElement, clonedDoc);
-                relaxTextClippingNodeTree(clonedElement, clonedDoc);
-              },
-            });
-          } catch (captureErr) {
-            throw new Error(`Page ${i + 1} of ${totalPages} failed to render: ${captureErr?.message || captureErr}`);
-          }
-
-          // Compress to JPEG @ 0.92 (5x faster CPU encoding & 70% smaller memory allocation)
-          let imgData;
-          try {
-            imgData = canvas.toDataURL("image/jpeg", 0.92);
-          } catch (exportErr) {
-            throw new Error(`Page ${i + 1} of ${totalPages} could not be exported (likely a cross-origin image): ${exportErr?.message || exportErr}`);
-          }
-          if (i > 0) pdf.addPage([elementWidth, elementHeight], "portrait");
-          pdf.addImage(imgData, "JPEG", 0, 0, elementWidth, elementHeight);
-
-          // Immediate canvas surface dereference to trigger garbage collection
-          canvas.width = 0;
-          canvas.height = 0;
-          canvas = null;
-        } finally {
-          originalImgSrc.forEach((src, img) => img.setAttribute("src", src));
-
-          allLiveElements.forEach((el) => {
-            const origStyle = elementStyleMap.get(el);
-            if (origStyle !== null && origStyle !== undefined) {
-              el.setAttribute("style", origStyle);
-            } else {
-              el.removeAttribute("style");
-            }
-          });
-
-          page.style.transform = prevTransform;
-          page.style.width = prevWidth;
-          page.style.height = prevHeight;
-          page.style.marginBottom = prevMarginBottom;
-          page.style.marginRight = prevMarginRight;
-          page.style.overflow = prevOverflow;
-          page.style.boxShadow = prevBoxShadow;
-          page.style.borderRadius = prevBorderRadius;
-          page.style.border = prevBorder;
-        }
-      }
-
-      // Diagnostics: confirm save() is actually reached with a populated,
-      // non-empty document rather than assuming it based on "no error thrown".
-      const pageCount = pdf.internal.getNumberOfPages();
-      if (!pageCount) {
-        setErrorModalData({
-          title: "PDF Download Failed",
-          message: "No pages were captured for this chart, so there is nothing to download. Please try again.",
-        });
-        return;
-      }
-
-      const pdfBlob = pdf.output("blob");
-      if (!pdfBlob || !pdfBlob.size) {
+      const pdfBlob = new Blob([response.data], { type: "application/pdf" });
+      if (!pdfBlob.size) {
         setErrorModalData({
           title: "PDF Download Failed",
           message: "The generated PDF was empty, so the download was skipped. Please try again.",
@@ -997,17 +716,22 @@ export default function WardChartDetail() {
         return;
       }
 
-      console.log("saving pdf", { pageCount, blobBytes: pdfBlob.size, fileName });
-      pdf.save(fileName);
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (err) {
       console.error("PDF generation failed:", err);
       setErrorModalData({
         title: "PDF Download Failed",
-        message: err?.message || "The PDF could not be generated. Please try again, and check your connection if the problem continues.",
+        message: await readPdfError(err),
       });
     } finally {
       setIsPdfGenerating(false);
-      setPdfProgress({ current: 0, total: 0 });
     }
   };
 
@@ -1116,8 +840,8 @@ export default function WardChartDetail() {
       .catch((err) => setErrorModalData(err));
   };
 
-  const openDetails = (id, label) => {
-    const a = effectiveAssignments[id] || assignments[id];
+  const openDetails = (id, label, override = null) => {
+    const a = override || effectiveAssignments[id] || assignments[id];
     setSelectedPosition({
       slotId: id,
       role: a?.positionName || a?.slotLabel || label,
@@ -1680,7 +1404,98 @@ export default function WardChartDetail() {
     return [ward];
   }, [isPreviewMode, isWardChairman, displayWardsList, ward]);
 
-  const isBusy = apiStatus === "loading" || fetchStatus === "loading";
+  // ── Print Preview cover: taluka heading + its wards ──────────────────
+  // "G33. 2 Nelamangala  108" - the ward number split at the dot, the ward name
+  // and the ward's card total. Same list the Area Chart shows (one row per ward).
+  const coverSummary = useMemo(() => {
+    const list = constituencyWards.length > 0 ? constituencyWards : [ward];
+    const codeOf = (w) => String(w?.ward_number || w?.wardNumber || "").split(".")[0].trim();
+    const talukaCode = codeOf(ward) || codeOf(list[0]);
+    const name = (talukaName || ward.constituency || "").toString().trim();
+
+    const wards = [...list]
+      .sort((a, b) =>
+        String(a?.ward_number || "").localeCompare(String(b?.ward_number || ""), undefined, { numeric: true })
+      )
+      .map((w) => {
+        const [prefix, ...rest] = String(w?.ward_number || w?.wardNumber || "").split(".");
+        return {
+          code: rest.length ? `${prefix}. ${rest.join(".")}` : prefix,
+          name: w?.ward_name || w?.wardName || "",
+          count: w?.booths_total ?? w?.layoutCount ?? "",
+        };
+      });
+
+    return { title: `${talukaCode} ${name.toUpperCase()}`.trim(), wards };
+  }, [constituencyWards, ward, talukaName]);
+
+  // ── Print Preview: every other ward's OWN chart data ─────────────────
+  // Print Preview renders the Advisory / Leadership / Sectors / UMS and
+  // Products pages for every ward of the constituency. The Redux slot
+  // (`fetchedData`) and `assignments` only ever hold the ONE ward that was
+  // opened, so every other ward used to render empty placeholders. Fetch each
+  // sibling ward's chart here (kept in local state so the opened ward's Redux
+  // data is never overwritten) and render its pages from that.
+  const [wardChartsById, setWardChartsById] = useState({});
+
+  const otherWardIds = useMemo(
+    () =>
+      wardsToRender
+        .filter((w) => w?.id && w.id !== ward.id)
+        .map((w) => w.id),
+    [wardsToRender, ward.id]
+  );
+
+  // Wards whose request is currently in flight. Results are keyed by ward id,
+  // so a finished request is always safe to store - even if the effect below
+  // re-ran meanwhile (e.g. the ward list got a new identity). Dropping those
+  // results is what could leave a ward permanently "empty".
+  const inFlightWardIdsRef = useRef(new Set());
+  const otherWardIdsKey = otherWardIds.join("|");
+
+  useEffect(() => {
+    if (!isPreviewMode || !otherWardIdsKey) return;
+    const queue = otherWardIdsKey
+      .split("|")
+      .filter((id) => !inFlightWardIdsRef.current.has(id));
+    queue.forEach((id) => inFlightWardIdsRef.current.add(id));
+
+    const worker = async () => {
+      while (queue.length > 0) {
+        const id = queue.shift();
+        let entry;
+        try {
+          const res = await api.get(`/ward-chart/getWardChartData/${targetUserId || "0"}/${id}`);
+          entry = { data: res.data, error: null };
+        } catch (err) {
+          console.error("Print Preview: could not load ward chart", id, err);
+          entry = {
+            data: null,
+            error: err?.response?.data?.message || err?.message || "Failed to load",
+          };
+        } finally {
+          inFlightWardIdsRef.current.delete(id);
+        }
+        setWardChartsById((prev) => ({ ...prev, [id]: entry }));
+      }
+    };
+
+    // A few requests at a time - a taluka can have 20+ wards.
+    Array.from({ length: Math.min(4, queue.length) }, () => worker());
+  }, [isPreviewMode, otherWardIdsKey, targetUserId]);
+
+  const wardAssignmentsById = useMemo(() => {
+    const out = {};
+    otherWardIds.forEach((id) => {
+      const entry = wardChartsById[id];
+      out[id] = entry?.data ? mapApiToAssignments(entry.data) : {};
+    });
+    return out;
+  }, [otherWardIds, wardChartsById]);
+
+  const isWardChartsLoading = isPreviewMode && otherWardIds.some((id) => !wardChartsById[id]);
+
+  const isBusy = apiStatus === "loading" || fetchStatus === "loading" || isWardChartsLoading;
 
   return (
     <div className="space-y-5 bg-[#f4f5f7] -m-4 sm:-m-6 p-4 sm:p-6 min-h-full overflow-x-hidden">
@@ -1717,7 +1532,7 @@ export default function WardChartDetail() {
           onClick={() => setModal({ slotId: `extra-${Date.now()}`, label: "Member" })}
           className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-colors w-full sm:w-auto"
         >
-          <UserPlus size={14} /> Invite Member
+          <UserPlus size={14} /> Add Member
         </button>
         <button
           onClick={() => setShowCustomize(true)}
@@ -1725,8 +1540,11 @@ export default function WardChartDetail() {
         >
           <SlidersHorizontal size={14} /> Customize Layout
         </button>
-        <button className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-[12.5px] font-medium text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto">
-          <Printer size={14} /> Print Chart
+        <button
+          onClick={() => setShowInvite(true)}
+          className="flex items-center justify-center gap-2 bg-white border border-gray-200 text-[12.5px] font-medium text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto"
+        >
+          <Send size={14} /> Invite Member
         </button>
         <button
           onClick={handleDownloadPdf}
@@ -1740,19 +1558,33 @@ export default function WardChartDetail() {
       </div>
 
       {/* ── Build / Preview Tabs ── */}
-      <div className="flex flex-wrap sm:inline-flex rounded-lg border border-gray-200 bg-white p-1 w-full sm:w-auto">
-        {[
-          { id: "build", icon: Pencil, label: "Build Chart" },
-          { id: "preview", icon: FileCheck2, label: "Print Preview" },
-        ].map(({ id, icon: Icon, label }) => (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap sm:inline-flex rounded-lg border border-gray-200 bg-white p-1 w-full sm:w-auto">
+          {[
+            { id: "build", icon: Pencil, label: "Build Chart" },
+            { id: "preview", icon: FileCheck2, label: "Print Preview" },
+          ].map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-md text-[12.5px] font-semibold transition-colors ${tab === id ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-900"}`}
+            >
+              <Icon size={13} /> {label}
+            </button>
+          ))}
+        </div>
+
+        {isPreviewMode && (
           <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-md text-[12.5px] font-semibold transition-colors ${tab === id ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-900"}`}
+            onClick={handleDownloadPdf}
+            disabled={isPdfGenerating || isBusy}
+            title={isBusy ? "Waiting for ward and member data to finish loading" : "Download this Print Preview as PDF"}
+            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-[12.5px] font-semibold px-4 py-2 rounded-lg transition-colors w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Icon size={13} /> {label}
+            <Download size={14} />
+            {isPdfGenerating ? "Generating…" : isBusy ? "Loading data…" : "Download PDF"}
           </button>
-        ))}
+        )}
       </div>
 
       <div ref={pdfRef} className="pdf-container-wrapper space-y-6">
@@ -1766,6 +1598,8 @@ export default function WardChartDetail() {
             heroImageUrl={heroImageUrl}
             onHeroImageSelect={handleHeroImageSelect}
             showHeroUpload={!isPreviewMode}
+            summaryTitle={isPreviewMode ? coverSummary.title : ""}
+            summaryWards={isPreviewMode ? coverSummary.wards : null}
           />
         </ChartPreviewFrame>
 
@@ -1933,14 +1767,43 @@ export default function WardChartDetail() {
             w.id === ward.id && assignments["ward-chairman"]?.name
           ) ? assignments["ward-chairman"] : (
             effectiveAssignments[`chairman-${wardIdx + 1}`] ||
+            (w.id !== ward.id ? wardAssignmentsById[w.id]?.["ward-chairman"] : null) ||
             (wardChairmenList || []).find(item => item.wardId === w.id || item.wardNumber === w.ward_number || item.wardName === w.ward_name)?.wardChart?.members?.find(m => m?.userType === "WardChairman" || m?.slotId === "ward-chairman") ||
             null
           );
+
+          // This ward's own slots. The opened ward keeps its live (editable) state;
+          // every other ward uses the chart data fetched for it above.
+          const wardAssignments = w.id === ward.id ? effectiveAssignments : (wardAssignmentsById[w.id] || {});
+          const wardSlotClick = (id, label) => {
+            if (isPreviewMode && w.id !== ward.id) {
+              const a = wardAssignments[id];
+              if (a?.name) openDetails(id, label, a);
+              return;
+            }
+            handleSlotClick(id, label);
+          };
 
           const wardHeaderPrefix = wardsToRender.length > 1 ? `[Ward ${w.ward_number || wardIdx + 1} - ${currentWardName}] ` : "";
 
           return (
             <React.Fragment key={w.id || `ward-block-${wardIdx}`}>
+              {/* Screen-only status for this ward's members (never part of the PDF) */}
+              {isPreviewMode && w.id !== ward.id && (
+                <div className="no-print text-[12px] font-medium px-1">
+                  {!wardChartsById[w.id] ? (
+                    <span className="text-blue-600">Loading {currentWardName} members…</span>
+                  ) : wardChartsById[w.id].error ? (
+                    <span className="text-red-600">
+                      Could not load members for {currentWardName}: {String(wardChartsById[w.id].error)}
+                    </span>
+                  ) : (
+                    <span className="text-gray-500">
+                      {currentWardName}: {Object.keys(wardAssignments).filter((k) => wardAssignments[k]?.name).length} assigned members loaded
+                    </span>
+                  )}
+                </div>
+              )}
               {/* ══════ PAGE 4 — Advisory/Mentor + Leadership + Sectors/UMS ══════ */}
               <ChartPage pageLabel={`${wardHeaderPrefix}Advisory · Leadership · Sectors · UMS`} pageNum={chairmenP3.length > 0 ? 4 : 3} ward={w}>
                 <div className="flex flex-col h-full min-h-full">
@@ -1980,13 +1843,13 @@ export default function WardChartDetail() {
                                     tone="navy"
                                     variant="default"
                                     showPlaceholderName={false}
-                                    assigned={effectiveAssignments[slotId]}
+                                    assigned={wardAssignments[slotId]}
                                     dimmed={isDimmed(
                                       slotId,
                                       "advisories",
-                                      effectiveAssignments[slotId]?.name
+                                      wardAssignments[slotId]?.name
                                     )}
-                                    onAssignClick={slotClickProp}
+                                    onAssignClick={wardSlotClick}
                                     showPlus={!isPreviewMode}
                                     isSuperAdmin={isSuperAdmin}
                                   />
@@ -2018,13 +1881,13 @@ export default function WardChartDetail() {
                                     tone="navy"
                                     variant="default"
                                     showPlaceholderName={false}
-                                    assigned={effectiveAssignments[slotId]}
+                                    assigned={wardAssignments[slotId]}
                                     dimmed={isDimmed(
                                       slotId,
                                       "mentors",
-                                      effectiveAssignments[slotId]?.name
+                                      wardAssignments[slotId]?.name
                                     )}
-                                    onAssignClick={slotClickProp}
+                                    onAssignClick={wardSlotClick}
                                     showPlus={!isPreviewMode}
                                     isSuperAdmin={isSuperAdmin}
                                   />
@@ -2044,7 +1907,7 @@ export default function WardChartDetail() {
                         wardNumber={currentGCode}
                         assigned={currentWardChairman}
                         dimmed={isDimmed("ward-chairman", "core", currentWardChairman?.name)}
-                        onAssignClick={slotClickProp} showPlus={!isPreviewMode} isSuperAdmin={isSuperAdmin}
+                        onAssignClick={wardSlotClick} showPlus={!isPreviewMode} isSuperAdmin={isSuperAdmin}
                       />
                     </div>
 
@@ -2055,11 +1918,11 @@ export default function WardChartDetail() {
                           <div key={slotId} className="flex flex-col items-center w-[105px] gap-1">
                             <p className="text-[11px] font-bold text-white text-center mb-1">{role}</p>
                             <div
-                              onClick={() => handleSlotClick(slotId, role)}
+                              onClick={() => wardSlotClick(slotId, role)}
                               className={`relative w-[95px] h-[95px] rounded-lg border-2 border-[#c8102e] bg-[#d32f2f] flex items-center justify-center overflow-hidden shrink-0 shadow-sm ${!isPreviewMode && !isSuperAdmin ? "cursor-pointer group" : "cursor-default"}`}
                             >
-                              {effectiveAssignments[slotId]?.photoUrl ? (
-                                <img src={effectiveAssignments[slotId].photoUrl} alt={effectiveAssignments[slotId].name} className="w-full h-full object-cover" />
+                              {wardAssignments[slotId]?.photoUrl ? (
+                                <img src={wardAssignments[slotId].photoUrl} alt={wardAssignments[slotId].name} className="w-full h-full object-cover" />
                               ) : (
                                 <svg viewBox="0 0 64 64" className="w-[85%] h-[85%] text-white" fill="currentColor">
                                   <circle cx="32" cy="22" r="12" />
@@ -2071,10 +1934,10 @@ export default function WardChartDetail() {
                               )}
                             </div>
                             <p className="mt-1.5 text-[9.5px] font-bold text-white uppercase text-center leading-tight truncate max-w-[100px]">
-                              {effectiveAssignments[slotId]?.name || "NAME"}
+                              {wardAssignments[slotId]?.name || "NAME"}
                             </p>
                             <p className="text-[7.5px] text-white/70 text-center leading-tight truncate max-w-[100px]">
-                              {effectiveAssignments[slotId]?.company}
+                              {wardAssignments[slotId]?.company}
                             </p>
                           </div>
                         );
@@ -2095,9 +1958,9 @@ export default function WardChartDetail() {
                               return (
                                 <div key={s.key} className="w-[118px] shrink-0">
                                   <SectorCard
-                                    slotId={slotId} label={s.label} assigned={effectiveAssignments[slotId]}
-                                    dimmed={isDimmed(slotId, "sectors", effectiveAssignments[slotId]?.name)}
-                                    onAssignClick={slotClickProp} showPlus={!isPreviewMode} isSuperAdmin={isSuperAdmin}
+                                    slotId={slotId} label={s.label} assigned={wardAssignments[slotId]}
+                                    dimmed={isDimmed(slotId, "sectors", wardAssignments[slotId]?.name)}
+                                    onAssignClick={wardSlotClick} showPlus={!isPreviewMode} isSuperAdmin={isSuperAdmin}
                                   />
                                 </div>
                               );
@@ -2119,12 +1982,12 @@ export default function WardChartDetail() {
                         <div className="flex-1 grid grid-cols-2 px-3 py-2 gap-x-3 gap-y-1.5 content-evenly">
                           {firstPageUms.map((s) => {
                             const slotId = `ums-${s.key}`;
-                            const assigned = effectiveAssignments[slotId];
+                            const assigned = wardAssignments[slotId];
                             return (
                               <div key={s.key} className="flex flex-col items-center min-w-0">
                                 <p className="text-[6px] font-medium text-[#b5121b] text-center mb-0.5 min-h-[10px] leading-tight truncate w-full">{s.label}</p>
                                 <div
-                                  onClick={() => handleSlotClick(slotId, s.label)}
+                                  onClick={() => wardSlotClick(slotId, s.label)}
                                   className={`group relative w-[104px] h-[104px] bg-white border-[3px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 overflow-hidden cursor-pointer shrink-0 ${!isPreviewMode ? "cursor-pointer group" : "cursor-default"}`}
                                 >
                                   {assigned?.photoUrl ? (
@@ -2160,8 +2023,8 @@ export default function WardChartDetail() {
                     wardName={currentWardName}
                     region={currentRegion}
                     categories={pageCats}
-                    assignments={effectiveAssignments}
-                    onAssignClick={slotClickProp}
+                    assignments={wardAssignments}
+                    onAssignClick={wardSlotClick}
                     showPlus={!isPreviewMode}
                     isSuperAdmin={isSuperAdmin}
                   />
@@ -2171,6 +2034,19 @@ export default function WardChartDetail() {
           );
         })}
       </div>
+
+      {/* Floating download button so it stays reachable while scrolling a long preview */}
+      {isPreviewMode && (
+        <button
+          onClick={handleDownloadPdf}
+          disabled={isPdfGenerating || isBusy}
+          title={isBusy ? "Waiting for ward and member data to finish loading" : "Download this Print Preview as PDF"}
+          className="no-print fixed bottom-6 right-6 z-40 flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-[13px] font-semibold px-5 py-3 rounded-full shadow-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <Download size={15} />
+          {isPdfGenerating ? "Generating…" : isBusy ? "Loading data…" : "Download PDF"}
+        </button>
+      )}
 
       {/* ── All Assignments Table ── */}
       <AllAssignmentsTable rows={rows} onRemove={handleRemove} />
@@ -2231,6 +2107,10 @@ export default function WardChartDetail() {
         onSearchBusiness={(businessName) => dispatch(fetchChannelPartners({ wardId: ward.id, businessName }))}
         onAssignMember={handleAssignMemberFromPanel}
       />
+
+      {showInvite && (
+        <InviteMemberModal ward={ward} onClose={() => setShowInvite(false)} />
+      )}
 
       {showCustomize && (
         <CustomizeLayoutModal
@@ -2310,9 +2190,7 @@ export default function WardChartDetail() {
             <div className="w-9 h-9 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
             <h3 className="text-[14px] font-bold text-gray-900 leading-tight">Generating PDF</h3>
             <p className="text-[12.5px] text-gray-500 font-medium">
-              {pdfProgress.total > 0
-                ? `Page ${pdfProgress.current} of ${pdfProgress.total}`
-                : "Preparing pages…"}
+              Creating your PDF - this takes a few seconds…
             </p>
           </div>
         </div>

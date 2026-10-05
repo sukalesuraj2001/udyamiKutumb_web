@@ -63,6 +63,7 @@ import { fetchDistricts, fetchTalukasByDistrict } from "../redux/slices/wardSlic
 import { fetchChannelPartners } from "../redux/slices/areaChartSlice.js";
 import { fetchAdminDashboard, fetchAllPositions } from "../redux/slices/adminSlice.js";
 import { ROLES } from "../utils/roles.js";
+import DistrictsHierarchyMonitor from "./superAdmin/DistrictsHierarchyMonitor.jsx";
 
 // ============================================================
 // HELPERS & REUSABLE COMPONENTS
@@ -142,6 +143,66 @@ const extractLeaderDetails = (item, roleLabel) => {
 // MAIN COMPONENT
 // ============================================================
 
+// The /auth/getAllUsers response nests a member's geography under
+// `location.district.districtName` (resolved from their ward / profile) and
+// office holders also carry it on `positions[].district`. Older payloads put
+// it directly on the user as `district` / `districtName`. Read all of them.
+function getMemberDistrictName(u) {
+  if (!u) return null;
+  const clean = (v) => (typeof v === "string" && v.trim() ? v.trim() : null);
+
+  const fromLocation = clean(u.location?.district?.districtName ?? u.location?.districtName);
+  if (fromLocation) return fromLocation;
+
+  const flat = clean(u.district?.districtName ?? u.district) || clean(u.districtName);
+  if (flat) return flat;
+
+  if (Array.isArray(u.positions)) {
+    for (const p of u.positions) {
+      const name = clean(p?.district?.districtName);
+      if (name) return name;
+    }
+  }
+  return null;
+}
+
+// Same idea as getMemberDistrictName for the member's taluka and ward.
+function cleanText(v) {
+  return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+
+function getMemberTalukaName(u) {
+  if (!u) return null;
+  const direct =
+    cleanText(u.location?.taluka?.talukaName) ||
+    cleanText(u.taluka?.talukaName ?? u.taluka) ||
+    cleanText(u.talukaName);
+  if (direct) return direct;
+  if (Array.isArray(u.positions)) {
+    for (const p of u.positions) {
+      const name = cleanText(p?.taluka?.talukaName);
+      if (name) return name;
+    }
+  }
+  return null;
+}
+
+function getMemberWardName(u) {
+  if (!u) return null;
+  const direct =
+    cleanText(u.location?.ward?.wardName) ||
+    cleanText(u.ward?.wardName ?? u.ward) ||
+    cleanText(u.wardName);
+  if (direct) return direct;
+  if (Array.isArray(u.positions)) {
+    for (const p of u.positions) {
+      const name = cleanText(p?.ward?.wardName);
+      if (name) return name;
+    }
+  }
+  return null;
+}
+
 export default function SuperAdmin() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -149,7 +210,6 @@ export default function SuperAdmin() {
   // ── Navigation & Filter State ──────────────────────────────
   const [activeTab, setActiveTab] = useState("overview"); // overview | districts | leadership | members | channelPartners | governance
   const [selectedDistrictFilter, setSelectedDistrictFilter] = useState("ALL");
-  const [districtSearchQuery, setDistrictSearchQuery] = useState("");
   
   // Leadership tab filters & view state
   const [selectedRoleFilter, setSelectedRoleFilter] = useState("ALL"); // ALL | DISTRICT_HEAD | TALUKA_HEAD | WARD_CHAIRMAN
@@ -285,7 +345,7 @@ export default function SuperAdmin() {
 
     // From members & heads
     (allPlatformUsers || []).forEach((u) => {
-      const dName = u.district || u.districtName;
+      const dName = getMemberDistrictName(u);
       if (dName && dName !== "—" && !map.has(dName.toLowerCase())) {
         map.set(dName.toLowerCase(), {
           id: dName,
@@ -311,10 +371,22 @@ export default function SuperAdmin() {
     return Array.from(map.values());
   }, [districtsFromWardSlice, allPlatformUsers, districtHeads]);
 
+  // Members per district, keyed by lower-cased district name
+  const memberCountByDistrict = useMemo(() => {
+    const counts = {};
+    (allPlatformUsers || []).forEach((u) => {
+      const name = getMemberDistrictName(u);
+      if (!name) return;
+      const key = name.toLowerCase();
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    return counts;
+  }, [allPlatformUsers]);
+
   // Filtered members based on global District filter & tab filters
   const filteredPlatformMembers = useMemo(() => {
     return (allPlatformUsers || []).filter((u) => {
-      const uDistrict = u.district || u.districtName;
+      const uDistrict = getMemberDistrictName(u);
 
       // Global District Filter
       if (selectedDistrictFilter !== "ALL") {
@@ -333,7 +405,7 @@ export default function SuperAdmin() {
         const q = memberSearchQuery.toLowerCase();
         const nameMatch = u.name?.toLowerCase().includes(q);
         const mobileMatch = u.mobileNumber?.includes(q);
-        const wardMatch = u.ward?.toLowerCase().includes(q);
+        const wardMatch = getMemberWardName(u)?.toLowerCase().includes(q);
         const districtMatch = uDistrict?.toLowerCase().includes(q);
         return nameMatch || mobileMatch || wardMatch || districtMatch;
       }
@@ -460,21 +532,26 @@ export default function SuperAdmin() {
 
   // District Member Distribution Bar Chart Data
   const districtMemberDistribution = useMemo(() => {
-    const counts = {};
+    // Count members per district (case-insensitive so "Bengaluru Urban" and
+    // "bengaluru urban " are one bar). Members whose district can't be
+    // resolved are counted separately and always shown last.
+    const counts = new Map();
+    let unassigned = 0;
     (allPlatformUsers || []).forEach((u) => {
-      const dName = u.district || u.districtName || "Unassigned";
-      if (dName && dName !== "—") {
-        counts[dName] = (counts[dName] || 0) + 1;
+      const dName = getMemberDistrictName(u);
+      if (!dName || dName === "—") {
+        unassigned += 1;
+        return;
       }
+      const key = dName.toLowerCase();
+      const entry = counts.get(key);
+      if (entry) entry.members += 1;
+      else counts.set(key, { name: dName, members: 1 });
     });
 
-    return Object.keys(counts)
-      .map((dName) => ({
-        name: dName,
-        members: counts[dName],
-      }))
-      .sort((a, b) => b.members - a.members)
-      .slice(0, 10);
+    const ranked = Array.from(counts.values()).sort((a, b) => b.members - a.members);
+    if (unassigned === 0) return ranked.slice(0, 10);
+    return [...ranked.slice(0, 9), { name: "Unassigned", members: unassigned }];
   }, [allPlatformUsers]);
 
   // Filtered Channel Partners List
@@ -628,19 +705,6 @@ export default function SuperAdmin() {
           </p>
         </div>
 
-        {/* Header Controls */}
-        <div className="flex flex-wrap items-center gap-2.5">
-
-
-          {/* Quick Create Ward Action */}
-          <button
-            onClick={() => navigate("/super-admin-dashboard/create-ward")}
-            className="flex items-center gap-1.5 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium rounded-xl shadow-sm transition-all"
-          >
-            <PlusCircle size={13} />
-            <span>Create Ward</span>
-          </button>
-        </div>
       </div>
 
       {/* ── SYSTEM-WIDE STATS (GET /admin/dashboard, super_admin only) ── */}
@@ -721,7 +785,10 @@ export default function SuperAdmin() {
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                if (selectedDistrictFilter !== "ALL") setSelectedDistrictFilter("ALL");
+              }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${
                 isActive
                   ? "bg-purple-600 text-white shadow-sm"
@@ -911,126 +978,15 @@ export default function SuperAdmin() {
 
       {/* ── TAB 2: DISTRICTS HIERARCHY MONITOR ──────────────── */}
       {activeTab === "districts" && (
-        <div className="space-y-4">
-          <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div>
-              <h2 className="text-base font-bold text-gray-800">Districts Hierarchy Monitor</h2>
-              <p className="text-xs text-gray-400">
-                All registered districts across the platform
-              </p>
-            </div>
-
-            {/* District Search */}
-            <div className="relative w-full md:w-72">
-              <input
-                type="text"
-                placeholder="Search district name..."
-                value={districtSearchQuery}
-                onChange={(e) => setDistrictSearchQuery(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 text-xs rounded-xl pl-8 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              />
-              <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
-            </div>
-          </div>
-
-          {masterDistrictsList.length === 0 ? (
-            <EmptyState message="No districts found." />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {masterDistrictsList
-                .filter((d) =>
-                  districtSearchQuery.trim()
-                    ? d.name.toLowerCase().includes(districtSearchQuery.toLowerCase())
-                    : true
-                )
-                .map((dist) => {
-                  // Find assigned District Head
-                  const assignedHead = districtHeads.find(
-                    (dh) => (dh.district || dh.districtName)?.toLowerCase() === dist.name.toLowerCase()
-                  );
-
-                  // Count members in this district
-                  const memberCount = (allPlatformUsers || []).filter(
-                    (u) => (u.district || u.districtName)?.toLowerCase() === dist.name.toLowerCase()
-                  ).length;
-
-                  return (
-                    <div
-                      key={dist.name}
-                      className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
-                              <Globe size={18} />
-                            </div>
-                            <div>
-                              <h3 className="text-base font-bold text-gray-800">{dist.name}</h3>
-                              <p className="text-xs text-gray-400">{dist.state}</p>
-                            </div>
-                          </div>
-
-                          {assignedHead ? (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              Active Head
-                            </span>
-                          ) : (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                              Vacant Head
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Head details section */}
-                        <div className="mt-4 pt-3 border-t border-gray-50 space-y-2">
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                            Assigned District Head
-                          </p>
-                          {assignedHead ? (
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold text-xs flex items-center justify-center">
-                                {assignedHead.name?.charAt(0).toUpperCase()}
-                              </div>
-                              <div className="text-xs overflow-hidden">
-                                <p className="font-semibold text-gray-800 truncate">{assignedHead.name}</p>
-                                <p className="text-gray-400 truncate">{assignedHead.mobile || assignedHead.email}</p>
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-xs text-amber-600 italic">No District Head assigned yet.</p>
-                          )}
-                        </div>
-
-                        {/* Stats */}
-                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                          <div>
-                            <span className="text-gray-400">Members</span>
-                            <p className="font-bold text-gray-800">{memberCount.toLocaleString()}</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-400">State</span>
-                            <p className="font-bold text-gray-800">{dist.state}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() => {
-                          setSelectedDistrictFilter(dist.name);
-                          setActiveTab("members");
-                        }}
-                        className="w-full py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-semibold rounded-xl flex items-center justify-center gap-1 transition-all"
-                      >
-                        <span>View District Members</span>
-                        <ChevronRight size={14} />
-                      </button>
-                    </div>
-                  );
-                })}
-            </div>
-          )}
-        </div>
+        <DistrictsHierarchyMonitor
+          districts={masterDistrictsList}
+          districtHeads={districtHeads}
+          memberCountByDistrict={memberCountByDistrict}
+          onViewMembers={(districtName) => {
+            setSelectedDistrictFilter(districtName);
+            setActiveTab("members");
+          }}
+        />
       )}
 
       {/* ── TAB 3: LEADERSHIP DIRECTORY (ALL ROLES) ──────────── */}
@@ -1284,8 +1240,29 @@ export default function SuperAdmin() {
             <div>
               <h2 className="text-base font-bold text-gray-800">Platform Members Directory</h2>
               <p className="text-xs text-gray-400 mt-0.5">
-                Showing {filteredPlatformMembers.length.toLocaleString()} members across all districts
+                {selectedDistrictFilter === "ALL"
+                  ? `Showing ${filteredPlatformMembers.length.toLocaleString()} members across all districts`
+                  : `Showing ${filteredPlatformMembers.length.toLocaleString()} members in ${selectedDistrictFilter} district`}
               </p>
+              {selectedDistrictFilter !== "ALL" && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 border border-purple-100 text-[11px] font-semibold">
+                    <Globe size={12} /> District: {selectedDistrictFilter}
+                  </span>
+                  <button
+                    onClick={() => setSelectedDistrictFilter("ALL")}
+                    className="text-[11px] font-semibold text-gray-500 hover:text-gray-800 underline"
+                  >
+                    Clear filter
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("districts")}
+                    className="text-[11px] font-semibold text-purple-600 hover:text-purple-800 underline"
+                  >
+                    Back to Districts
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Controls */}
@@ -1370,9 +1347,9 @@ export default function SuperAdmin() {
                           </div>
                         </td>
                         <td className="p-3.5 font-medium text-gray-700">{u.mobileNumber || u.mobile || "—"}</td>
-                        <td className="p-3.5 text-gray-600 font-medium">{u.taluka || u.talukaName || "—"}</td>
-                        <td className="p-3.5 text-gray-600">{u.ward || "—"}</td>
-                        <td className="p-3.5 text-gray-600 font-semibold">{u.district || u.districtName || "—"}</td>
+                        <td className="p-3.5 text-gray-600 font-medium">{getMemberTalukaName(u) || "—"}</td>
+                        <td className="p-3.5 text-gray-600">{getMemberWardName(u) || "—"}</td>
+                        <td className="p-3.5 text-gray-600 font-semibold">{getMemberDistrictName(u) || "—"}</td>
                         <td className="p-3.5">
                           {u.isPrime ? (
                             <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">

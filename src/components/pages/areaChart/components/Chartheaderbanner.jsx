@@ -1,5 +1,5 @@
 import React from "react";
-import { UDYAMI_LOGO_URL, KUTUMBA_LOGO_URL } from "../chartAssets.js";
+import { UDYAMI_BHARAT_LOCKUP_URL, KUTUMBA_LOGO_URL } from "../chartAssets.js";
 
 /**
  * Ward header banner — proportions measured from the G19 Mahadevapura chart
@@ -9,33 +9,22 @@ export default function ChartHeaderBanner({
   code,
   wardName,
   region = "GBA EAST",
-  taglineEn = "One Home. One Enterprise. One Strong Nation",
-  taglineKn = "ಉದ್ಯಮಿ ಭಾರತ",
   hideCode = false,
 }) {
   return (
     <div className="@container/banner w-full bg-brick border-b border-hairline px-[4%] py-[1.2%] flex items-center justify-between gap-[1.5%]">
-      {/* Left: logo + wordmark — UDYAMI BHARAT → tagline bar → Kannada */}
-      <div className="flex items-center gap-[1.2%] shrink-0 min-w-0 max-w-[30%]">
+      {/* Left: Udyami Bharat logo lockup (mark + wordmark + tagline + Kannada),
+          cropped from its padded PNG and shown on a white rounded plate */}
+      <div
+        className="relative shrink-0 bg-white rounded-[0.6cqw] overflow-hidden w-[20cqw] min-w-[120px]"
+        style={{ aspectRatio: "2.937 / 1" }}
+      >
         <img
-          src={UDYAMI_LOGO_URL}
+          src={UDYAMI_BHARAT_LOCKUP_URL}
           alt="Udyami Bharat"
-          className="w-[5cqw] min-w-[36px] aspect-square object-contain shrink-0"
+          className="absolute max-w-none"
+          style={{ width: "143.4%", left: "-21.5%", top: "-27.4%" }}
         />
-        <div className="min-w-0 leading-none">
-          <p className="text-[max(12px,1.4cqw)] font-extrabold text-white tracking-tight uppercase whitespace-nowrap">
-            UDYAMI BHARAT
-          </p>
-          <p
-            className="mt-[0.25cqw] inline-block text-[max(4.5px,0.52cqw)] font-semibold text-white leading-none uppercase whitespace-nowrap px-[0.4cqw] py-[0.15cqw] rounded-[0.1cqw]"
-            style={{ backgroundColor: "#4FC3F7" }}
-          >
-            {taglineEn}
-          </p>
-          <p className="mt-[0.2cqw] text-[max(11px,1.15cqw)] font-semibold text-white leading-tight">
-            {taglineKn}
-          </p>
-        </div>
       </div>
 
       {/* Center: G19 badge + ward pill */}

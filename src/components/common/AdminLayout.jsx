@@ -1,9 +1,23 @@
 import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./SideBar.jsx";
+import useBreakpoint from "../utils/useBreakpoint.js";
 
 function AdminLayout() {
-    const [isOpen, setIsOpen] = useState(true);
+    const isMobile = useBreakpoint() === "mobile";
+
+    // On mobile the sidebar is an overlay drawer, so it must start CLOSED and
+    // open only when the user taps the menu button. On tablet/desktop it
+    // starts expanded.
+    const [isOpen, setIsOpen] = useState(() => !isMobile);
+
+    // When the screen crosses the mobile breakpoint (rotate / resize),
+    // reset to the right default: closed drawer on mobile, expanded on desktop.
+    const [wasMobile, setWasMobile] = useState(isMobile);
+    if (wasMobile !== isMobile) {
+        setWasMobile(isMobile);
+        setIsOpen(!isMobile);
+    }
 
     return (
         <div className="min-h-screen bg-zinc-50">

@@ -21,17 +21,30 @@ export default function GlobeIntro({ flyToLocation, wardPolygon, onArrived }) {
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
   useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
     const resize = () => {
-      if (containerRef.current) {
-        setDimensions({
-          width:  containerRef.current.offsetWidth,
-          height: containerRef.current.offsetHeight,
-        });
-      }
+      const width  = el.offsetWidth;
+      const height = el.offsetHeight;
+      // Ignore 0-size measurements (hidden / not laid out yet) so the WebGL
+      // canvas is never created with an empty size on mobile.
+      if (width > 0 && height > 0) setDimensions({ width, height });
     };
     resize();
+
+    // ResizeObserver tracks the container itself (orientation change, layout
+    // changes, mobile browser toolbar) — window "resize" alone misses those.
+    let observer = null;
+    if (typeof ResizeObserver !== "undefined") {
+      observer = new ResizeObserver(resize);
+      observer.observe(el);
+    }
     window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", resize);
+    };
   }, []);
 
   useEffect(() => {

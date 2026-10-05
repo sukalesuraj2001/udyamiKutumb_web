@@ -696,16 +696,17 @@ export default function MemberMap() {
   };
 
   return (
-    <div className="-m-6">
-    <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-0 h-[calc(100vh-220px)] min-h-[520px]">
+    <div className="-m-4 sm:-m-6 md:-m-8">
+    {/* Mobile: stacked (map on top, filters below). Desktop (lg+): sidebar | map side by side */}
+    <div className="flex flex-col lg:grid lg:grid-cols-[340px_1fr] gap-0 lg:h-[calc(100vh-220px)] lg:min-h-[520px]">
 
       {/* Sidebar */}
-      <div className="border-r border-hairline bg-white flex flex-col overflow-hidden shadow-sm">
+      <div className="order-2 lg:order-1 border-t border-hairline lg:border-t-0 lg:border-r bg-white flex flex-col lg:min-h-0 lg:overflow-hidden shadow-sm">
         {renderSidebar()}
       </div>
 
-      {/* Map */}
-      <div className="relative overflow-hidden bg-[#0B0F1A]">
+      {/* Map — explicit height on mobile so it never collapses to 0 */}
+      <div className="order-1 lg:order-2 relative isolate overflow-hidden bg-[#0B0F1A] h-[60svh] min-h-[360px] max-h-[620px] lg:h-auto lg:min-h-0 lg:max-h-none">
         <div
           className="absolute inset-0 transition-opacity duration-[1200ms] ease-out"
           style={{
@@ -723,14 +724,16 @@ export default function MemberMap() {
         {phase === "arrived" && mapCenter && (
           <div className="absolute inset-0 animate-[fadeIn_1000ms_ease-out]">
             {/* Top Bar Overlay */}
-            <div className="absolute top-4 left-4 z-[1000] flex items-center gap-2">
-              <div className="bg-ink/90 backdrop-blur text-white rounded-xl px-4 py-2.5 text-[12.5px] shadow-lg flex items-center gap-3">
-                <div>
-                  <p className="font-semibold capitalize flex items-center gap-1.5">
-                    <MapPin size={13} className="text-blue-400" />
-                    {selectedWard || selectedTaluka || selectedDistrict || locationName || wardInput || "Map Area"}
-                    {roleType === "superadmin" || roleType === "districthead" ? (talukaCount > 0 && ` · ${talukaCount} talukas`) : ""}
-                    {wardCount > 0 && ` · ${wardCount} wards`}
+            <div className="absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-auto z-[1000] flex items-center gap-2 min-w-0">
+              <div className="bg-ink/90 backdrop-blur text-white rounded-xl px-3 sm:px-4 py-2 sm:py-2.5 text-[12px] sm:text-[12.5px] shadow-lg flex items-center gap-3 min-w-0 max-w-full">
+                <div className="min-w-0">
+                  <p className="font-semibold capitalize flex items-center gap-1.5 min-w-0">
+                    <MapPin size={13} className="text-blue-400 shrink-0" />
+                    <span className="truncate">
+                      {selectedWard || selectedTaluka || selectedDistrict || locationName || wardInput || "Map Area"}
+                      {roleType === "superadmin" || roleType === "districthead" ? (talukaCount > 0 && ` · ${talukaCount} talukas`) : ""}
+                      {wardCount > 0 && ` · ${wardCount} wards`}
+                    </span>
                   </p>
                   <p className="text-white/60 text-[11px] mt-0.5">
                     Showing {bizCount} of {businesses.length} business{businesses.length !== 1 ? "es" : ""}
@@ -764,7 +767,7 @@ export default function MemberMap() {
             </div>
             <div className="text-center">
               <p className="text-[14px] font-medium">Select location filters to view area map</p>
-              <p className="text-[12px] mt-0.5 opacity-70">Use the left side filter panel</p>
+              <p className="text-[12px] mt-0.5 opacity-70">Use the filter panel to pick an area</p>
             </div>
           </div>
         )}
@@ -774,7 +777,7 @@ export default function MemberMap() {
     </div>
 
       {/* Ward data table */}
-      <div className="p-6 bg-paper">
+      <div className="p-4 sm:p-6 bg-paper">
         <WardTable />
       </div>
     </div>

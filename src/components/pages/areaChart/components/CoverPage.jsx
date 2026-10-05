@@ -16,6 +16,11 @@ export default function CoverPage({
   taglineKn = "ಒಂದು ಮನೆ. ಒಂದು ಉದ್ಯಮ. ಒಂದು ಶಕ್ತಿಶಾಲಿ ರಾಷ್ಟ್ರ.",
   onHeroImageSelect,
   showHeroUpload = false,
+  // Print Preview only: taluka heading (e.g. "G33 NELAMANGALA") and the list of
+  // its wards - [{ code: "G33. 2", name: "Nelamangala", count: 108 }] - shown
+  // above the hero image. When null the cover looks exactly as before.
+  summaryTitle = "",
+  summaryWards = null,
 }) {
   const fileInputRef = useRef(null);
 
@@ -30,6 +35,16 @@ export default function CoverPage({
   };
 
   const columns = [];
+
+  // Two columns, filled top-to-bottom (left column first), like the printed cover.
+  const hasSummary = Array.isArray(summaryWards) && summaryWards.length > 0;
+  const summaryRows = hasSummary ? Math.ceil(summaryWards.length / 2) : 0;
+  const summaryColumns = hasSummary
+    ? [summaryWards.slice(0, summaryRows), summaryWards.slice(summaryRows)]
+    : [];
+  // The hero circle normally starts at 32% of the page; a long ward list pushes
+  // it down instead of overlapping it (first 5 rows fit in the default space).
+  const heroExtraPx = hasSummary ? Math.max(0, summaryRows - 6) * 21 : 0;
 
   return (
     /*
@@ -86,10 +101,32 @@ export default function CoverPage({
 
       {/* ── Title ── */}
       <div className="px-[6.9%] mt-[4%]">
-        <h1 className="text-[30px] font-extrabold text-brick tracking-tight leading-none truncate max-w-full">
-          {code} {regionName?.toUpperCase()}
+        <h1
+          className={`text-[30px] font-extrabold text-brick tracking-tight leading-none truncate max-w-full ${
+            hasSummary ? "inline-block border-b-2 border-brick pb-[3px]" : ""
+          }`}
+        >
+          {hasSummary && summaryTitle ? summaryTitle : `${code} ${regionName?.toUpperCase()}`}
         </h1>
       </div>
+
+      {/* Taluka ward list (Print Preview only) */}
+      {hasSummary && (
+        <div className="px-[6.9%] mt-[2.2%] grid grid-cols-2 gap-x-[6%]">
+          {summaryColumns.map((col, ci) => (
+            <div key={ci} className="space-y-[1px]">
+              {col.map((w, wi) => (
+                <div key={`${w.code}-${wi}`} className="flex items-baseline justify-between gap-2">
+                  <p className="text-[15px] text-ink leading-[1.4] truncate">
+                    {w.code} {w.name}
+                  </p>
+                  <span className="text-[15px] text-brick shrink-0 tabular-nums">{w.count}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Ward list ── */}
       <div className="px-[5.3%] mt-[3%] grid grid-cols-3 gap-x-[8%]">
@@ -119,6 +156,7 @@ export default function CoverPage({
        */}
       <div
         onClick={handleCircleClick}
+        style={heroExtraPx ? { marginTop: `${heroExtraPx}px` } : undefined}
         className={`absolute left-1/2 -translate-x-1/2 top-[32%] w-[42%] aspect-square
           rounded-full border-[6px] border-white
           shadow-[0_8px_32px_rgba(0,0,0,0.12)] overflow-hidden bg-paper

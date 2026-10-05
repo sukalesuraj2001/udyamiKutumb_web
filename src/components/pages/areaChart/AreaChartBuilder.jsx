@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { UserPlus, SlidersHorizontal, Printer, Download, Search, PackageOpen, LayoutGrid, Loader2, AlertCircle, } from "lucide-react";
+import { Download, Search, PackageOpen, LayoutGrid, Loader2, AlertCircle } from "lucide-react";
 import ConstituencySection from "./components/ConstituencySection.jsx";
 import PositionDetailsModal from "./models/PositionDetailsModal";
 import { getLocationByWardHeadId, selectWards, selectLocationStatus, selectLocationError } from "../../redux/slices/areaChartSlice.js";
@@ -115,34 +115,6 @@ export default function AreaChartBuilder() {
         </div>
       </div>
 
-      {/* ── Action Buttons ── */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          disabled
-          title="Open a ward's chart first"
-          className="inline-flex items-center justify-center gap-2 h-8 bg-gray-900 text-white text-[12.5px] font-semibold px-4 rounded-lg opacity-40 cursor-not-allowed select-none w-full sm:w-auto"
-        >
-          <UserPlus size={13} />
-          Invite Member
-        </button>
-
-        {[
-          { Icon: SlidersHorizontal, label: "Customize Layout" },
-          { Icon: Printer, label: "Print Chart" },
-          { Icon: Download, label: "Download PDF" },
-        ].map(({ Icon, label }) => (
-          <button
-            key={label}
-            disabled
-            title="Open a ward's chart first"
-            className="inline-flex items-center justify-center gap-2 h-8 bg-white border border-gray-200 text-[12.5px] font-medium text-gray-400 px-4 rounded-lg cursor-not-allowed select-none w-full sm:w-auto"
-          >
-            <Icon size={13} />
-            {label}
-          </button>
-        ))}
-      </div>
-
       {/* ── Stat Cards ── */}
       <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard
@@ -219,10 +191,6 @@ export default function AreaChartBuilder() {
                 className="w-full text-[13px] text-gray-800 placeholder:text-gray-400 focus:outline-none bg-transparent"
               />
             </div>
-            <button className="inline-flex items-center justify-center gap-2 h-9 bg-blue-600 text-white text-[12.5px] font-semibold px-4 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors shrink-0 w-full sm:w-auto">
-              <Download size={13} />
-              Bulk Print All Wards (ZIP)
-            </button>
           </div>
 
           {/* ── Loading State ── */}
