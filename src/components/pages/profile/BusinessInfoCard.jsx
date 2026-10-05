@@ -31,13 +31,13 @@ function getImageSrc(imgData) {
   if (!imgData) return null;
   if (typeof imgData === "string" && imgData.trim()) {
     if (imgData.startsWith("data:") || imgData.startsWith("http")) return imgData;
-    return `https://backend.udyamikutumba.com/uploads/${imgData}`;
+    return `http://localhost:3000/uploads/${imgData}`;
   }
   if (typeof imgData === "object") {
     const raw = imgData.image || imgData.url || imgData.preview || imgData.fileName;
     if (raw && typeof raw === "string") {
       if (raw.startsWith("data:") || raw.startsWith("http")) return raw;
-      return `https://backend.udyamikutumba.com/uploads/${raw}`;
+      return `http://localhost:3000/uploads/${raw}`;
     }
   }
   return null;

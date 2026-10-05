@@ -289,6 +289,20 @@ function PageFooter({ num }) {
   );
 }
 
+// Wards of a taluka always go in ward-number order (G63.1, G63.2, ... G63.10),
+// whichever ward was opened - the API / Redux order depends on the opened
+// ward, and the chairman slots, the per-ward Print Preview pages and the cover
+// list are all positional. Wards without a number go last, then by name.
+function compareWardsByNumber(a, b) {
+  const an = String(a?.ward_number || a?.wardNumber || "").trim();
+  const bn = String(b?.ward_number || b?.wardNumber || "").trim();
+  if (an && !bn) return -1;
+  if (!an && bn) return 1;
+  const byNumber = an.localeCompare(bn, undefined, { numeric: true });
+  if (byNumber !== 0) return byNumber;
+  return String(a?.ward_name || a?.wardName || "").localeCompare(String(b?.ward_name || b?.wardName || ""));
+}
+
 function ChartPage({ pageLabel, pageNum, ward, children, hideWardCode = false, wardNameOverride }) {
   return (
     <ChartPreviewFrame pageLabel={pageLabel}>
@@ -701,7 +715,8 @@ export default function WardChartDetail() {
           css,
           stylesheetLinks: links,
           baseUrl: window.location.origin,
-          htmlClass: document.documentElement.className,
+          // PDF is always rendered light, whatever theme the admin UI is in.
+          htmlClass: document.documentElement.className.split(/\s+/).filter((c) => c && c !== "dark").join(" "),
           bodyClass: document.body.className,
         },
         { responseType: "blob", timeout: 180000 }
@@ -1247,7 +1262,7 @@ export default function WardChartDetail() {
       if (key) seen.add(key);
       deduped.push(w);
     }
-    return deduped;
+    return deduped.sort(compareWardsByNumber);
   }, [reduxWards, ward.constituency]);
 
   const wardChairmenList = useSelector(selectWardChairmenList);
@@ -1393,7 +1408,7 @@ export default function WardChartDetail() {
 
   const displayWardsList = useMemo(() => {
     if (constituencyWards && constituencyWards.length > 0) return constituencyWards;
-    if (reduxWards && reduxWards.length > 0) return reduxWards;
+    if (reduxWards && reduxWards.length > 0) return [...reduxWards].sort(compareWardsByNumber);
     return [ward];
   }, [constituencyWards, reduxWards, ward]);
 
@@ -1414,9 +1429,7 @@ export default function WardChartDetail() {
     const name = (talukaName || ward.constituency || "").toString().trim();
 
     const wards = [...list]
-      .sort((a, b) =>
-        String(a?.ward_number || "").localeCompare(String(b?.ward_number || ""), undefined, { numeric: true })
-      )
+      .sort(compareWardsByNumber)
       .map((w) => {
         const [prefix, ...rest] = String(w?.ward_number || w?.wardNumber || "").split(".");
         return {

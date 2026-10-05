@@ -20,7 +20,7 @@ import {
   selectSearchStatus,
 } from "../../../redux/slices/areaChartSlice.js";
 
-const BASE_URL = "https://backend.udyamikutumba.com";
+const BASE_URL = "http://localhost:3000";
 
 const SLOT_TO_UCN_TYPE_MAP = {
   "core-president": ["circle_leader", "circle-leader", "president"],

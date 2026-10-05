@@ -97,7 +97,7 @@ export default function ChartPreviewFrame({ pageLabel, pageNumber, children }) {
             overflow:       "visible",
             position:       "relative",
           }}
-          className="pdf-capture-page bg-white rounded-lg border border-slate-200 shadow-sm"
+          className="pdf-capture-page force-light bg-white rounded-lg border border-slate-200 shadow-sm"
         >
           {/* Visible content — scale-down applied here if overflow */}
           <div style={contentStyle}>
@@ -117,7 +117,7 @@ export default function ChartPreviewFrame({ pageLabel, pageNumber, children }) {
 
       {/* ── Measurement probe (invisible, off-screen) ── */}
       {/* Renders children at natural height so we can read scrollHeight cleanly */}
-      <div ref={probeRef} style={probeStyle} aria-hidden="true">
+      <div ref={probeRef} style={probeStyle} className="force-light" aria-hidden="true">
         {children}
       </div>
     </div>

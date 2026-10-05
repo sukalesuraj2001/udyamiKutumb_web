@@ -9,7 +9,7 @@ export const injectStore = (_store) => {
 
 const api = axios.create({
     // baseURL: 'http://192.168.0.70:3000',
-    baseURL: 'https://backend.udyamikutumba.com',
+    baseURL: 'http://localhost:3000',
 });
 
 api.interceptors.request.use(

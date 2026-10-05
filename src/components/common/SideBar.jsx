@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { logout } from "../redux/slices/authSlice.js";
 import useBreakpoint from "../utils/useBreakpoint.js";
+import ThemeToggle from "../theme/ThemeToggle.jsx";
 
 const profilePath = {
     SuperAdmin: "/super-admin-dashboard/profile",
@@ -694,6 +695,8 @@ function Sidebar({ isOpen, onToggle }) {
                         </div>
                     </div>
                 </div>
+                <div className="flex items-center gap-2 shrink-0">
+                <ThemeToggle variant="icon" placement="down" align="right" />
                 <div
                     onClick={() => {
                         const targetPath = profilePath[role] || profilePath[role?.toLowerCase()] || "/member/profile";
@@ -707,6 +710,7 @@ function Sidebar({ isOpen, onToggle }) {
                     ) : (
                         initials
                     )}
+                </div>
                 </div>
             </header>
 
@@ -899,6 +903,11 @@ function Sidebar({ isOpen, onToggle }) {
                             <p className="text-[10px] font-semibold uppercase tracking-widest text-[#2563EB] truncate mt-0.5">{role}</p>
                         </div>
                     </div>
+
+                    {/* Theme: Light / Dark / System */}
+                    {sidebarOpen
+                        ? <ThemeToggle variant="full" placement="up" align="left" className="mb-0.5" />
+                        : <ThemeToggle variant="icon" placement="up" align="left" className="mb-1.5 flex justify-center" />}
 
                     <button
                         onClick={handleLogout}

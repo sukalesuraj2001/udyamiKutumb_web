@@ -8,7 +8,7 @@ import {
   selectSearchStatus,
 } from "../../../redux/slices/areaChartSlice.js";
 
-const BASE_URL = "https://backend.udyamikutumba.com";
+const BASE_URL = "http://localhost:3000";
 
 // ── Avatar helper ─────────────────────────────────────────────────
 function Avatar({ src, name, size = 44 }) {

@@ -1,9 +1,13 @@
 import React from "react";
-import { UDYAMI_BHARAT_LOCKUP_URL, KUTUMBA_LOGO_URL } from "../chartAssets.js";
+import { BANNER_UDYAMI_LOGO_URL, BANNER_KUTUMBA_LOGO_URL } from "../chartAssets.js";
+
+// Colours measured from the printed reference header.
+const BANNER_RED = "#A11117";
+const BANNER_NAVY = "#1B2662";
 
 /**
- * Ward header banner — proportions measured from the G19 Mahadevapura chart
- * reference (~1000×82px header strip). Colours match the chart body (brick + ink).
+ * Ward header banner — red strip, Udyami Bharat logo (left), G-code badge +
+ * ward pill + region (centre), Kutumba logo (right).
  */
 export default function ChartHeaderBanner({
   code,
@@ -12,37 +16,39 @@ export default function ChartHeaderBanner({
   hideCode = false,
 }) {
   return (
-    <div className="@container/banner w-full bg-brick border-b border-hairline px-[4%] py-[1.2%] flex items-center justify-between gap-[1.5%]">
-      {/* Left: Udyami Bharat logo lockup (mark + wordmark + tagline + Kannada),
-          cropped from its padded PNG and shown on a white rounded plate */}
-      <div
-        className="relative shrink-0 bg-white rounded-[0.6cqw] overflow-hidden w-[20cqw] min-w-[120px]"
-        style={{ aspectRatio: "2.937 / 1" }}
-      >
-        <img
-          src={UDYAMI_BHARAT_LOCKUP_URL}
-          alt="Udyami Bharat"
-          className="absolute max-w-none"
-          style={{ width: "143.4%", left: "-21.5%", top: "-27.4%" }}
-        />
-      </div>
+    <div
+      className="@container/banner w-full border-b border-hairline px-[4%] py-[0.8%] flex items-center justify-between gap-[1.5%]"
+      style={{ backgroundColor: BANNER_RED }}
+    >
+      {/* Left: Udyami Bharat logo (transparent, white lettering) */}
+      <img
+        src={BANNER_UDYAMI_LOGO_URL}
+        alt="Udyami Bharat"
+        className="h-[7.6cqw] min-h-[26px] w-auto object-contain shrink-0"
+      />
 
       {/* Center: G19 badge + ward pill */}
       <div className="flex-1 flex flex-col items-center min-w-0">
-        <div className="flex items-stretch w-full max-w-[32cqw]">
+        <div className="flex items-stretch w-full max-w-[38cqw]">
           {!hideCode && (
           <div
-            className="relative z-10 bg-ink text-white border border-white flex items-center justify-center shrink-0 font-display font-bold leading-none px-[1.4cqw] min-w-[6.5cqw] text-[max(11px,1.35cqw)]"
-            style={{ clipPath: "polygon(0 0, 86% 0, 100% 50%, 86% 100%, 0 100%)" }}
+            className="relative z-10 text-white border border-white flex items-center justify-center shrink-0 font-display font-bold leading-none px-[1.4cqw] min-w-[7cqw] text-[max(11px,1.6cqw)]"
+            style={{
+              backgroundColor: BANNER_NAVY,
+              clipPath: "polygon(0 0, 86% 0, 100% 50%, 86% 100%, 0 100%)",
+            }}
           >
             {code}
           </div>
           )}
           <div
-            className={`flex-1 bg-white flex items-center justify-center px-[1.8cqw] py-[0.75cqw] min-w-0 ${hideCode ? "rounded-full" : "rounded-r-full -ml-[0.7cqw]"
+            className={`flex-1 bg-white flex items-center justify-center px-[1.8cqw] py-[1cqw] min-w-0 ${hideCode ? "rounded-full" : "rounded-r-full -ml-[0.7cqw]"
               }`}
           >
-            <p className="text-ink font-display font-bold tracking-tight truncate uppercase leading-none text-[max(10px,1.25cqw)]">
+            <p
+              className="font-display font-bold tracking-tight truncate uppercase leading-none text-[max(10px,1.6cqw)]"
+              style={{ color: BANNER_NAVY }}
+            >
               {wardName}
             </p>
           </div>
@@ -54,11 +60,11 @@ export default function ChartHeaderBanner({
         )}
       </div>
 
-      {/* Right: Kutumba logo */}
+      {/* Right: Kutumba logo (transparent, white lettering) */}
       <img
-        src={KUTUMBA_LOGO_URL}
+        src={BANNER_KUTUMBA_LOGO_URL}
         alt="Kutumba"
-        className="w-[5.5cqw] min-w-[10px] h-auto object-contain shrink-0"
+        className="h-[8.2cqw] min-h-[28px] w-auto object-contain shrink-0"
       />
     </div>
   );

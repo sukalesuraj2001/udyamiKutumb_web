@@ -1,43 +1,48 @@
 import React, { useEffect, useRef, useState } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import { makeRolePinIcon, resolveRoleKey } from "../../utils/RolePinIcon";
+import { buildRolePinSvg, resolveRoleKey } from "../../utils/RolePinIcon";
+import {
+  loadGoogleMaps,
+  hasGoogleMapsKey,
+  GOOGLE_MAPS_MAP_ID,
+  onGoogleMapsAuthFailure,
+  extendBoundsWithGeo,
+  featureCenter,
+} from "../../utils/googleMaps";
 
-const TILE_LAYERS = {
-  satellite: {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    attribution: "Tiles &copy; Esri",
-  },
-  street: {
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: "&copy; OpenStreetMap contributors",
-  },
-  light: {
-    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    attribution: "&copy; OpenStreetMap &copy; CARTO",
-  },
-};
+// Google Maps JavaScript API map types
+const MAP_TYPES = [
+  { key: "hybrid",  label: "Satellite" },
+  { key: "roadmap", label: "Street"    },
+  { key: "terrain", label: "Terrain"   },
+];
 
 const LAYER_STYLES = {
-  district: {
-    color: "#1E40AF",
-    weight: 4,
-    fillColor: "#1E40AF",
-    fillOpacity: 0.08,
-  },
-  taluka: {
-    color: "#EA580C",
-    weight: 3,
-    fillColor: "#EA580C",
-    fillOpacity: 0.1,
-  },
-  ward: {
-    color: "#16A34A",
-    weight: 2,
-    fillColor: "#16A34A",
-    fillOpacity: 0.1,
-  },
+  district: { color: "#1E40AF", weight: 4, fillColor: "#1E40AF", fillOpacity: 0.08 },
+  taluka:   { color: "#EA580C", weight: 3, fillColor: "#EA580C", fillOpacity: 0.1  },
+  ward:     { color: "#16A34A", weight: 2, fillColor: "#16A34A", fillOpacity: 0.1  },
 };
+
+const esc = (v) =>
+  String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function popupHtml(props) {
+  return `<div style="font-family:system-ui,sans-serif;min-width:180px;max-width:220px">
+    <p style="font-weight:700;font-size:13px;margin:0 0 2px;color:#111">${esc(props.businessName)}</p>
+    ${props.businessType
+      ? `<span style="display:inline-block;font-size:10px;font-weight:600;background:#FEF3C7;color:#92400E;border-radius:999px;padding:1px 8px;margin-bottom:6px">${esc(props.businessType)}</span>`
+      : ""}
+    ${props.sector ? `<p style="color:#777;font-size:11px;margin:0 0 6px">${esc(props.sector)}</p>` : ""}
+    <div style="border-top:1px solid #f0f0f0;margin:6px 0;padding-top:6px">
+      <p style="color:#555;font-size:11.5px;margin:0 0 3px">👤 ${esc(props.ownerName || "—")}</p>
+      <p style="color:#555;font-size:11.5px;margin:0 0 3px">📞 ${esc(props.businessMobile || props.mobile || "—")}</p>
+      ${props.email ? `<p style="color:#555;font-size:11.5px;margin:0">✉ ${esc(props.email)}</p>` : ""}
+      ${props.address ? `<p style="color:#888;font-size:11px;margin:4px 0 0">${esc(props.address)}${props.city ? ", " + esc(props.city) : ""}</p>` : ""}
+    </div>
+    ${props.employees
+      ? `<p style="color:#999;font-size:10.5px;margin:4px 0 0">👥 ${esc(props.employees)} employees · Est. ${esc(props.establishedYear || "—")}</p>`
+      : ""}
+  </div>`;
+}
 
 export default function SatelliteMap({
   location,
@@ -55,194 +60,190 @@ export default function SatelliteMap({
   showWardLayer = true,
   showBusinessMarkers = true,
 }) {
-  const mapDivRef         = useRef(null);
-  const mapRef            = useRef(null);
-  const tileLayerRef      = useRef(null);
-  const layerRefs         = useRef({ district: null, taluka: null, ward: null });
-  const markersRef        = useRef([]);
-  const currentTileKeyRef = useRef("satellite");
-  const [currentTile, setCurrentTile] = useState("satellite");
+  const mapDivRef  = useRef(null);
+  const mapRef     = useRef(null);
+  const infoRef    = useRef(null);
+  const layerRefs  = useRef({ district: null, taluka: null, ward: null });
+  const markersRef = useRef([]);
+  // Latest callbacks, so effects don't re-run when the parent re-renders.
+  const zoomCbRef   = useRef(onZoomOutToGlobe);
+  const selectCbRef = useRef(onSelectBusiness);
+  useEffect(() => {
+    zoomCbRef.current   = onZoomOutToGlobe;
+    selectCbRef.current = onSelectBusiness;
+  });
+
+  const [ready, setReady]           = useState(false);
+  const [mapType, setMapType]       = useState("hybrid");
+  const [status, setStatus]         = useState(hasGoogleMapsKey ? "loading" : "nokey"); // loading | ok | nokey | authfail | error
   const [legendOpen, setLegendOpen] = useState(false); // mobile only; always visible on sm+
 
   // ── Init map ──
   useEffect(() => {
-    if (!mapDivRef.current || mapRef.current) return;
+    if (!hasGoogleMapsKey || !mapDivRef.current) return undefined;
+    let cancelled = false;
+    const offAuth = onGoogleMapsAuthFailure(() => setStatus("authfail"));
 
-    mapRef.current = L.map(mapDivRef.current, {
-      center: [location.lat, location.lng],
-      zoom: fetchType === "district" ? 10 : fetchType === "taluka" ? 12 : 15,
-      zoomControl: false,
-      minZoom: 2,
-    });
+    loadGoogleMaps()
+      .then((gm) => {
+        if (cancelled || mapRef.current || !mapDivRef.current) return;
+        const map = new gm.Map(mapDivRef.current, {
+          center: { lat: location.lat, lng: location.lng },
+          zoom: fetchType === "district" ? 10 : fetchType === "taluka" ? 12 : 15,
+          mapId: GOOGLE_MAPS_MAP_ID,
+          mapTypeId: "hybrid",
+          minZoom: 2,
+          maxZoom: 21,
+          disableDefaultUI: true,
+          zoomControl: true,
+          zoomControlOptions: { position: gm.ControlPosition.RIGHT_BOTTOM },
+          fullscreenControl: false,
+          gestureHandling: "greedy",
+          clickableIcons: false,
+          backgroundColor: "#0B0F1A",
+        });
+        mapRef.current  = map;
+        infoRef.current = new gm.InfoWindow({ maxWidth: 240 });
 
-    tileLayerRef.current = L.tileLayer(TILE_LAYERS.satellite.url, {
-      attribution: TILE_LAYERS.satellite.attribution,
-      maxZoom: 20,
-    }).addTo(mapRef.current);
-
-    L.control.zoom({ position: "bottomright" }).addTo(mapRef.current);
-    requestAnimationFrame(() => mapRef.current?.invalidateSize());
-
-    mapRef.current.on("zoomend", () => {
-      const z = mapRef.current?.getZoom();
-      if (z !== undefined && z <= 3) onZoomOutToGlobe?.();
-    });
-
-    // Keep Leaflet in sync with its container size (orientation change,
-    // sidebar toggle, mobile browser toolbar show/hide, window resize).
-    let resizeObserver = null;
-    if (typeof ResizeObserver !== "undefined") {
-      resizeObserver = new ResizeObserver(() => {
-        mapRef.current?.invalidateSize();
-      });
-      resizeObserver.observe(mapDivRef.current);
-    }
+        map.addListener("zoom_changed", () => {
+          const z = map.getZoom();
+          if (z !== undefined && z <= 3) zoomCbRef.current?.();
+        });
+        setStatus((s) => (s === "authfail" ? s : "ok"));
+        setReady(true);
+      })
+      .catch(() => !cancelled && setStatus("error"));
 
     return () => {
-      resizeObserver?.disconnect();
-      mapRef.current?.remove();
+      cancelled = true;
+      offAuth();
+      markersRef.current.forEach((m) => { m.map = null; });
+      markersRef.current = [];
+      Object.values(layerRefs.current).forEach((l) => {
+        l?.data?.setMap(null);
+        l?.labels?.forEach((m) => { m.map = null; });
+      });
+      layerRefs.current = { district: null, taluka: null, ward: null };
+      if (mapRef.current && window.google?.maps) window.google.maps.event.clearInstanceListeners(mapRef.current);
+      infoRef.current?.close();
+      infoRef.current = null;
       mapRef.current = null;
+      setReady(false);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Map type switcher ──
+  useEffect(() => {
+    mapRef.current?.setMapTypeId(mapType);
+  }, [mapType, ready]);
 
   // ── GeoJSON layers ──
   useEffect(() => {
-    if (!mapRef.current) return;
+    const map = mapRef.current;
+    const gm  = window.google?.maps;
+    if (!ready || !map || !gm) return;
 
-    Object.values(layerRefs.current).forEach((layer) => {
-      if (layer) mapRef.current.removeLayer(layer);
+    Object.values(layerRefs.current).forEach((l) => {
+      l?.data?.setMap(null);
+      l?.labels?.forEach((m) => { m.map = null; });
     });
     layerRefs.current = { district: null, taluka: null, ward: null };
 
-    let fitBoundsLayer = null;
+    const addLayer = (key, geo, nameOf, labelClass) => {
+      const s    = LAYER_STYLES[key];
+      const data = new gm.Data({ map });
+      data.addGeoJson(geo);
+      data.setStyle({
+        strokeColor: s.color, strokeWeight: s.weight, strokeOpacity: 1,
+        fillColor: s.fillColor, fillOpacity: s.fillOpacity, clickable: false,
+      });
+      const labels = (geo.features || [])
+        .map((f) => {
+          const name   = nameOf(f);
+          const center = featureCenter(f);
+          if (!name || !center) return null;
+          const el = document.createElement("div");
+          el.className = `geo-label ${labelClass}`;
+          el.textContent = name;
+          return new gm.marker.AdvancedMarkerElement({ map, position: center, content: el, zIndex: 1 });
+        })
+        .filter(Boolean);
+      layerRefs.current[key] = { data, labels };
+      return geo;
+    };
 
-    // Ward
+    let fitGeo = null;
+
     const wardData = wardGeos || (wardPolygon ? { type: "FeatureCollection", features: [wardPolygon] } : null);
     if (showWardLayer && wardData?.features?.length) {
-      layerRefs.current.ward = L.geoJSON(wardData, {
-        style: LAYER_STYLES.ward,
-        onEachFeature: (feature, layer) => {
-          const name =
-            feature.properties?.name ||
-            feature.properties?.ward_name ||
-            feature.properties?.Ward_Name || "";
-          if (name) {
-            layer.bindTooltip(name, {
-              permanent: true,
-              direction: "center",
-              className: "geo-label ward-label",
-            });
-          }
-        },
-      }).addTo(mapRef.current);
-      fitBoundsLayer = layerRefs.current.ward;
+      fitGeo = addLayer(
+        "ward", wardData,
+        (f) => f.properties?.name || f.properties?.ward_name || f.properties?.Ward_Name || "",
+        "ward-label"
+      );
     }
-
-    // Taluka
     if (showTalukaLayer && talukaGeos?.features?.length) {
-      layerRefs.current.taluka = L.geoJSON(talukaGeos, {
-        style: LAYER_STYLES.taluka,
-        onEachFeature: (feature, layer) => {
-          const name = feature.properties?.name || feature.properties?.talukaName || "";
-          if (name) {
-            layer.bindTooltip(name, {
-              permanent: true,
-              direction: "center",
-              className: "geo-label taluka-label",
-            });
-          }
-        },
-      }).addTo(mapRef.current);
-      fitBoundsLayer = layerRefs.current.taluka;
+      fitGeo = addLayer("taluka", talukaGeos, (f) => f.properties?.name || f.properties?.talukaName || "", "taluka-label");
     }
-
-    // District
     if (showDistrictLayer && districtGeo?.features?.length) {
-      layerRefs.current.district = L.geoJSON(districtGeo, {
-        style: LAYER_STYLES.district,
-        onEachFeature: (feature, layer) => {
-          const name = feature.properties?.name || "";
-          if (name) {
-            layer.bindTooltip(name, {
-              permanent: true,
-              direction: "center",
-              className: "geo-label district-label",
-            });
-          }
-        },
-      }).addTo(mapRef.current);
-      fitBoundsLayer = layerRefs.current.district;
+      fitGeo = addLayer("district", districtGeo, (f) => f.properties?.name || "", "district-label");
     }
 
-    if (fitBoundsLayer) {
-      const bounds = fitBoundsLayer.getBounds();
-      if (bounds.isValid()) {
-        mapRef.current.fitBounds(bounds, { padding: [40, 40] });
-      }
+    if (fitGeo) {
+      const bounds = new gm.LatLngBounds();
+      extendBoundsWithGeo(bounds, fitGeo);
+      if (!bounds.isEmpty()) map.fitBounds(bounds, 40);
     }
-  }, [districtGeo, talukaGeos, wardGeos, wardPolygon, showDistrictLayer, showTalukaLayer, showWardLayer]);
+  }, [ready, districtGeo, talukaGeos, wardGeos, wardPolygon, showDistrictLayer, showTalukaLayer, showWardLayer]);
 
   // ── Business markers ──
   useEffect(() => {
-    if (!mapRef.current) return;
+    const map = mapRef.current;
+    const gm  = window.google?.maps;
+    if (!ready || !map || !gm) return undefined;
 
-    markersRef.current.forEach((m) => mapRef.current.removeLayer(m));
+    markersRef.current.forEach((m) => { m.map = null; });
     markersRef.current = [];
+    infoRef.current?.close();
 
-    if (!showBusinessMarkers) return;
+    if (!showBusinessMarkers) return undefined;
 
+    const timers = [];
     businesses.forEach((b) => {
       const [lng, lat] = b.geometry.coordinates;
       const props      = b.properties;
       const isSelected = selectedBusiness?.profileId === props.profileId;
-      const roleKey    = resolveRoleKey(props);
-      const icon       = makeRolePinIcon(roleKey, isSelected);
+      const { html }   = buildRolePinSvg(resolveRoleKey(props), isSelected);
 
-      const marker = L.marker([lat, lng], { icon }).addTo(mapRef.current);
+      const el = document.createElement("div");
+      el.style.cursor = "pointer";
+      el.innerHTML = html;
 
-      marker.bindPopup(
-        `<div style="font-family:system-ui,sans-serif;min-width:180px;max-width:220px">
-          <p style="font-weight:700;font-size:13px;margin:0 0 2px;color:#111">${props.businessName}</p>
-          ${props.businessType
-            ? `<span style="display:inline-block;font-size:10px;font-weight:600;background:#FEF3C7;color:#92400E;border-radius:999px;padding:1px 8px;margin-bottom:6px">${props.businessType}</span>`
-            : ""}
-          ${props.sector
-            ? `<p style="color:#777;font-size:11px;margin:0 0 6px">${props.sector}</p>`
-            : ""}
-          <div style="border-top:1px solid #f0f0f0;margin:6px 0;padding-top:6px">
-            <p style="color:#555;font-size:11.5px;margin:0 0 3px">👤 ${props.ownerName || "—"}</p>
-            <p style="color:#555;font-size:11.5px;margin:0 0 3px">📞 ${props.businessMobile || props.mobile || "—"}</p>
-            ${props.email ? `<p style="color:#555;font-size:11.5px;margin:0">✉ ${props.email}</p>` : ""}
-            ${props.address ? `<p style="color:#888;font-size:11px;margin:4px 0 0">${props.address}${props.city ? ", " + props.city : ""}</p>` : ""}
-          </div>
-          ${props.employees
-            ? `<p style="color:#999;font-size:10.5px;margin:4px 0 0">👥 ${props.employees} employees · Est. ${props.establishedYear || "—"}</p>`
-            : ""}
-        </div>`,
-        { maxWidth: 240, className: "clean-popup" }
-      );
-
-      marker.on("click", () => {
-        onSelectBusiness?.(props);
-        marker.openPopup();
+      const marker = new gm.marker.AdvancedMarkerElement({
+        map,
+        position: { lat, lng },
+        content: el,
+        title: props.businessName || "",
+        zIndex: isSelected ? 1000 : 10,
       });
 
-      if (isSelected) setTimeout(() => marker.openPopup(), 100);
+      const openPopup = () => {
+        infoRef.current?.setContent(popupHtml(props));
+        infoRef.current?.open({ map, anchor: marker });
+      };
+
+      marker.addEventListener("gmp-click", () => {
+        selectCbRef.current?.(props);
+        openPopup();
+      });
+
+      if (isSelected) timers.push(setTimeout(openPopup, 100));
       markersRef.current.push(marker);
     });
-  }, [businesses, selectedBusiness, showBusinessMarkers]);
 
-  // ── Tile switcher ──
-  const switchTile = (key) => {
-    if (!mapRef.current || currentTileKeyRef.current === key) return;
-    if (tileLayerRef.current) mapRef.current.removeLayer(tileLayerRef.current);
-    tileLayerRef.current = L.tileLayer(TILE_LAYERS[key].url, {
-      attribution: TILE_LAYERS[key].attribution,
-      maxZoom: 20,
-    }).addTo(mapRef.current);
-    currentTileKeyRef.current = key;
-    setCurrentTile(key);
-  };
+    return () => timers.forEach(clearTimeout);
+  }, [ready, businesses, selectedBusiness, showBusinessMarkers]);
 
   const legendItems = [
     ...(fetchType === "district" ? [{ color: "#1E40AF", dash: false, label: "District boundary" }] : []),
@@ -252,22 +253,43 @@ export default function SatelliteMap({
     { color: "#2563EB", pin: true,   label: "Selected"      },
   ];
 
+  const notice = {
+    nokey: {
+      title: "Google Maps API key not set",
+      body: "Add your key as VITE_GOOGLE_MAPS_API_KEY in the .env file and restart the dev server.",
+    },
+    authfail: {
+      title: "Google Maps could not authorize this key",
+      body: "Check that Maps JavaScript API is enabled, billing is active and this site's URL is allowed in the key's HTTP referrer restrictions.",
+    },
+    error: {
+      title: "Google Maps failed to load",
+      body: "Check your internet connection and try again.",
+    },
+  }[status];
+
   return (
     <div className="relative w-full h-full">
-      <div ref={mapDivRef} className="w-full h-full z-0" />
+      <div ref={mapDivRef} className="w-full h-full z-0 bg-[#0B0F1A]" />
 
-      {/* Tile switcher */}
+      {/* Key / load problems */}
+      {notice && (
+        <div className="absolute inset-0 z-[1100] flex items-center justify-center bg-[#0B0F1A]/90 p-6 text-center">
+          <div className="max-w-sm">
+            <p className="text-white text-[14px] font-semibold">{notice.title}</p>
+            <p className="text-white/60 text-[12px] mt-1.5 leading-relaxed">{notice.body}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Map type switcher */}
       <div className="absolute top-[4.5rem] right-3 sm:top-16 sm:right-4 z-[1000] bg-white/95 backdrop-blur rounded-xl shadow-md p-1 flex gap-0.5">
-        {[
-          { key: "satellite", label: "Satellite" },
-          { key: "street",    label: "Street"    },
-          { key: "light",     label: "Light"     },
-        ].map((v) => (
+        {MAP_TYPES.map((v) => (
           <button
             key={v.key}
-            onClick={() => switchTile(v.key)}
+            onClick={() => setMapType(v.key)}
             className={`text-[11px] sm:text-[12px] font-semibold px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg transition-colors ${
-              currentTile === v.key
+              mapType === v.key
                 ? "bg-ink text-white"
                 : "text-muted hover:text-ink hover:bg-ink/[0.05]"
             }`}
@@ -318,24 +340,22 @@ export default function SatelliteMap({
       </div>
 
       <style>{`
-        .clean-popup .leaflet-popup-content-wrapper {
-          border-radius: 14px; padding: 0;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.18);
-        }
-        .clean-popup .leaflet-popup-content { margin: 14px 16px; }
-        .clean-popup .leaflet-popup-tip-container { margin-top: -1px; }
+        /* Info window (business popup) */
+        .gm-style .gm-style-iw-c { border-radius: 14px !important; padding: 12px 14px !important; box-shadow: 0 8px 24px rgba(0,0,0,0.18) !important; }
+        .gm-style .gm-style-iw-d { overflow: auto !important; }
 
         .geo-label {
-          background: rgba(255,255,255,0.75) !important;
+          background: rgba(255,255,255,0.75);
           backdrop-filter: blur(2px);
-          border: 1px solid rgba(0,0,0,0.15) !important;
-          border-radius: 6px !important;
-          padding: 2px 6px !important;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.2) !important;
+          border: 1px solid rgba(0,0,0,0.15);
+          border-radius: 6px;
+          padding: 2px 6px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
           font-family: system-ui, sans-serif;
           font-weight: 700;
           pointer-events: none;
           white-space: nowrap;
+          transform: translateY(50%); /* AdvancedMarker anchors bottom-centre; centre it on the polygon */
         }
         .district-label { font-size: 13px;   color: #003366; }
         .taluka-label   { font-size: 11px;   color: #C2410C; }
@@ -343,11 +363,10 @@ export default function SatelliteMap({
 
         /* Smaller labels / popups on phones so the map isn't buried in text */
         @media (max-width: 640px) {
-          .geo-label { padding: 1px 4px !important; border-radius: 4px !important; }
+          .geo-label { padding: 1px 4px; border-radius: 4px; }
           .district-label { font-size: 11px; }
           .taluka-label   { font-size: 9.5px; }
           .ward-label     { font-size: 9px; }
-          .clean-popup .leaflet-popup-content { margin: 10px 12px; }
         }
       `}</style>
     </div>

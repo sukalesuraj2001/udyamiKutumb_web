@@ -1,15 +1,17 @@
 import React, { useRef } from "react";
 import {
-  UDYAMI_LOGO_URL,
+  UDYAMI_BHARAT_LOCKUP_URL,
   KUTUMBA_LOGO_URL,
   HERO_IMAGE_URL,
-  MAHADEVAPURA_WARDS,
 } from "../chartAssets.js";
+
+// Colours measured from the printed reference cover.
+const COVER_RED = "#A3192B";
+const COVER_NAVY = "#0F1C5B";
 
 export default function CoverPage({
   code = "",
   regionName = "",
-  wardList = MAHADEVAPURA_WARDS,
   extraCount = 14,
   heroImageUrl = HERO_IMAGE_URL,
   heroCaption = "",
@@ -18,7 +20,7 @@ export default function CoverPage({
   showHeroUpload = false,
   // Print Preview only: taluka heading (e.g. "G33 NELAMANGALA") and the list of
   // its wards - [{ code: "G33. 2", name: "Nelamangala", count: 108 }] - shown
-  // above the hero image. When null the cover looks exactly as before.
+  // above the hero image together with the TOTAL line.
   summaryTitle = "",
   summaryWards = null,
 }) {
@@ -34,33 +36,22 @@ export default function CoverPage({
     e.target.value = "";
   };
 
-  const columns = [];
-
   // Two columns, filled top-to-bottom (left column first), like the printed cover.
   const hasSummary = Array.isArray(summaryWards) && summaryWards.length > 0;
   const summaryRows = hasSummary ? Math.ceil(summaryWards.length / 2) : 0;
   const summaryColumns = hasSummary
     ? [summaryWards.slice(0, summaryRows), summaryWards.slice(summaryRows)]
     : [];
-  // The hero circle normally starts at 32% of the page; a long ward list pushes
-  // it down instead of overlapping it (first 5 rows fit in the default space).
-  const heroExtraPx = hasSummary ? Math.max(0, summaryRows - 6) * 21 : 0;
+  const wardsTotal = hasSummary
+    ? summaryWards.reduce((sum, w) => sum + (Number(w.count) || 0), 0)
+    : 0;
+  const grandTotal = (Number(extraCount) || 0) + wardsTotal;
+  // The hero circle starts at 47% of the page; a very long ward list pushes it
+  // down instead of overlapping it (first 10 rows fit in the default space).
+  const heroExtraPx = hasSummary ? Math.max(0, summaryRows - 10) * 22 : 0;
 
   return (
-    /*
-     * FIX: was `min-h-full` → now `h-full`.
-     *
-     * ChartPreviewFrame's content div always has an explicit pixel height
-     * (BASE_H or BASE_H / contentScale).  For a child to fill that space with
-     * `h-full`, the parent must propagate the height — `min-h-full` only
-     * works when the parent already has a *resolved* height, which `height:auto`
-     * doesn't provide.  Using `h-full` here (= 100% of ChartPreviewFrame's
-     * content div height) ensures `absolute` children (the hero circle, the
-     * decorative bands, the tagline strip) can position themselves against the
-     * full A4 canvas without being clipped.
-     */
     <div className="relative w-full h-full bg-white overflow-hidden">
-
       {/* Hidden file input */}
       {showHeroUpload && (
         <input
@@ -72,55 +63,87 @@ export default function CoverPage({
         />
       )}
 
-      {/* ── Header row ── */}
-      <div className="flex items-start justify-between px-[5.3%] pt-[3.5%]">
-        <div className="flex items-start gap-[2.5%]">
-          <img
-            src={UDYAMI_LOGO_URL}
-            alt="Udyami Bharat"
-            className="w-[9.5%] min-w-[52px] h-auto object-contain shrink-0"
-          />
-          <div>
-            <p className="text-[6.5px] font-semibold text-steel bg-steel/15 inline-block px-1.5 py-[2px] rounded-sm leading-none">
-              One Home. One Enterprise. One Strong Nation
-            </p>
-            <p className="text-[23.6px] font-extrabold text-ink leading-[1.05] mt-1 tracking-tight">
-              UDYAMI BHARAT
-            </p>
-            <p className="text-[20px] font-semibold text-brick leading-[1.1] mt-0.5">
-              ಉದ್ಯಮಿ ಭಾರತ
-            </p>
-          </div>
-        </div>
-        <img
-          src={KUTUMBA_LOGO_URL}
-          alt="Kutumba"
-          className="w-[11%] min-w-[62px] h-auto object-contain shrink-0"
+      {/* ── Red swooshes + navy base (behind everything else) ── */}
+      <svg
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        viewBox="0 0 100 144"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        {/* upper swoosh */}
+        <path
+          d="M0,51 C26,53 62,66 100,89 L100,97 C62,76 26,63 0,62 Z"
+          fill={COVER_RED}
         />
+        {/* lower swoosh */}
+        <path
+          d="M0,65 C26,66 62,80 100,100 L100,106 C62,89 26,77 0,75 Z"
+          fill={COVER_RED}
+        />
+        {/* navy base */}
+        <path
+          d="M0,78 C26,79 62,93 100,108 L100,144 L0,144 Z"
+          fill={COVER_NAVY}
+        />
+      </svg>
+
+      {/* ── Header row: Udyami Bharat lockup (left) + Kutumba (right) ── */}
+      <div className="relative z-10 flex items-start justify-between px-[5%] pt-[3%]">
+        <div
+          className="relative shrink-0 overflow-hidden w-[46%]"
+          style={{ aspectRatio: "2.937 / 1" }}
+        >
+          <img
+            src={UDYAMI_BHARAT_LOCKUP_URL}
+            alt="Udyami Bharat"
+            className="absolute max-w-none"
+            style={{ width: "143.4%", left: "-21.5%", top: "-27.4%" }}
+          />
+        </div>
+        <div
+          className="relative shrink-0 overflow-hidden w-[16%]"
+          style={{ aspectRatio: "0.781 / 1" }}
+        >
+          <img
+            src={KUTUMBA_LOGO_URL}
+            alt="Kutumba"
+            className="absolute max-w-none"
+            style={{ width: "145.5%", left: "-25%", top: "-6.5%" }}
+          />
+        </div>
       </div>
 
       {/* ── Title ── */}
-      <div className="px-[6.9%] mt-[4%]">
+      <div className="relative z-10 pl-[14.5%] pr-[11%] mt-[1.5%]">
         <h1
-          className={`text-[30px] font-extrabold text-brick tracking-tight leading-none truncate max-w-full ${
-            hasSummary ? "inline-block border-b-2 border-brick pb-[3px]" : ""
+          className={`text-[30px] font-extrabold tracking-tight leading-none truncate max-w-full ${
+            hasSummary ? "inline-block pb-[3px]" : ""
           }`}
+          style={{
+            color: COVER_RED,
+            ...(hasSummary ? { borderBottom: `2px solid ${COVER_RED}` } : null),
+          }}
         >
           {hasSummary && summaryTitle ? summaryTitle : `${code} ${regionName?.toUpperCase()}`}
         </h1>
       </div>
 
-      {/* Taluka ward list (Print Preview only) */}
+      {/* ── Taluka ward list (Print Preview only) ── */}
       {hasSummary && (
-        <div className="px-[6.9%] mt-[2.2%] grid grid-cols-2 gap-x-[6%]">
+        <div className="relative z-10 pl-[14.5%] pr-[12%] mt-[2%] grid grid-cols-2 gap-x-[6%]">
           {summaryColumns.map((col, ci) => (
             <div key={ci} className="space-y-[1px]">
               {col.map((w, wi) => (
                 <div key={`${w.code}-${wi}`} className="flex items-baseline justify-between gap-2">
-                  <p className="text-[15px] text-ink leading-[1.4] truncate">
+                  <p className="text-[15px] text-ink leading-[1.45] truncate">
                     {w.code} {w.name}
                   </p>
-                  <span className="text-[15px] text-brick shrink-0 tabular-nums">{w.count}</span>
+                  <span
+                    className="text-[15px] shrink-0 tabular-nums"
+                    style={{ color: COVER_RED }}
+                  >
+                    {w.count}
+                  </span>
                 </div>
               ))}
             </div>
@@ -128,38 +151,23 @@ export default function CoverPage({
         </div>
       )}
 
-      {/* ── Ward list ── */}
-      <div className="px-[5.3%] mt-[3%] grid grid-cols-3 gap-x-[8%]">
-        {columns.map((col, ci) => (
-          <div key={ci} className="space-y-[3px]">
-            {col.map((w) => (
-              <div key={w.code} className="flex items-baseline justify-between gap-1">
-                <p className="text-[10.9px] text-ink leading-[1.25]">
-                  FC UB {w.code} {w.name}
-                </p>
-                <span className="text-[10.9px] font-bold text-brick shrink-0 tabular-nums">
-                  {w.count}
-                </span>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
+      {/* ── TOTAL line (Print Preview only) ── */}
+      {hasSummary && (
+        <p
+          className="relative z-10 mt-[3.5%] text-center text-[28px] font-extrabold tracking-tight leading-none"
+          style={{ color: COVER_RED }}
+        >
+          TOTAL {extraCount}+{wardsTotal}={grandTotal}
+        </p>
+      )}
 
       {/* ── Hero circle ── */}
-      {/*
-       * FIX: no positioning change needed here — the circle was always correct.
-       * The real problem was the parent didn't have a resolved height, so
-       * `top-[32%]` computed to 32% of 0 = 0px and the element stacked at
-       * the top and then got clipped.  With `h-full` on the parent the
-       * percentage resolves correctly against the full A4 height.
-       */}
       <div
         onClick={handleCircleClick}
         style={heroExtraPx ? { marginTop: `${heroExtraPx}px` } : undefined}
-        className={`absolute left-1/2 -translate-x-1/2 top-[32%] w-[42%] aspect-square
-          rounded-full border-[6px] border-white
-          shadow-[0_8px_32px_rgba(0,0,0,0.12)] overflow-hidden bg-paper
+        className={`absolute left-1/2 -translate-x-1/2 top-[47%] w-[56%] aspect-square z-10
+          rounded-full border-[8px] border-white
+          shadow-[0_0_0_3px_rgba(15,28,91,0.08),0_8px_32px_rgba(0,0,0,0.18)] overflow-hidden bg-paper
           ${showHeroUpload ? "cursor-pointer group" : "cursor-default"}`}
       >
         <img
@@ -188,27 +196,14 @@ export default function CoverPage({
         )}
 
         {heroCaption && (
-          <span className="absolute bottom-[8%] left-0 right-0 text-center text-white text-[15px] font-semibold drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
+          <span className="absolute bottom-[8%] left-0 right-0 text-center text-white text-[17px] font-bold drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]">
             {heroCaption}
           </span>
         )}
       </div>
 
-      {/* ── Decorative red curves ── */}
-      <div className="absolute bottom-[9%] left-0 w-[0%] h-[38%] pointer-events-none overflow-hidden">
-        <div className="absolute -bottom-[20%] -left-[25%] w-[130%] h-[55%] bg-brick rounded-[100%] rotate-[-8deg]" />
-        <div className="absolute bottom-[8%] -left-[18%] w-[115%] h-[48%] bg-brick rounded-[100%] rotate-[-5deg] opacity-95" />
-        <div className="absolute bottom-[18%] -left-[8%] w-[100%] h-[40%] bg-brick rounded-[100%] rotate-[-2deg] opacity-90" />
-      </div>
-
-      {/* ── Navy diagonal band ── */}
-      <div
-        className="absolute bottom-0 left-0 right-0 h-[9.5%] bg-ink"
-        style={{ clipPath: "polygon(0 35%, 100% 0%, 100% 100%, 0% 100%)" }}
-      />
-
       {/* ── Bottom tagline ── */}
-      <div className="absolute bottom-[2.2%] left-0 right-0 text-center z-10">
+      <div className="absolute bottom-[2.6%] left-0 right-0 text-center z-10">
         <p className="text-[20px] font-medium text-white leading-tight">{taglineKn}</p>
       </div>
     </div>

@@ -245,7 +245,7 @@ export function resolveRoleKey(props) {
 // ─────────────────────────────────────────────────────────────────
 // PIN SVG BUILDER — exact Image 2 style
 // ─────────────────────────────────────────────────────────────────
-export function makeRolePinIcon(roleKey, isSelected = false) {
+export function buildRolePinSvg(roleKey, isSelected = false) {
   const cfg     = ROLE_CONFIG[roleKey] ?? ROLE_CONFIG["member"];
   const iconSvg = ICONS[roleKey] ?? ICONS["member"];
   const isCircle = cfg.shape === "circle";
@@ -346,11 +346,18 @@ export function makeRolePinIcon(roleKey, isSelected = false) {
     ` : ""}
   </svg>`;
 
+  // Renderer-agnostic result (used by the Google Maps member map)
+  return { html: svg, width: pinWidth, height: pinHeight };
+}
+
+// Leaflet flavour (other pages still use Leaflet)
+export function makeRolePinIcon(roleKey, isSelected = false) {
+  const { html, width, height } = buildRolePinSvg(roleKey, isSelected);
   return L.divIcon({
     className:   "",
-    html:        svg,
-    iconSize:    [pinWidth,  pinHeight],
-    iconAnchor:  [pinWidth / 2, pinHeight],
-    popupAnchor: [0, -(pinHeight + 4)],
+    html,
+    iconSize:    [width,  height],
+    iconAnchor:  [width / 2, height],
+    popupAnchor: [0, -(height + 4)],
   });
 }
