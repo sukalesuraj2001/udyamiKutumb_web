@@ -7,6 +7,8 @@ import {
   onGoogleMapsAuthFailure,
   extendBoundsWithGeo,
   featureCenter,
+  sanitizeGeo,
+  safeAddGeoJson,
 } from "../../utils/googleMaps";
 
 // Google Maps JavaScript API map types
@@ -150,10 +152,11 @@ export default function SatelliteMap({
     });
     layerRefs.current = { district: null, taluka: null, ward: null };
 
-    const addLayer = (key, geo, nameOf, labelClass) => {
+    const addLayer = (key, rawGeo, nameOf, labelClass) => {
       const s    = LAYER_STYLES[key];
+      const geo  = sanitizeGeo(rawGeo);
       const data = new gm.Data({ map });
-      data.addGeoJson(geo);
+      safeAddGeoJson(data, geo);
       data.setStyle({
         strokeColor: s.color, strokeWeight: s.weight, strokeOpacity: 1,
         fillColor: s.fillColor, fillOpacity: s.fillOpacity, clickable: false,
@@ -166,7 +169,12 @@ export default function SatelliteMap({
           const el = document.createElement("div");
           el.className = `geo-label ${labelClass}`;
           el.textContent = name;
-          return new gm.marker.AdvancedMarkerElement({ map, position: center, content: el, zIndex: 1 });
+          try {
+            return new gm.marker.AdvancedMarkerElement({ map, position: center, content: el, zIndex: 1 });
+          } catch (err) {
+            console.error("Could not add map label:", err);
+            return null;
+          }
         })
         .filter(Boolean);
       layerRefs.current[key] = { data, labels };
@@ -211,8 +219,10 @@ export default function SatelliteMap({
 
     const timers = [];
     businesses.forEach((b) => {
-      const [lng, lat] = b.geometry.coordinates;
-      const props      = b.properties;
+      const coords = b?.geometry?.coordinates;
+      if (!Array.isArray(coords) || !Number.isFinite(Number(coords[0])) || !Number.isFinite(Number(coords[1]))) return;
+      const [lng, lat] = [Number(coords[0]), Number(coords[1])];
+      const props      = b.properties || {};
       const isSelected = selectedBusiness?.profileId === props.profileId;
       const { html }   = buildRolePinSvg(resolveRoleKey(props), isSelected);
 

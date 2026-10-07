@@ -4,6 +4,7 @@ import {
   hasGoogleMapsKey,
   GOOGLE_MAPS_MAP_ID,
   onGoogleMapsAuthFailure,
+  safeAddGeoJson,
 } from "../../utils/googleMaps";
 
 /**
@@ -88,7 +89,7 @@ export default function GlobeIntro({ flyToLocation, wardPolygon, onArrived }) {
     if (!wardPolygon) return;
 
     const data = new gm.Data({ map });
-    data.addGeoJson({ type: "FeatureCollection", features: [wardPolygon] });
+    safeAddGeoJson(data, { type: "FeatureCollection", features: [wardPolygon] });
     data.setStyle({
       fillColor: "#FBBF24", fillOpacity: 0.45,
       strokeColor: "#FBBF24", strokeWeight: 2, clickable: false,

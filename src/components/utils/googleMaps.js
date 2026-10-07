@@ -54,6 +54,44 @@ export function walkCoords(coords, cb) {
   coords.forEach((c) => walkCoords(c, cb));
 }
 
+const DRAWABLE_TYPES = new Set([
+  "Point", "MultiPoint", "LineString", "MultiLineString", "Polygon", "MultiPolygon",
+]);
+
+/**
+ * Returns a copy of a FeatureCollection that google.maps.Data can always load:
+ * features with a missing / unsupported geometry or non-numeric coordinates are
+ * dropped (Data.addGeoJson throws on them, and an uncaught throw inside an
+ * effect blanks the whole page).
+ */
+export function sanitizeGeo(geo) {
+  const features = (geo?.features || []).filter((f) => {
+    const g = f?.geometry;
+    if (!g || !DRAWABLE_TYPES.has(g.type) || !Array.isArray(g.coordinates)) return false;
+    let count = 0;
+    let bad = false;
+    walkCoords(g.coordinates, (pt) => {
+      count += 1;
+      if (!Number.isFinite(pt[0]) || !Number.isFinite(pt[1])) bad = true;
+    });
+    return count > 0 && !bad;
+  }).map((f) => ({ ...f, properties: f.properties || {} }));
+  return { type: "FeatureCollection", features };
+}
+
+/** addGeoJson that never throws; returns true when something was added. */
+export function safeAddGeoJson(data, geo) {
+  const clean = sanitizeGeo(geo);
+  if (!clean.features.length) return false;
+  try {
+    data.addGeoJson(clean);
+    return true;
+  } catch (err) {
+    console.error("Could not draw GeoJSON layer:", err);
+    return false;
+  }
+}
+
 export function extendBoundsWithGeo(bounds, geo) {
   (geo?.features || []).forEach((f) =>
     walkCoords(f.geometry?.coordinates, ([lng, lat]) => bounds.extend({ lat, lng }))

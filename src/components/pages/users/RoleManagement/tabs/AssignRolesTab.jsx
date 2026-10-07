@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   UserCheck, Search, Check, X, ChevronDown,
   AlertCircle, Loader2, MapPin, ChevronLeft, ChevronRight,
-  ChevronsLeft, ChevronsRight, Filter, Shield, Repeat
+  ChevronsLeft, ChevronsRight, Filter, Shield, Repeat, Trash2
 } from "lucide-react";
 import { fetchRoles, assignRole, changeRole, clearAssignSuccess, clearChangeError, clearChangeSuccess } from "../../../../redux/slices/rolesSlice";
 import { fetchDashboard } from "../../../../redux/slices/dashboardSlice";
@@ -584,6 +584,156 @@ export default function AssignRolesTab() {
     });
   };
 
+  // ── Delete user — DELETE /auth/deleteUser/:id (SuperAdmin only) ──────────────
+  // Permanent, cascading delete handled by the backend in one transaction.
+  // The backend also refuses to delete your own account or the last super
+  // admin; those messages are surfaced in the modal.
+  // Only a real super admin (not the broader `roleLower === "admin"` match used
+  // by isSuperAdmin) gets the Delete button — the backend enforces the same.
+  const canDeleteUsers = roleLower.includes("superadmin") || roleLower.includes("super_admin");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteSuccess, setDeleteSuccess] = useState("");
+
+  const openDeleteModal = (u) => {
+    setDeleteTarget(u);
+    setDeleteConfirmText("");
+    setDeleteError("");
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setDeleteTarget(null);
+    setDeleteConfirmText("");
+    setDeleteError("");
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteTarget || deleteConfirmText.trim().toUpperCase() !== "DELETE") return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await api.delete(`/auth/deleteUser/${deleteTarget.userId}`, authHeader);
+      setDeleteSuccess(`${deleteTarget.name || "User"} was deleted.`);
+      setDeleteTarget(null);
+      setDeleteConfirmText("");
+      if (selectedUser?.userId === deleteTarget.userId) cancelEdit();
+      dispatch(fetchDashboard());
+    } catch (err) {
+      const msg = err?.response?.data?.message;
+      setDeleteError(Array.isArray(msg) ? msg.join(", ") : msg || err?.message || "Failed to delete user.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!deleteSuccess) return;
+    const t = setTimeout(() => setDeleteSuccess(""), 4000);
+    return () => clearTimeout(t);
+  }, [deleteSuccess]);
+
+  // ── Bulk delete (SuperAdmin only) ────────────────────────────────────────────
+  // "Bulk Delete" in the filter bar switches the table into select mode
+  // (checkbox column). The selection survives pagination; the confirm modal
+  // then deletes the selected users one by one through the same
+  // DELETE /auth/deleteUser/:id endpoint, so every backend safeguard (not
+  // yourself, never the last super admin) applies to each user, and any
+  // failures are reported per user instead of aborting the whole batch.
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkSelected, setBulkSelected] = useState(() => new Set());
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [bulkConfirmText, setBulkConfirmText] = useState("");
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 });
+  const [bulkFailures, setBulkFailures] = useState([]);
+
+  const exitBulkMode = () => {
+    setBulkMode(false);
+    setBulkSelected(new Set());
+    setBulkModalOpen(false);
+    setBulkConfirmText("");
+    setBulkFailures([]);
+  };
+
+  const toggleBulkMode = () => {
+    if (bulkMode) {
+      exitBulkMode();
+    } else {
+      cancelEdit();
+      setBulkMode(true);
+    }
+  };
+
+  const toggleBulkOne = (id) => {
+    setBulkSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const openBulkModal = () => {
+    setBulkConfirmText("");
+    setBulkFailures([]);
+    setBulkProgress({ done: 0, total: 0 });
+    setBulkModalOpen(true);
+  };
+
+  const closeBulkModal = () => {
+    if (bulkDeleting) return;
+    setBulkModalOpen(false);
+    setBulkConfirmText("");
+    setBulkFailures([]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (bulkConfirmText.trim().toUpperCase() !== "DELETE" || bulkSelected.size === 0) return;
+
+    const targets = allUsers.filter((u) => bulkSelected.has(u.userId) && u.userId !== authUser?.userId);
+    if (targets.length === 0) return;
+
+    setBulkDeleting(true);
+    setBulkFailures([]);
+    setBulkProgress({ done: 0, total: targets.length });
+
+    const failures = [];
+    const succeeded = new Set();
+    for (let i = 0; i < targets.length; i += 1) {
+      const u = targets[i];
+      try {
+        await api.delete(`/auth/deleteUser/${u.userId}`, authHeader);
+        succeeded.add(u.userId);
+      } catch (err) {
+        const msg = err?.response?.data?.message;
+        failures.push({
+          userId: u.userId,
+          name: u.name || u.email || u.mobileNumber || u.userId,
+          message: Array.isArray(msg) ? msg.join(", ") : msg || err?.message || "Failed to delete",
+        });
+      }
+      setBulkProgress({ done: i + 1, total: targets.length });
+    }
+
+    setBulkDeleting(false);
+    dispatch(fetchDashboard());
+
+    if (failures.length === 0) {
+      setDeleteSuccess(`${succeeded.size} user${succeeded.size === 1 ? "" : "s"} deleted.`);
+      exitBulkMode();
+    } else {
+      // Keep only the failed ones selected so they can be reviewed / retried.
+      setBulkSelected(new Set(failures.map((f) => f.userId)));
+      setBulkFailures(failures);
+      if (succeeded.size > 0) {
+        setDeleteSuccess(`${succeeded.size} user${succeeded.size === 1 ? "" : "s"} deleted, ${failures.length} failed.`);
+      }
+    }
+  };
+
   // ── Multi-level User Filtering ───────────────────────────────────────────────
   const selectedDistrictObj = districts.find((d) => d.districtId === filterDistrict);
   const selectedTalukaObj = filterTalukas.find((t) => t.talukaId === filterTaluka);
@@ -697,6 +847,25 @@ export default function AssignRolesTab() {
   const endIndex = Math.min(startIndex + pageSize, filteredUsers.length);
   const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
 
+  // Bulk-select helpers — you can never select your own account.
+  const selectableFiltered = filteredUsers.filter((u) => u.userId !== authUser?.userId);
+  const pageSelectable = paginatedUsers.filter((u) => u.userId !== authUser?.userId);
+  const allPageSelected = pageSelectable.length > 0 && pageSelectable.every((u) => bulkSelected.has(u.userId));
+  const somePageSelected = pageSelectable.some((u) => bulkSelected.has(u.userId));
+  const allFilteredSelected = selectableFiltered.length > 0 && selectableFiltered.every((u) => bulkSelected.has(u.userId));
+
+  const toggleBulkPage = () => {
+    setBulkSelected((prev) => {
+      const next = new Set(prev);
+      if (allPageSelected) pageSelectable.forEach((u) => next.delete(u.userId));
+      else pageSelectable.forEach((u) => next.add(u.userId));
+      return next;
+    });
+  };
+
+  const selectAllFiltered = () => setBulkSelected(new Set(selectableFiltered.map((u) => u.userId)));
+  const bulkTargets = allUsers.filter((u) => bulkSelected.has(u.userId));
+
   const getRoleBadge = (userRoles = []) => userRoles[0]?.role?.role || null;
 
   const hasActiveFilters = search ||
@@ -742,6 +911,12 @@ export default function AssignRolesTab() {
           )}
         </div>
       </div>
+
+      {deleteSuccess && (
+        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[12px] font-medium rounded-lg px-3 py-2">
+          <Check size={13} /> {deleteSuccess}
+        </div>
+      )}
 
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center justify-between gap-2.5 p-3 rounded-xl bg-white border border-gray-200 shadow-sm">
@@ -826,6 +1001,37 @@ export default function AssignRolesTab() {
           )}
         </div>
 
+        {/* Bulk delete (SuperAdmin only) */}
+        {canDeleteUsers && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            {bulkMode ? (
+              <>
+                <button
+                  onClick={openBulkModal}
+                  disabled={bulkSelected.size === 0}
+                  className="h-8 px-3 text-[11.5px] font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                >
+                  <Trash2 size={12} /> Delete{bulkSelected.size > 0 ? ` (${bulkSelected.size})` : ""}
+                </button>
+                <button
+                  onClick={toggleBulkMode}
+                  className="h-8 px-2.5 text-[11.5px] font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg border border-gray-200 transition-all flex items-center gap-1"
+                >
+                  <X size={11} /> Cancel
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={toggleBulkMode}
+                title="Select multiple users and delete them together"
+                className="h-8 px-3 text-[11.5px] font-semibold text-red-600 bg-white border border-red-200 hover:bg-red-50 hover:border-red-300 rounded-lg transition-all flex items-center gap-1.5"
+              >
+                <Trash2 size={12} /> Bulk Delete
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Limit Per Page dropdown in filter bar */}
         <div className="flex items-center gap-1.5 text-[12px] text-gray-500 shrink-0">
           <Filter size={12} className="text-gray-400" />
@@ -861,12 +1067,44 @@ export default function AssignRolesTab() {
         </div>
       )}
 
+      {bulkMode && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-red-50 border border-red-200 text-red-700 text-[12px] font-medium rounded-lg px-4 py-2.5">
+          <span>
+            <span className="font-bold">{bulkSelected.size}</span> user{bulkSelected.size === 1 ? "" : "s"} selected
+          </span>
+          {!allFilteredSelected && selectableFiltered.length > pageSelectable.length && (
+            <button onClick={selectAllFiltered} className="underline underline-offset-2 hover:text-red-800">
+              Select all {selectableFiltered.length} {filteredUsers.length !== allUsers.length ? "filtered " : ""}users
+            </button>
+          )}
+          {bulkSelected.size > 0 && (
+            <button onClick={() => setBulkSelected(new Set())} className="underline underline-offset-2 hover:text-red-800">
+              Clear selection
+            </button>
+          )}
+          <span className="text-red-500/80 font-normal">Your own account can&apos;t be selected.</span>
+        </div>
+      )}
+
       {/* Main Table Container */}
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-[12.5px]">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/80">
+                {bulkMode && (
+                  <th className="w-10 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all users on this page"
+                      checked={allPageSelected}
+                      ref={(el) => { if (el) el.indeterminate = !allPageSelected && somePageSelected; }}
+                      onChange={toggleBulkPage}
+                      disabled={pageSelectable.length === 0}
+                      className="h-4 w-4 rounded border-gray-300 accent-red-600 cursor-pointer"
+                    />
+                  </th>
+                )}
                 {["User", "Phone", "Current Role", "District / Taluka / Ward", "Status", "Action"].map((h) => (
                   <th key={h} className="text-left px-4 py-3 text-[10.5px] font-semibold tracking-wider uppercase text-gray-400 whitespace-nowrap">
                     {h}
@@ -877,7 +1115,7 @@ export default function AssignRolesTab() {
             <tbody className="divide-y divide-gray-100">
               {paginatedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-gray-400">
+                  <td colSpan={bulkMode ? 7 : 6} className="px-4 py-12 text-center text-gray-400">
                     <div className="flex flex-col items-center justify-center gap-1.5">
                       <UserCheck size={28} className="text-gray-300 stroke-[1.5]" />
                       <p className="text-[13px] font-medium text-gray-600">No users found</p>
@@ -897,7 +1135,23 @@ export default function AssignRolesTab() {
                   const wardName = loc.ward?.wardName || primaryPos?.ward?.wardName || u.wardName || u.ward || "";
 
                   return (
-                    <tr key={u.userId} className={`transition-colors ${isEditing ? "bg-blue-50/40" : "hover:bg-gray-50/60"}`}>
+                    <tr
+                      key={u.userId}
+                      className={`transition-colors ${isEditing ? "bg-blue-50/40" : bulkMode && bulkSelected.has(u.userId) ? "bg-red-50/60" : "hover:bg-gray-50/60"}`}
+                    >
+                      {bulkMode && (
+                        <td className="w-10 px-4 py-3">
+                          <input
+                            type="checkbox"
+                            aria-label={`Select ${u.name || "user"}`}
+                            checked={bulkSelected.has(u.userId)}
+                            onChange={() => toggleBulkOne(u.userId)}
+                            disabled={u.userId === authUser?.userId}
+                            title={u.userId === authUser?.userId ? "You can't delete your own account" : undefined}
+                            className="h-4 w-4 rounded border-gray-300 accent-red-600 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                          />
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         <div className="font-semibold text-gray-900">{u.name}</div>
                         {u.email && <div className="text-[11px] text-gray-400 truncate max-w-[180px]">{u.email}</div>}
@@ -1043,12 +1297,24 @@ export default function AssignRolesTab() {
                             </button>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => openEdit(u)}
-                            className="inline-flex items-center gap-1 h-7 px-3 text-[11.5px] font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-all whitespace-nowrap"
-                          >
-                            <UserCheck size={12} /> Change Role
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => openEdit(u)}
+                              disabled={bulkMode}
+                              className="inline-flex items-center gap-1 h-7 px-3 text-[11.5px] font-semibold text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-all whitespace-nowrap disabled:opacity-40 disabled:pointer-events-none"
+                            >
+                              <UserCheck size={12} /> Change Role
+                            </button>
+                            {canDeleteUsers && !bulkMode && u.userId !== authUser?.userId && (
+                              <button
+                                onClick={() => openDeleteModal(u)}
+                                title={`Delete ${u.name || "user"}`}
+                                className="inline-flex items-center gap-1 h-7 px-2.5 text-[11.5px] font-semibold text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all whitespace-nowrap"
+                              >
+                                <Trash2 size={12} /> Delete
+                              </button>
+                            )}
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -1130,6 +1396,193 @@ export default function AssignRolesTab() {
           </div>
         )}
       </div>
+
+      {/* ── Delete user modal ── DELETE /auth/deleteUser/:id ──────────────────── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+            <div className="flex items-start justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-start gap-3">
+                <div className="h-9 w-9 rounded-full bg-red-50 border border-red-200 flex items-center justify-center shrink-0">
+                  <Trash2 size={16} className="text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-[14px] font-bold text-gray-900">Delete user</h3>
+                  <p className="text-[11.5px] text-gray-400 mt-0.5">This action cannot be undone</p>
+                </div>
+              </div>
+              <button
+                onClick={closeDeleteModal}
+                disabled={deleting}
+                className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-40"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-3.5">
+              <div className="rounded-lg border border-gray-200 bg-gray-50/70 px-3 py-2.5">
+                <p className="text-[13px] font-semibold text-gray-900">{deleteTarget.name || "—"}</p>
+                <p className="text-[11.5px] text-gray-500 mt-0.5">
+                  {[getRoleBadge(deleteTarget.userRoles), deleteTarget.mobileNumber, deleteTarget.email].filter(Boolean).join(" · ") || "—"}
+                </p>
+              </div>
+
+              <p className="text-[12px] text-gray-600 leading-relaxed">
+                This permanently deletes the user and everything linked to them (role and position
+                records, profile, posts, memberships, activity and other related data).
+              </p>
+
+              <div>
+                <label className="text-[11.5px] font-semibold text-gray-600">
+                  Type <span className="font-mono text-red-600">DELETE</span> to confirm
+                </label>
+                <input
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  autoFocus
+                  className="mt-1 w-full h-9 px-3 text-[12.5px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400"
+                />
+              </div>
+
+              {deleteError && (
+                <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 text-[11.5px] font-medium rounded-lg px-3 py-2">
+                  <AlertCircle size={13} className="mt-0.5 shrink-0" /> <span>{deleteError}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-gray-100 bg-gray-50/60">
+              <button
+                onClick={closeDeleteModal}
+                disabled={deleting}
+                className="h-8 px-3 text-[12px] font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteUser}
+                disabled={deleting || deleteConfirmText.trim().toUpperCase() !== "DELETE"}
+                className="h-8 px-4 text-[12px] font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-40 flex items-center gap-1.5"
+              >
+                {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                Delete user
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Bulk delete modal ── DELETE /auth/deleteUser/:id (per user) ───────── */}
+      {bulkModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+            <div className="flex items-start justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-start gap-3">
+                <div className="h-9 w-9 rounded-full bg-red-50 border border-red-200 flex items-center justify-center shrink-0">
+                  <Trash2 size={16} className="text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-[14px] font-bold text-gray-900">
+                    Delete {bulkTargets.length} user{bulkTargets.length === 1 ? "" : "s"}
+                  </h3>
+                  <p className="text-[11.5px] text-gray-400 mt-0.5">This action cannot be undone</p>
+                </div>
+              </div>
+              <button
+                onClick={closeBulkModal}
+                disabled={bulkDeleting}
+                className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-40"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-3.5">
+              <div className="rounded-lg border border-gray-200 bg-gray-50/70 px-3 py-2.5 max-h-40 overflow-y-auto">
+                <ul className="space-y-1">
+                  {bulkTargets.slice(0, 8).map((u) => (
+                    <li key={u.userId} className="text-[12px] text-gray-700 flex items-center justify-between gap-2">
+                      <span className="font-semibold text-gray-900 truncate">{u.name || u.email || u.mobileNumber || "—"}</span>
+                      <span className="text-[11px] text-gray-400 shrink-0">{getRoleBadge(u.userRoles) || ""}</span>
+                    </li>
+                  ))}
+                </ul>
+                {bulkTargets.length > 8 && (
+                  <p className="text-[11.5px] text-gray-500 mt-1.5">+ {bulkTargets.length - 8} more</p>
+                )}
+              </div>
+
+              <p className="text-[12px] text-gray-600 leading-relaxed">
+                This permanently deletes these users and everything linked to them (role and position
+                records, profile, posts, memberships, activity and other related data).
+              </p>
+
+              <div>
+                <label className="text-[11.5px] font-semibold text-gray-600">
+                  Type <span className="font-mono text-red-600">DELETE</span> to confirm
+                </label>
+                <input
+                  value={bulkConfirmText}
+                  onChange={(e) => setBulkConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  autoFocus
+                  disabled={bulkDeleting}
+                  className="mt-1 w-full h-9 px-3 text-[12.5px] border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 disabled:opacity-60"
+                />
+              </div>
+
+              {bulkDeleting && (
+                <div>
+                  <div className="flex items-center justify-between text-[11.5px] text-gray-600 mb-1">
+                    <span>Deleting…</span>
+                    <span className="font-semibold">{bulkProgress.done} / {bulkProgress.total}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                    <div
+                      className="h-full bg-red-500 transition-all"
+                      style={{ width: `${bulkProgress.total ? Math.round((bulkProgress.done / bulkProgress.total) * 100) : 0}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {!bulkDeleting && bulkFailures.length > 0 && (
+                <div className="bg-red-50 border border-red-200 text-red-600 text-[11.5px] font-medium rounded-lg px-3 py-2 space-y-1 max-h-32 overflow-y-auto">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle size={13} className="shrink-0" />
+                    <span>{bulkFailures.length} user{bulkFailures.length === 1 ? "" : "s"} could not be deleted:</span>
+                  </div>
+                  {bulkFailures.map((f) => (
+                    <p key={f.userId} className="pl-5">
+                      <span className="font-semibold">{f.name}</span> — {f.message}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-gray-100 bg-gray-50/60">
+              <button
+                onClick={closeBulkModal}
+                disabled={bulkDeleting}
+                className="h-8 px-3 text-[12px] font-medium text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-40"
+              >
+                {bulkFailures.length > 0 ? "Close" : "Cancel"}
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting || bulkTargets.length === 0 || bulkConfirmText.trim().toUpperCase() !== "DELETE"}
+                className="h-8 px-4 text-[12px] font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-40 flex items-center gap-1.5"
+              >
+                {bulkDeleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                {bulkFailures.length > 0 ? "Retry" : `Delete ${bulkTargets.length} user${bulkTargets.length === 1 ? "" : "s"}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Change Person modal ── PUT /roles/change-role ─────────────────────── */}
       {changeModalUser && (

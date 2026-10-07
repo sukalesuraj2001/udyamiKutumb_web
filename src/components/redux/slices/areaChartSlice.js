@@ -202,12 +202,19 @@ export const createWardChartData = createAsyncThunk(
       let finalPayload = payload;
 
       const processMembers = (membersArr = []) => {
-        return membersArr.map((m) => ({
-          ...m,
-          userId: m.userId || m.memberId || "",
-          isAssigned: m.isAssigned !== undefined ? m.isAssigned : true,
-          assignedBy: m.assignedBy || assignerUserId,
-        }));
+        return membersArr.map((m) => {
+          // The backend validates userId as a UUID when present, so a member
+          // without a user (e.g. the cover hero image) must omit it rather
+          // than send "".
+          const { userId: _omit, ...rest } = m;
+          const resolvedUserId = m.userId || m.memberId;
+          return {
+            ...rest,
+            ...(resolvedUserId ? { userId: resolvedUserId } : {}),
+            isAssigned: m.isAssigned !== undefined ? m.isAssigned : true,
+            assignedBy: m.assignedBy || assignerUserId,
+          };
+        });
       };
 
       if (payload instanceof FormData) {

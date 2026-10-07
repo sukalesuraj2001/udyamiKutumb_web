@@ -214,17 +214,23 @@ function findCurrentWardHeadIdFromRoster(ward, wardChairmenList) {
 // "just use whoever is logged in" fallback, are both removed: every
 // source below is re-derived from live data for THIS specific ward, and if
 // none resolve, this throws instead of guessing.
-const getEffectiveWardHeadId = (user, ward, wardChairmenList) => {
+const getEffectiveWardHeadId = (user, ward, wardChairmenList, serverWardHeadId) => {
   // 1. Freshest per-ward source: the taluka's current chairman roster.
   const fromRoster = findCurrentWardHeadIdFromRoster(ward, wardChairmenList);
   if (fromRoster) return fromRoster;
 
-  // 2. The ward record currently loaded for this page (live app state, not
+  // 2. The Ward Chairman the backend resolved for THIS ward when the chart was
+  // fetched (GET ward chart => data.wardHeadId, derived from the ward's current
+  // position holder). This is what makes super admin / taluka head saves work
+  // for a ward whose roster entry has no chairman member yet.
+  if (serverWardHeadId) return serverWardHeadId;
+
+  // 3. The ward record currently loaded for this page (live app state, not
   // a persisted cache).
   const wardChairmanId = ward?.wardChairmanUserId || ward?.wardHeadId || ward?.wardChairman?.userId;
   if (wardChairmanId) return wardChairmanId;
 
-  // 3. The logged-in user IS the Ward Chairman viewing their own chart.
+  // 4. The logged-in user IS the Ward Chairman viewing their own chart.
   if (user?.role === "WardChairman" && user?.userId) {
     return user.userId;
   }
@@ -236,7 +242,7 @@ const getEffectiveWardHeadId = (user, ward, wardChairmenList) => {
   );
 };
 
-function buildSingleMemberPayload(ward, user, slotId, assignmentData, wardChairmenList) {
+function buildSingleMemberPayload(ward, user, slotId, assignmentData, wardChairmenList, serverWardHeadId) {
   const coreRoleMap = {
     "core-president": "President",
     "core-vice-president": "Vice-President",
@@ -273,10 +279,31 @@ function buildSingleMemberPayload(ward, user, slotId, assignmentData, wardChairm
   if (umsKey) memberObj.umsKey = umsKey;
 
   return {
-    wardHeadId: getEffectiveWardHeadId(user, ward, wardChairmenList),
+    wardHeadId: getEffectiveWardHeadId(user, ward, wardChairmenList, serverWardHeadId),
     ward: ward.ward_name || ward.ward_number || "",
     members: [memberObj],
   };
+}
+
+// Replaces every large inline data:image URI with a placeholder token and
+// returns the distinct images separately (each one only once).
+const DATA_IMAGE_RE = /data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+/g;
+const DEDUPE_MIN_LENGTH = 1000;
+
+function dedupeDataImages(html) {
+  const indexByImage = new Map();
+  const images = [];
+  const out = html.replace(DATA_IMAGE_RE, (uri) => {
+    if (uri.length < DEDUPE_MIN_LENGTH) return uri;
+    let idx = indexByImage.get(uri);
+    if (idx === undefined) {
+      idx = images.length;
+      images.push(uri);
+      indexByImage.set(uri, idx);
+    }
+    return `__UDY_IMG_${idx}__`;
+  });
+  return { html: out, images };
 }
 
 function PageFooter({ num }) {
@@ -435,15 +462,41 @@ export default function WardChartDetail() {
       .catch((err) => console.error("Delete failed:", err));
   };
 
+  // Resolves the current Ward Chairman's userId for this ward. Tries what is
+  // already in memory first; if that has nothing yet (e.g. the ward chart is
+  // still loading, or the roster has no chairman entry) it asks the backend
+  // directly - the backend derives it from the ward's current position holder,
+  // which works for super admin / taluka head / district head alike. Only when
+  // the ward really has no active Ward Chairman does it give up, with a message
+  // that says so instead of a generic "refresh the page".
+  const resolveWardHeadId = async () => {
+    try {
+      return getEffectiveWardHeadId(user, ward, wardChairmenList, fetchedData?.data?.wardHeadId);
+    } catch {
+      try {
+        const res = await dispatch(
+          getWardChartData({ userId: targetUserId, wardId: ward.id })
+        ).unwrap();
+        const id = res?.data?.wardHeadId;
+        if (id) return id;
+      } catch {
+        // fall through to the message below
+      }
+      throw new Error(
+        "This ward has no active Ward Chairman, so its chart cannot be saved yet. Assign a Ward Chairman to this ward (Manage Roles) and try again."
+      );
+    }
+  };
+
   const handleHeroImageSelect = (file) => {
     setHeroCropFile(file);
     setShowHeroCrop(true);
   };
 
-  const handleHeroCropDone = (blob) => {
+  const handleHeroCropDone = async (blob) => {
     let wardHeadId;
     try {
-      wardHeadId = getEffectiveWardHeadId(user, ward, wardChairmenList);
+      wardHeadId = await resolveWardHeadId();
     } catch (err) {
       setErrorModalData({ message: err.message });
       return;
@@ -703,15 +756,23 @@ export default function WardChartDetail() {
 
       const { css, links } = collectPageStyles();
       const inlineCache = new Map();
-      const pagesHtml = (
+      const serializedHtml = (
         await Promise.all(Array.from(pages).map((page) => serializePageForPdf(page, inlineCache)))
       ).join("\n");
+
+      // Photos are inlined as base64 data: URIs, and the same photo (MLA,
+      // patrons, hero image, ...) repeats on many pages - which is how the
+      // payload blew past the server's size limit. Send every distinct image
+      // once and leave a short placeholder wherever it is used; the server
+      // puts the image back before printing.
+      const { html: pagesHtml, images: dedupedImages } = dedupeDataImages(serializedHtml);
 
       const response = await api.post(
         "/ward-chart/downloadPdf",
         {
           fileName,
           pagesHtml,
+          dedupedImages,
           css,
           stylesheetLinks: links,
           baseUrl: window.location.origin,
@@ -803,7 +864,7 @@ export default function WardChartDetail() {
   });
 
   // ── Assign handler ────────────────────────────────────────────
-  const handleAssign = (data) => {
+  const handleAssign = async (data) => {
     const slotId = modal.slotId;
     const photoFile = data.photoFile;
     const photoUrl = data.photoUrl;
@@ -820,7 +881,7 @@ export default function WardChartDetail() {
     const { photoFile: _f, photoUrl: _u, ...restData } = data;
     let payload;
     try {
-      payload = buildSingleMemberPayload(ward, user, slotId, { ...restData, photoUrl, slotLabel: modal.label }, wardChairmenList);
+      payload = buildSingleMemberPayload(ward, user, slotId, { ...restData, photoUrl, slotLabel: modal.label }, wardChairmenList, await resolveWardHeadId());
     } catch (err) {
       setErrorModalData({ message: err.message });
       return;
@@ -888,7 +949,7 @@ export default function WardChartDetail() {
     );
   }
 
-  const handleAssignMemberFromPanel = (selectedMember) => {
+  const handleAssignMemberFromPanel = async (selectedMember) => {
     if (!sidePanelSlot) return;
     const slotId = sidePanelSlot.slotId;
     const label = sidePanelSlot.label;
@@ -952,7 +1013,7 @@ export default function WardChartDetail() {
         slotLabel: label,
         memberId: memberIdToAssign,
         userId: memberIdToAssign,
-      }, wardChairmenList);
+      }, wardChairmenList, await resolveWardHeadId());
     } catch (err) {
       setErrorModalData({ message: err.message });
       setSidePanelSlot(null);
@@ -2131,7 +2192,7 @@ export default function WardChartDetail() {
           config={config}
           onClose={() => setShowCustomize(false)}
           isWardChairman={isWardChairman}
-          onSave={(next) => {
+          onSave={async (next) => {
             const merged = {
               ...DEFAULT_CONFIG,
               ...next,
@@ -2144,7 +2205,7 @@ export default function WardChartDetail() {
 
             let wardHeadId;
             try {
-              wardHeadId = getEffectiveWardHeadId(user, ward, wardChairmenList);
+              wardHeadId = await resolveWardHeadId();
             } catch (err) {
               setErrorModalData({ message: err.message });
               return;

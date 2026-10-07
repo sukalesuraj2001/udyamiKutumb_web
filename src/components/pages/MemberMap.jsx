@@ -12,7 +12,7 @@ import {
   selectWardLoading,
   selectWardError,
 } from "../redux/slices/wardMapSlice.js";
-import { fetchDistricts, selectDistricts } from "../redux/slices/wardSlice.js";
+import { fetchDistricts, fetchTalukasByDistrict, selectDistricts } from "../redux/slices/wardSlice.js";
 
 import {
   MapPin, Search, X, ArrowLeft,
@@ -22,6 +22,7 @@ import {
   Building2, Layers, Filter, SlidersHorizontal,
   RotateCcw, Check, ChevronDown, Eye, EyeOff
 } from "lucide-react";
+import ErrorBoundary from "../common/ErrorBoundary.jsx";
 import GlobeIntro from "./memberMap/GlobeIntro.jsx";
 import SatelliteMap from "./memberMap/SatelliteMap.jsx";
 import WardTable from "./memberMap/WardTable.jsx";
@@ -114,8 +115,11 @@ export default function MemberMap() {
     }
   }, [roleType, isAutoRole, locationName, dispatch]);
 
-  // Update master Taluka list whenever a broader GeoJSON with multiple talukas is loaded
+  // Update master Taluka list whenever a broader GeoJSON with multiple talukas is loaded.
+  // For a SuperAdmin who picked a district, the list comes from that district's own
+  // taluka API instead (see handleDistrictSelect), so it never shows another district's taluka.
   useEffect(() => {
+    if (roleType === "superadmin" && selectedDistrict) return;
     if (talukaGeos?.features?.length > 0) {
       const set = new Set();
       talukaGeos.features.forEach((f) => {
@@ -126,6 +130,7 @@ export default function MemberMap() {
         setAllAvailableTalukas(Array.from(set).sort());
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [talukaGeos]);
 
   // Update master Ward list whenever a broader GeoJSON with multiple wards is loaded
@@ -180,20 +185,34 @@ export default function MemberMap() {
       ...(talukaGeos?.features  || []),
       ...(wardGeos?.features    || []),
     ];
-    const poly = candidates.find(
-      (f) => f.geometry?.type === "Polygon" || f.geometry?.type === "MultiPolygon"
-    );
-    if (!poly) return null;
+    // Centre of the bounding box of the first drawable polygon. Walks every
+    // coordinate (any nesting depth) and ignores malformed ones, so a bad
+    // feature can never throw while rendering.
+    let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180, any = false;
+    const walk = (c) => {
+      if (!Array.isArray(c)) return;
+      if (typeof c[0] === "number") {
+        const [x, y] = c;
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+          any = true;
+          if (y < minLat) minLat = y;
+          if (y > maxLat) maxLat = y;
+          if (x < minLng) minLng = x;
+          if (x > maxLng) maxLng = x;
+        }
+        return;
+      }
+      c.forEach(walk);
+    };
+    for (const f of candidates) {
+      if (f?.geometry?.type !== "Polygon" && f?.geometry?.type !== "MultiPolygon") continue;
+      walk(f.geometry.coordinates);
+      if (any) break;
+    }
+    if (!any) return null;
 
-    const rawCoords =
-      poly.geometry.type === "Polygon"
-        ? poly.geometry.coordinates[0]
-        : poly.geometry.coordinates[0][0];
-
-    const lngs = rawCoords.map((c) => c[0]);
-    const lats = rawCoords.map((c) => c[1]);
-    const lat = (Math.min(...lats) + Math.max(...lats)) / 2;
-    const lng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+    const lat = (minLat + maxLat) / 2;
+    const lng = (minLng + maxLng) / 2;
 
     if (!isFinite(lat) || !isFinite(lng)) return null;
     return { lat, lng, name: selectedWard || selectedTaluka || selectedDistrict || locationName || wardInput };
@@ -214,7 +233,25 @@ export default function MemberMap() {
     setSelectedTaluka("");
     setSelectedWard("");
     setSelectedBusiness(null);
+    // Drop the previous district's dropdown options straight away so they can
+    // never be shown (or picked) under the newly selected district.
+    setAllAvailableTalukas([]);
+    setAllAvailableWards([]);
     if (!name) return;
+
+    const districtObj = districts.find((d) => (d.districtName || d.name || d) === name);
+    const districtId = districtObj?.districtId || districtObj?._id || districtObj?.id;
+    if (districtId) {
+      dispatch(fetchTalukasByDistrict(districtId))
+        .unwrap()
+        .then((list) => {
+          const names = (Array.isArray(list) ? list : [])
+            .map((t) => t?.talukaName || t?.name || (typeof t === "string" ? t : ""))
+            .filter(Boolean);
+          setAllAvailableTalukas(Array.from(new Set(names)).sort());
+        })
+        .catch(() => {});
+    }
     dispatch(fetchWardMap({ name, type: "district" }))
       .unwrap()
       .then(() => setPhase("flying"))
@@ -707,6 +744,12 @@ export default function MemberMap() {
 
       {/* Map — explicit height on mobile so it never collapses to 0 */}
       <div className="order-1 lg:order-2 relative isolate overflow-hidden bg-[#0B0F1A] h-[60svh] min-h-[360px] max-h-[620px] lg:h-auto lg:min-h-0 lg:max-h-none">
+        <ErrorBoundary
+          label="Member map"
+          resetKey={`${selectedDistrict}|${selectedTaluka}|${selectedWard}|${fetchType}`}
+          onReset={() => setPhase("idle")}
+          className="absolute inset-0 z-[1200] flex flex-col items-center justify-center gap-2 p-6 text-center bg-[#0B0F1A] text-white"
+        >
         <div
           className="absolute inset-0 transition-opacity duration-[1200ms] ease-out"
           style={{
@@ -773,6 +816,7 @@ export default function MemberMap() {
         )}
 
         <style>{`@keyframes fadeIn { from { opacity:0 } to { opacity:1 } }`}</style>
+        </ErrorBoundary>
       </div>
     </div>
 
